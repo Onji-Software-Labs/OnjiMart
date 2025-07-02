@@ -1,0 +1,1 @@
+// Supplier tabs layout placeholder

@@ -1,0 +1,1 @@
+// Collapsible component placeholder
