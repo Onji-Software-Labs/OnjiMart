@@ -12,6 +12,9 @@ export default function HomeScreen() {
         <Link href="/otpverify" style={styles.link}>
           <ThemedText type="defaultSemiBold">Go to OTP Page</ThemedText>
         </Link>
+        <Link href="/(auth)/BusinessDetailsScreen" style={styles.link}>
+          <ThemedText type="defaultSemiBold">Go to Business details page</ThemedText>
+        </Link>
       </ThemedView>
     </ThemedView>
   );
