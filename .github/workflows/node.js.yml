@@ -1,0 +1,129 @@
+name: OnjiMart Expo CI/CD
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'ONJI/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'ONJI/**'
+
+env:
+  EXPO_CLI_PREVIEW: "1"
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        working-directory: ./ONJI
+        run: npm install
+
+  test:
+    needs: install
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Run tests
+        working-directory: ./ONJI
+        run: npm test
+
+  web:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Build Expo Web
+        working-directory: ./ONJI
+        run: |
+          npx expo export:web
+        env:
+          NODE_OPTIONS: "--openssl-legacy-provider"
+      
+      - name: Upload web artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-build
+          path: ONJI/web-build
+
+  android:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up JDK
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+      
+      - name: Build Android
+        working-directory: ./ONJI
+        run: |
+          echo $ANDROID_KEYSTORE | base64 -d > android/app/upload-keystore.jks
+          npx expo prebuild
+          cd android && ./gradlew assembleRelease
+        env:
+          ANDROID_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          EXPO_NO_GIT_STATUS: "1"
+      
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-app
+          path: ONJI/android/app/build/outputs/apk/release/app-release.apk
+
+  ios:
+    needs: test
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install CocoaPods
+        working-directory: ./ONJI
+        run: |
+          sudo gem install cocoapods
+          cd ios && pod install
+      
+      - name: Build iOS
+        working-directory: ./ONJI
+        run: |
+          npx expo prebuild
+          cd ios
+          xcodebuild -workspace OnjiMart.xcworkspace -scheme OnjiMart -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 15'
+        env:
+          EXPO_NO_GIT_STATUS: "1"
+
+  deploy-web:
+    needs: web
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/download-artifact@v4
+        with:
+          name: web-build
+          path: ./web-build
+      
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./web-build
