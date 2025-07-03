@@ -95,6 +95,7 @@ export default function OTPVerification() {
           onPress: () => {
             // Navigate to next screen (e.g., home or dashboard)
             router.replace("/(auth)/BusinessDetailsScreen"); // Example for retailer
+            // router.replace('/(tabs)/home'); // Example for retailer
           }
         }
       ]);
