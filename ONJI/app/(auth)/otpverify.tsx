@@ -11,10 +11,12 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useLocalSearchParams, router } from 'expo-router';
 
 const { width, height } = Dimensions.get('window');
 
 export default function OTPVerification() {
+  const { phoneNumber } = useLocalSearchParams<{ phoneNumber: string }>();
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [isError, setIsError] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -87,7 +89,15 @@ export default function OTPVerification() {
     const correctOtp = '123456'; // Simulated correct OTP
 
     if (enteredOtp === correctOtp) {
-      Alert.alert('Success', 'OTP verified successfully!');
+      Alert.alert('Success', 'OTP verified successfully!', [
+        {
+          text: 'OK',
+          onPress: () => {
+            // Navigate to next screen (e.g., home or dashboard)
+            router.replace("/(auth)/BusinessDetailsScreen"); // Example for retailer
+          }
+        }
+      ]);
       setIsError(false);
       setErrorMessage('');
     } else {
@@ -115,7 +125,8 @@ export default function OTPVerification() {
   };
 
   const handleChangeNumber = () => {
-    Alert.alert('Change Number', 'This would navigate to change phone number screen');
+    // Navigate back to the create account screen
+    router.back();
   };
 
   return (
@@ -136,14 +147,16 @@ export default function OTPVerification() {
         {/* ONJI Logo Icon */}
         <View style={styles.iconContainer}>
           <Image
-            source={require('@/assets/images/onji_logo.png')}
+            source={require('@/assets/images/onjilogo.png')}
             style={styles.iconLogo}
             resizeMode="contain"
           />
         </View>
 
         {/* Title */}
-        <ThemedText style={styles.title}>Enter the 6 digit code sent via sms</ThemedText>
+        <ThemedText style={styles.title}>
+          Enter the 6 digit code sent via SMS to{'\n'}+91 {phoneNumber}
+        </ThemedText>
 
         {/* OTP Input Boxes */}
         <View style={styles.otpContainer}>
@@ -164,6 +177,7 @@ export default function OTPVerification() {
               keyboardType="numeric"
               maxLength={1}
               selectTextOnFocus
+              textAlign="center"
             />
           ))}
         </View>
@@ -229,16 +243,6 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  logoContainer: {
-    position: 'absolute',
-    top: 70,
-    left: 24,
-    zIndex: 1,
-  },
-  logoImage: {
-    width: 80,
-    height: 40,
-  },
   contentContainer: {
     flex: 1,
     paddingHorizontal: 24,
@@ -254,18 +258,19 @@ const styles = StyleSheet.create({
     height: 80,
   },
   title: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
     textAlign: 'center',
     marginBottom: 32,
     color: '#333',
-    lineHeight: 24,
+    lineHeight: 22,
+    paddingHorizontal: 10,
   },
   otpContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 32,
-    paddingHorizontal: 20,
+    paddingHorizontal: 10,
   },
   otpInput: {
     width: 48,
@@ -278,6 +283,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     backgroundColor: '#fff',
     color: '#333',
+    textAlignVertical: 'center',
   },
   otpInputFilled: {
     borderColor: '#4CAF50',
@@ -301,43 +307,51 @@ const styles = StyleSheet.create({
   actionContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 48,
     paddingHorizontal: 8,
   },
   resendButton: {
-    paddingVertical: 14,
-    paddingHorizontal: 24,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
     borderRadius: 25,
     borderWidth: 1,
-    borderColor: '#DCD0FF', // Light purple border
+    borderColor: '#DCD0FF',
     backgroundColor: 'transparent',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   resendText: {
-    color: '#8E24AA', // Purple text
+    color: '#8E24AA',
     fontSize: 14,
     fontWeight: '500',
+    textAlign: 'center',
   },
   changeNumberButton: {
     paddingVertical: 12,
-    paddingHorizontal: 20,
+    paddingHorizontal: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   changeNumberText: {
     color: '#2196F3',
     fontSize: 14,
     fontWeight: '500',
+    textAlign: 'center',
   },
   disabledButton: {
-    backgroundColor: '#8E24AA', // Solid purple background when disabled
+    backgroundColor: '#8E24AA',
     borderColor: '#8E24AA',
   },
   disabledText: {
-    color: '#FFFFFF', // White text when disabled
+    color: '#FFFFFF',
   },
   continueButton: {
     backgroundColor: '#4CAF50',
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
+    justifyContent: 'center',
     marginHorizontal: 8,
     marginTop: 'auto',
     marginBottom: 34,
@@ -350,6 +364,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     letterSpacing: 0.5,
+    textAlign: 'center',
   },
   continueTextDisabled: {
     color: '#999',

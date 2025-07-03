@@ -17,6 +17,7 @@ import { Formik, FormikProps } from "formik";
 import * as Yup from "yup";
 import FormikTextInput from "../../components/auth/FormikTextInput";
 import RadioInput from "../../components/auth/RadioInput";
+import { router } from "expo-router";
 
 const { height, width } = Dimensions.get("window");
 
@@ -57,7 +58,7 @@ export function BusinessDetailsScreen() {
     <View className="bg-[#FFFFFF] flex-1">
       <View className="mx-7 flex-1 " style={{ paddingBottom: insets.bottom }}>
         <SafeAreaView>
-          <Pressable>
+          <Pressable onPress={()=>router.back()}>
             <Image
               source={require("../../assets/images/Onji Mart/auth/arrow_back.png")}
               className="w-[28px] h[24px]"
