@@ -1,37 +1,40 @@
-Sure! Here's the same **Bookstore API Documentation** formatted as a GitHub `README.md` file:
+Sure! Here's a **simple API documentation example** for a **Bookstore API**, written in a common REST API format:
 
 ---
 
-```markdown
-# 📚 Bookstore API
+# 📚 Bookstore API Documentation
 
-A simple RESTful API for managing books in a bookstore.
+Base URL: `https://api.example.com/v1`
 
-## 🔐 Authentication
+## Authentication
 
-All requests must include the following header:
+All endpoints require an API key in the header.
 
 ```
-
-Authorization: Bearer YOUR\_API\_KEY
-
-````
+Authorization: Bearer YOUR_API_KEY
+```
 
 ---
 
-## 📖 GET `/books`
+## 📖 GET /books
 
-Retrieve a list of all books.
+**Description:** Retrieves a list of all books.
 
-### 🔹 Query Parameters
+**Request:**
 
-| Parameter | Type   | Description                      |
-|-----------|--------|----------------------------------|
-| `author`  | string | Filter books by author           |
-| `limit`   | number | Number of results to return      |
-| `offset`  | number | Pagination offset                |
+```http
+GET /books
+```
 
-### ✅ Response
+**Query Parameters:**
+
+| Name   | Type   | Description                 |
+| ------ | ------ | --------------------------- |
+| author | string | Filter by author name       |
+| limit  | number | Number of results to return |
+| offset | number | Pagination offset           |
+
+**Response:**
 
 ```json
 {
@@ -45,15 +48,21 @@ Retrieve a list of all books.
   ],
   "total": 1
 }
-````
+```
 
 ---
 
-## 📘 GET `/books/:id`
+## 📘 GET /books/\:id
 
-Retrieve details of a specific book.
+**Description:** Retrieves details of a specific book.
 
-### ✅ Response
+**Request:**
+
+```http
+GET /books/1
+```
+
+**Response:**
 
 ```json
 {
@@ -67,11 +76,18 @@ Retrieve details of a specific book.
 
 ---
 
-## ➕ POST `/books`
+## ➕ POST /books
 
-Add a new book to the store.
+**Description:** Adds a new book to the store.
 
-### 📝 Request Body
+**Request:**
+
+```http
+POST /books
+Content-Type: application/json
+```
+
+**Body:**
 
 ```json
 {
@@ -81,7 +97,7 @@ Add a new book to the store.
 }
 ```
 
-### ✅ Response
+**Response:**
 
 ```json
 {
@@ -92,11 +108,17 @@ Add a new book to the store.
 
 ---
 
-## 🗑️ DELETE `/books/:id`
+## 🗑️ DELETE /books/\:id
 
-Delete a book by ID.
+**Description:** Deletes a book by ID.
 
-### ✅ Response
+**Request:**
+
+```http
+DELETE /books/1
+```
+
+**Response:**
 
 ```json
 {
@@ -106,19 +128,4 @@ Delete a book by ID.
 
 ---
 
-## 🛠️ Base URL
-
-```
-https://api.example.com/v1
-```
-
----
-
-## 📞 Support
-
-For support or questions, contact [support@example.com](mailto:support@example.com)
-
-```
-
-Let me know if you'd like to add sections for error handling, rate limiting, Swagger UI, or SDK usage examples.
-```
+Would you like this example in Swagger/OpenAPI format or as a Markdown file?
