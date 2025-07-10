@@ -21,7 +21,7 @@ import com.sattva.model.RefreshToken;
 import com.sattva.model.User;
 import com.sattva.repository.UserRepository;
 import com.sattva.security.JwtHelper;
-import com.sattva.service.AuthenticationService;
+// import com.sattva.service.AuthenticationService;
 import com.sattva.service.RefreshTokenService;
 import com.sattva.service.SmsService;
 import com.sattva.service.UserService;
@@ -44,8 +44,8 @@ public class AuthController {
     @Autowired
     private UserService userService;
 
-    @Autowired
-    private AuthenticationService authenticationService;
+    // @Autowired
+    // private AuthenticationService authenticationService;
 
     @PostMapping("/send-otp")
     public OTPLessResponse sendOtp(@RequestBody CreateUserDTO userDto) {
@@ -79,7 +79,7 @@ public class AuthController {
         System.out.println("Received otpNumber: " + loginRequestDTO.getOtpNumber());
         System.out.println("Received phoneNumber: " + loginRequestDTO.getPhoneNumber());
 
-        boolean isValid = authenticationService.validatePhoneNumberAndOtpLess(
+        boolean isValid = smsService.validatePhoneNumberAndOtpLess(
             loginRequestDTO.getOrderId(),
             loginRequestDTO.getOtpNumber(),
             loginRequestDTO.getPhoneNumber()
@@ -94,7 +94,7 @@ public class AuthController {
                 String userId = user.getId(); // Get userId from the User entity
 
                 // Generate JWT token and refresh token
-                String jwtToken = authenticationService.generateToken(loginRequestDTO.getPhoneNumber(), userId);
+                String jwtToken = smsService.generateToken(loginRequestDTO.getPhoneNumber(), userId);
                 String refreshToken = refreshTokenService.createRefreshToken(user).getToken();
 
                 // Return both tokens in LoginResponseDTO
