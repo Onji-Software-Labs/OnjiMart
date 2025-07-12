@@ -1,6 +1,7 @@
 /** @type {import('tailwindcss').Config} */
 
-const tailwindTheme = require("./tailwind-tokens-parser");
+
+const staticTheme=require("./tailwind-theme-static")
 
 module.exports = {
   content: [
@@ -11,10 +12,7 @@ module.exports = {
   presets: [require("nativewind/preset")],
   theme: {
     extend: {
-      ...tailwindTheme,
-      fontFamily: {
-        ...tailwindTheme.fontFamily,
-      },
+      ...staticTheme,
     },
   },
   plugins: [],

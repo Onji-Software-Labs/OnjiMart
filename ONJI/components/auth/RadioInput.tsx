@@ -19,14 +19,14 @@ const RadioInput = ({ label, radioState, handleMethod }: RadioLabelType) => {
           <View className=" rounded-2xl border-2 w-full h-full justify-center items-center">
             {radioState === label && (
               <View
-                className="rounded-3xl bg-[#2E7D32] "
+                className="rounded-3xl bg-text-action "
                 style={{ width: 15, height: 15 }}
               ></View>
             )}
           </View>
         </View>
         <View className="mx-2">
-          <Text className="text-xl font-normal">{label}</Text>
+          <Text className="text-xl font-primary">{label}</Text>
         </View>
       </View>
     </Pressable>
