@@ -7,7 +7,7 @@ import {
   View,
   Image,
 } from "react-native";
-import React, { Component, useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   SafeAreaView,
   useSafeAreaInsets,
@@ -21,9 +21,14 @@ import { router } from "expo-router";
 
 const { height, width } = Dimensions.get("window");
 
+// ✅ Fixed interface to include all form fields
 interface formValues {
-  radioState: string;
+  fullName: string;
+  businessAddress: string;
+  businessName: string;
+  city: string;
   pinCode: string;
+  radioState: string;
 }
 
 const formSchema = Yup.object({
@@ -44,8 +49,6 @@ export function BusinessDetailsScreen() {
   };
 
   const insets = useSafeAreaInsets();
-  const [btnDisable, setBtnDisable] = useState(false);
-
   const formikRef = useRef<FormikProps<formValues>>(null);
 
   useEffect(() => {
@@ -54,38 +57,54 @@ export function BusinessDetailsScreen() {
     }
   }, [radioState]);
 
+  
+  const handleFormSubmit = (values: formValues) => {
+    console.log(values);
+    
+    // Navigate based on user selection
+    if (values.radioState === "Supplier") {
+      router.replace("/(supplier)/(tabs)/dashboard");
+    } else if (values.radioState === "Retailer") {
+      router.replace("/(retailer)/(tabs)/home");
+    }
+  };
+
   return (
     <View className="bg-surface-page flex-1">
       <View className="mx-7 flex-1 " style={{ paddingBottom: insets.bottom }}>
         <SafeAreaView>
+
           <Pressable onPress={() => router.back()}>
             <Image
               source={require("../../assets/images/Onji Mart/auth/arrow_back.png")}
-              className="w-[28px] h[24px]"
-            ></Image>
+              className="w-[28px] h-[24px]"
+            />
           </Pressable>
+
           <View className="mt-5">
             <Text className="text-text-headings font-primarymedium text-heading-h5">
               Are you a supplier or retailer?
             </Text>
           </View>
         </SafeAreaView>
-        <View
-          className="flex-row justify-between"
-          style={{ height: height * 0.04 }}
-        >
-          <RadioInput
-            handleMethod={handlePress}
-            label={"Supplier"}
-            radioState={radioState}
-          ></RadioInput>
-          <RadioInput
-            handleMethod={handlePress}
-            label={"Retailer"}
-            radioState={radioState}
-          ></RadioInput>
-        </View>
-        <View className=" flex-1 ">
+
+        <View className="flex-1">
+          <View
+            className="flex-row justify-between mt-6"
+            style={{ height: height * 0.04 }}
+          >
+            <RadioInput
+              handleMethod={handlePress}
+              label={"Supplier"}
+              radioState={radioState}
+            />
+            <RadioInput
+              handleMethod={handlePress}
+              label={"Retailer"}
+              radioState={radioState}
+            />
+          </View>
+
           <Formik
             innerRef={formikRef}
             initialValues={{
@@ -98,7 +117,7 @@ export function BusinessDetailsScreen() {
             }}
             validateOnMount
             validateOnChange
-            onSubmit={(values) => console.log(values)}
+            onSubmit={handleFormSubmit}
             validationSchema={formSchema}
           >
             {({
@@ -109,29 +128,27 @@ export function BusinessDetailsScreen() {
               touched,
               isValid,
               errors,
-            }) => {
-              return (
-                <>
-                  <View className="flex-column  justify-between flex-1 ">
-                    <View>
-                      <FormikTextInput
-                        name="fullName"
-                        fieldName="Full Name"
-                        placeholder="Enter your name"
-                        keyboardType="default"
-                      ></FormikTextInput>
-                      <FormikTextInput
-                        name="businessAddress"
-                        fieldName="Business Address"
-                        placeholder="Business address"
-                        keyboardType="default"
-                      ></FormikTextInput>
-                      <FormikTextInput
-                        name="businessName"
-                        fieldName="Business Name"
-                        placeholder="Business name"
-                        keyboardType="default"
-                      ></FormikTextInput>
+            }) => (
+              <View className="flex-1 justify-between">
+                <View className="mt-6">
+                  <FormikTextInput
+                    name="fullName"
+                    fieldName="Full Name"
+                    placeholder="Enter your name"
+                    keyboardType="default"
+                  />
+                  <FormikTextInput
+                    name="businessAddress"
+                    fieldName="Business Address"
+                    placeholder="Business address"
+                    keyboardType="default"
+                  />
+                  <FormikTextInput
+                    name="businessName"
+                    fieldName="Business Name"
+                    placeholder="Business name"
+                    keyboardType="default"
+                  />
 
                       <View className="mt-[22px] flex-row justify-between">
                         <View style={{ marginTop: -22, width: "49.5%" }}>
@@ -175,7 +192,9 @@ export function BusinessDetailsScreen() {
                             ></TextInput>
                           </View>
                         </View>
+
                       </View>
+                      
                       {errors.pinCode && touched.pinCode && (
                         <View>
                           <Text className="text-text-error">
@@ -201,10 +220,11 @@ export function BusinessDetailsScreen() {
                         </Text>
                       </Pressable>
                     </View>
+
                   </View>
-                </>
-              );
-            }}
+
+                
+            )}
           </Formik>
         </View>
       </View>

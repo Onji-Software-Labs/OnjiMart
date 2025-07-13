@@ -13,6 +13,7 @@ module.exports = {
   theme: {
     extend: {
       ...staticTheme,
+
     },
   },
   plugins: [],
