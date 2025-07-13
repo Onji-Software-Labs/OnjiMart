@@ -127,7 +127,11 @@ public class AuthController {
     
     @PostMapping("/logout")
     public ResponseEntity<?> logout(@RequestBody LogoutRequest request) {
-    	userService.logoutUser(request.getUserId());
-        return ResponseEntity.ok("Logout successful");
+        boolean result = userService.logoutUser(request.getRefreshToken());
+        if (result) {
+            return ResponseEntity.ok("Logout successful");
+        } else {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Invalid or expired refresh token");
+        }
     }
 }
