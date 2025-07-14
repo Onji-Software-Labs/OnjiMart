@@ -87,7 +87,7 @@ export function BusinessDetailsScreen() {
           </View>
         </SafeAreaView>
 
-        <View className="flex-1 mx-7">
+        <View className="flex-1">
           <View
             className="flex-row justify-between mt-6"
             style={{ height: height * 0.04 }}
@@ -129,7 +129,7 @@ export function BusinessDetailsScreen() {
               errors,
             }) => (
               <View className="flex-1 justify-between">
-                <View className="mt-6">
+                <View className="">
                   <FormikTextInput
                     name="fullName"
                     fieldName="Full Name"
@@ -177,7 +177,7 @@ export function BusinessDetailsScreen() {
                                     ? "#F44336" // error color when touched and error exists
                                     : "#4CAF50",
                               }}
-                              placeholderTextColor={errors.pinCode && touched.pinCode ? "#F44336" : "#92999E"}
+                              placeholderTextColor={errors.pinCode && touched.pinCode ? "#F44336" : "#AAB2B8"}
                               value={values.pinCode}
                               onChangeText={handleChange("pinCode")}
                               onFocus={() =>
@@ -199,7 +199,7 @@ export function BusinessDetailsScreen() {
                           </Text>
                         </View>
                       )}
-                    </View>
+                      </View>
                     <View>
                       <Pressable
                         className="justify-center rounded-[12px] items-center h-[60] "
@@ -217,10 +217,11 @@ export function BusinessDetailsScreen() {
                         </Text>
                       </Pressable>
                     </View>
-                  </View>
-                </>
-              );
-            }}
+                    
+
+
+              </View>
+            )}
           </Formik>
         </View>
       </View>

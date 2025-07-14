@@ -100,6 +100,7 @@ export default function OTPVerification() {
       //     }
       //   }
       // ]);
+
       setIsError(false);
       setErrorMessage('');
     } else {

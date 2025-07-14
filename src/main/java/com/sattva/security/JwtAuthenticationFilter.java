@@ -34,14 +34,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
 
-        String path = request.getRequestURI();
-
-        // List all endpoints that should NOT require authentication
-        if (path.startsWith("/api/auth/")) {
-            filterChain.doFilter(request, response); // Skip JWT check
-            return;
-        }
-
         String requestHeader = request.getHeader("Authorization");
         logger.info("Authorization Header: {}", requestHeader);
 
