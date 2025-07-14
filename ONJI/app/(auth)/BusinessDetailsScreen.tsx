@@ -87,7 +87,7 @@ export function BusinessDetailsScreen() {
           </View>
         </SafeAreaView>
 
-        <View className="flex-1 mx-7">
+        <View className="flex-1">
           <View
             className="flex-row justify-between mt-6"
             style={{ height: height * 0.04 }}
@@ -218,9 +218,8 @@ export function BusinessDetailsScreen() {
                       </Pressable>
                     </View>
                   </View>
-                </>
-              );
-            }}
+              )
+            }
           </Formik>
         </View>
       </View>
