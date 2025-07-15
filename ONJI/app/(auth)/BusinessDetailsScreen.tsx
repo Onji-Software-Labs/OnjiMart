@@ -70,9 +70,9 @@ export function BusinessDetailsScreen() {
   };
 
   return (
-    <View className="bg-[#FFFFFF] flex-1">
-      <View className="flex-1" style={{ paddingBottom: insets.bottom }}>
-        <SafeAreaView className="mx-7">
+    <View className="bg-surface-page flex-1">
+      <View className="mx-7 flex-1 " style={{ paddingBottom: insets.bottom }}>
+        <SafeAreaView>
           <Pressable onPress={() => router.back()}>
             <Image
               source={require("../../assets/images/Onji Mart/auth/arrow_back.png")}
@@ -81,16 +81,13 @@ export function BusinessDetailsScreen() {
           </Pressable>
 
           <View className="mt-5">
-            <Text
-              className="text-[#242525] font-poppins font-medium"
-              style={{ fontSize: 20 }}
-            >
+            <Text className="text-text-headings font-primarymedium text-heading-h5">
               Are you a supplier or retailer?
             </Text>
           </View>
         </SafeAreaView>
 
-        <View className="flex-1 mx-7">
+        <View className="flex-1">
           <View
             className="flex-row justify-between mt-6"
             style={{ height: height * 0.04 }}
@@ -118,6 +115,7 @@ export function BusinessDetailsScreen() {
               radioState: radioState,
             }}
             validateOnMount
+            validateOnChange
             onSubmit={handleFormSubmit}
             validationSchema={formSchema}
           >
@@ -151,72 +149,77 @@ export function BusinessDetailsScreen() {
                     keyboardType="default"
                   />
 
-                  <View className="mt-[22px] flex-row justify-between">
-                    <View style={{ marginTop: -22, width: "49.5%" }}>
-                      <FormikTextInput
-                        name="city"
-                        fieldName="City"
-                        placeholder="City"
-                        keyboardType="default"
-                      />
-                    </View>
-
-                    <View className="w-[49.5%]">
-                      <View className="h-[22px]">
-                        <Text
-                          className={`text-sm ${
-                            errors.pinCode && touched.pinCode
-                              ? "text-[#FF0000]"
-                              : "text-[#2E7D32]"
-                          }`}
-                          style={{ fontWeight: "500" }}
-                        >
-                          Pincode
-                        </Text>
+                      <View className="mt-[22px] flex-row justify-between">
+                        <View style={{ marginTop: -22, width: "49.5%" }}>
+                          <FormikTextInput
+                            name="city"
+                            fieldName="City"
+                            placeholder="City"
+                            keyboardType="default"
+                          ></FormikTextInput>
+                        </View>
+                        <View className="w-[49.5%]">
+                          <View className="h-[22px] ">
+                            <Text
+                              className={`text-sm ${errors.pinCode && touched.pinCode ? "text-text-error" : "text-text-action"} font-primarymedium`}
+                            >
+                              Pincode
+                            </Text>
+                          </View>
+                          <View>
+                            <TextInput
+                              placeholder="Pincode"
+                              className={`h-[44px] font-primary focus:outline-none bg-surface-pressed  border-xs rounded-md px-[12] py-[11px]"`}
+                              style={{
+                                borderColor: !touched.pinCode
+                                  ? "#AAB2B8"
+                                  : errors.pinCode
+                                    ? "#F44336" // error color when touched and error exists
+                                    : "#4CAF50",
+                              }}
+                              placeholderTextColor={errors.pinCode && touched.pinCode ? "#F44336" : "#92999E"}
+                              value={values.pinCode}
+                              onChangeText={handleChange("pinCode")}
+                              onFocus={() =>
+                                formikRef.current?.setFieldTouched(
+                                  "pinCode",
+                                  true
+                                )
+                              }
+                              onBlur={handleBlur("pinCode")}
+                              keyboardType="numeric"
+                            ></TextInput>
+                          </View>
+                        </View>
                       </View>
-                      <TextInput
-                        placeholder="Pincode"
-                        className={`h-[44px] font-poppins border bg-[#F7F8F8] rounded-[4px] px-[12] py-[11] ${
-                          errors.pinCode && touched.pinCode
-                            ? "border-[#FF0000] text-[#FF0000]"
-                            : "border-[#2E7D32]"
-                        }`}
-                        placeholderTextColor={"#92999E"}
-                        value={values.pinCode}
-                        onChangeText={handleChange("pinCode")}
-                        onBlur={handleBlur("pinCode")}
-                        keyboardType="numeric"
-                      />
                       {errors.pinCode && touched.pinCode && (
-                        <Text className="text-[#FF0000]">{errors.pinCode}</Text>
+                        <View>
+                          <Text className="text-text-error">
+                            {errors.pinCode}
+                          </Text>
+                        </View>
                       )}
                     </View>
+                    <View>
+                      <Pressable
+                        className="justify-center rounded-[12px] items-center h-[60] "
+                        disabled={!isValid}
+                        style={{
+                          backgroundColor: isValid ? "#4CAF50" : "#E0E0E0",
+                        }}
+                        onPress={() => handleSubmit()}
+                      >
+                        <Text
+                          className="text-[20px]  font-primarysemibold"
+                          style={{ color: isValid ? "#F3FAF3" : "#AAB2B8" }}
+                        >
+                          Continue
+                        </Text>
+                      </Pressable>
+                    </View>
                   </View>
-                </View>
-
-                <View className="w-full pb-6">
-                  <Pressable
-                    disabled={!isValid}
-                    onPress={() => handleSubmit()}
-                    className={`w-full rounded-[12px] ${
-                      isValid ? "bg-[#2E7D32]" : "bg-[#B9BDC0]"
-                    }`}
-                    style={{
-                      paddingVertical: 16,
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    <Text
-                      className="text-[18px] font-semibold"
-                      style={{ color: isValid ? "#F3FAF3" : "#92999E" }}
-                    >
-                      Continue
-                    </Text>
-                  </Pressable>
-                </View>
-              </View>
-            )}
+              )
+            }
           </Formik>
         </View>
       </View>

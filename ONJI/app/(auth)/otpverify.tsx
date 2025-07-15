@@ -89,16 +89,17 @@ export default function OTPVerification() {
     const correctOtp = '123456'; // Simulated correct OTP
 
     if (enteredOtp === correctOtp) {
-      Alert.alert('Success', 'OTP verified successfully!', [
-        {
-          text: 'OK',
-          onPress: () => {
-            // Navigate to next screen (e.g., home or dashboard)
-            router.replace('/BusinessDetailsScreen'); // Example for retailer
-            // router.replace('/(tabs)/home'); // Example for retailer
-          }
-        }
-      ]);
+      router.replace("/(auth)/BusinessDetailsScreen");
+      // Alert.alert('Success', 'OTP verified successfully!', [
+      //   {
+      //     text: 'OK',
+      //     onPress: () => {
+      //       // Navigate to next screen (e.g., home or dashboard)
+      //       router.replace("/(auth)/BusinessDetailsScreen"); // Example for retailer
+      //       // router.replace('/(tabs)/home'); // Example for retailer
+      //     }
+      //   }
+      // ]);
       setIsError(false);
       setErrorMessage('');
     } else {
