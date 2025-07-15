@@ -71,6 +71,7 @@ public class SmsServiceImpl implements SmsService {
     public OTPLessResponse sendOtp(CreateUserDTO userDto, boolean userExists, String userId, String userName, String fullName, boolean userOnboardingStatus) {
         String phoneNumber = userDto.getPhoneNumber();
         String otp = generateOtp(); // implement this method to generate a 6-digit OTP
+        otpMap.put(phoneNumber, Integer.valueOf(otp));
 
         RestTemplate restTemplate = new RestTemplate();
         HttpHeaders headers = new HttpHeaders();
@@ -101,13 +102,12 @@ public class SmsServiceImpl implements SmsService {
         try {
             ResponseEntity<String> response = restTemplate.postForEntity(url, entity, String.class);
             if (response.getStatusCode().is2xxSuccessful()) {
-                otpMap.put(phoneNumber, Integer.valueOf(otp));
-                return new OTPLessResponse(OtpStatus.DELIVERED, "OTP sent via WhatsApp", userExists, null, userId, userName, fullName, userOnboardingStatus);
+                return new OTPLessResponse(OtpStatus.DELIVERED, "OTP sent via WhatsApp", userExists, null, otp, userName, fullName, userOnboardingStatus);
             } else {
-                return new OTPLessResponse(OtpStatus.FAILED, "Failed to send OTP via WhatsApp", userExists, null, userId, userName, fullName, userOnboardingStatus);
+                return new OTPLessResponse(OtpStatus.FAILED, "Failed to send OTP via WhatsApp", userExists, null, otp, userName, fullName, userOnboardingStatus);
             }
         } catch (Exception e) {
-            return new OTPLessResponse(OtpStatus.FAILED, "Error: " + e.getMessage(), userExists, null, userId, userName, fullName, userOnboardingStatus);
+            return new OTPLessResponse(OtpStatus.FAILED, "Error: " + e.getMessage(), userExists, null, otp, userName, fullName, userOnboardingStatus);
         }
     }
 
