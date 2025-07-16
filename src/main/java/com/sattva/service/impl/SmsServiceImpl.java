@@ -102,12 +102,12 @@ public class SmsServiceImpl implements SmsService {
         try {
             ResponseEntity<String> response = restTemplate.postForEntity(url, entity, String.class);
             if (response.getStatusCode().is2xxSuccessful()) {
-                return new OTPLessResponse(OtpStatus.DELIVERED, "OTP sent via WhatsApp", userExists, null, otp, userName, fullName, userOnboardingStatus);
+                return new OTPLessResponse(OtpStatus.DELIVERED, "OTP sent via WhatsApp", userExists, otp, userId, userName, fullName, userOnboardingStatus);
             } else {
-                return new OTPLessResponse(OtpStatus.FAILED, "Failed to send OTP via WhatsApp", userExists, null, otp, userName, fullName, userOnboardingStatus);
+                return new OTPLessResponse(OtpStatus.FAILED, "Failed to send OTP via WhatsApp", userExists, otp, userId, userName, fullName, userOnboardingStatus);
             }
         } catch (Exception e) {
-            return new OTPLessResponse(OtpStatus.FAILED, "Error: " + e.getMessage(), userExists, null, otp, userName, fullName, userOnboardingStatus);
+            return new OTPLessResponse(OtpStatus.FAILED, "Error: " + e.getMessage(), userExists, otp, userId, userName, fullName, userOnboardingStatus);
         }
     }
 

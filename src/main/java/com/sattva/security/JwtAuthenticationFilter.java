@@ -47,13 +47,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String token = null;
         String phoneNumber = null;
+        String userId = null;
 
         if (requestHeader != null && requestHeader.startsWith("Bearer ")) {
             token = requestHeader.substring(7);
             logger.info("JWT Token: {}", token);
             try {
                 phoneNumber = jwtHelper.getPhoneNumberFromToken(token);
-                String userId = jwtHelper.getUserIdFromToken(token); // Log user ID if needed
+                userId = jwtHelper.getUserIdFromToken(token); // Log user ID if needed
                 logger.info("Extracted phoneNumber: {}, userId: {}", phoneNumber, userId);
             } catch (Exception e) {
                 logger.warn("Token validation error: {}", e.getMessage());
