@@ -144,8 +144,8 @@ public class UserServiceImpl implements UserService {
 
 	@Override
 	@Transactional
-    public boolean logoutUser(String refreshToken) {
-        Optional<RefreshToken> existingToken = refreshTokenRepository.findByToken(refreshToken);
+    public boolean logoutUser(String userId) {
+        Optional<RefreshToken> existingToken = refreshTokenRepository.findByUserId(userId);
         if (existingToken.isPresent()) {
             refreshTokenRepository.delete(existingToken.get());
             return true;
