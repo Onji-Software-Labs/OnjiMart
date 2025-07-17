@@ -9,14 +9,32 @@ import jakarta.persistence.Table;
 
 import java.util.List;
 
-@Entity
-@DiscriminatorValue("RETAILER")
-@Table(name = "retailers")
-public class Retailer extends User {
 
+import jakarta.persistence.*;
+import lombok.*;
+import java.io.Serial;
+import java.io.Serializable;
+import java.util.List;
+
+@Entity
+@Table(name = "retailers")
+@Getter
+@Setter
+@AllArgsConstructor
+@NoArgsConstructor
+public class Retailer implements Serializable {
+
+    @Serial
     private static final long serialVersionUID = 1L;
 
-    @OneToMany(mappedBy = "retailer", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<Shop> shops; // Retailer may own multiple shops
+    @Id
+    private String id;  // Same as User ID
 
+    @OneToOne
+    @MapsId
+    @JoinColumn(name = "id") // foreign key to 'users.id'
+    private User user;
+
+    @OneToMany(mappedBy = "retailer", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Shop> shops;
 }
