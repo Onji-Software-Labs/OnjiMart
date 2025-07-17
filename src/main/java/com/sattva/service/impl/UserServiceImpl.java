@@ -4,13 +4,16 @@ import com.sattva.dto.CreateUserDTO;
 import com.sattva.dto.UserDTO;
 import com.sattva.enums.RoleName;
 import com.sattva.enums.UserStatus;
+import com.sattva.enums.UserType;
 import com.sattva.model.RefreshToken;
 import com.sattva.model.Retailer;
 import com.sattva.model.Role;
 import com.sattva.model.Supplier;
 import com.sattva.model.User;
 import com.sattva.repository.RefreshTokenRepository;
+import com.sattva.repository.RetailerRepository;
 import com.sattva.repository.RoleRepository;
+import com.sattva.repository.SupplierRepository;
 import com.sattva.repository.UserRepository;
 import com.sattva.service.UserService;
 
@@ -39,33 +42,26 @@ public class UserServiceImpl implements UserService {
     
     @Autowired
     RoleRepository roleRepository;
+
+    @Autowired
+    private SupplierRepository supplierRepository;
+
+    @Autowired
+    private RetailerRepository retailerRepository;
     
     @Override
     public CreateUserDTO createUser(CreateUserDTO userDto) {
-        User user;
-        if (userDto.isSupplier()) {
-            user = new Supplier();
-        } else {
-            user = new Retailer();
-        }
-
+        User user = new User();
         user.setId(UUID.randomUUID().toString());
-        user.setUsername(userDto.getUserNames());
-        user.setFullName(userDto.getFullName());
         user.setPhoneNumber(userDto.getPhoneNumber());
-        user.setEmail(userDto.getEmail());
         user.setUserOnboardingStatus(false);
 
-        // Save the user entity to the database
+        // Save to DB
         User savedUser = userRepository.save(user);
 
-        // Convert the saved User entity back to a DTO
         CreateUserDTO responseDto = new CreateUserDTO();
         responseDto.setId(savedUser.getId());
-        responseDto.setUserNames(savedUser.getUsername());
-        responseDto.setFullName(savedUser.getFullName());
         responseDto.setPhoneNumber(savedUser.getPhoneNumber());
-        responseDto.setEmail(savedUser.getEmail());
         responseDto.setUserOnboardingStatus(savedUser.isUserOnboardingStatus());
 
         return responseDto;
@@ -87,41 +83,56 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Transactional
     public UserDTO updateUser(String userId, UserDTO userDTO) {
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new RuntimeException("User not found with id: " + userId));
 
-        // Update basic user fields
         user.setUsername(userDTO.getUsername());
         user.setEmail(userDTO.getEmail());
+        user.setPassword(userDTO.getPassword()); 
         user.setUserType(userDTO.getUserType());
         user.setStatus(userDTO.getStatus());
+        user.setUserOnboardingStatus(userDTO.isOnboardingStatus());
 
-        // Update roles if provided
         if (userDTO.getRoles() != null && !userDTO.getRoles().isEmpty()) {
             Set<Role> updatedRoles = new HashSet<>();
-
             for (String roleNameStr : userDTO.getRoles()) {
                 try {
-                    // Assuming RoleName is an Enum representing role names
                     RoleName roleNameEnum = RoleName.valueOf(roleNameStr);
-                    
-                    // Find the Role by name using the RoleName enum
                     Role role = roleRepository.findByName(roleNameEnum)
                         .orElseThrow(() -> new RuntimeException("Role not found: " + roleNameStr));
-                    
                     updatedRoles.add(role);
                 } catch (IllegalArgumentException e) {
                     throw new RuntimeException("Invalid role name provided: " + roleNameStr);
                 }
             }
-
             user.setRoles(updatedRoles);
         }
 
+        // Save updated user
         User updatedUser = userRepository.save(user);
+
+        if (userDTO.getUserType() == UserType.SUPPLIER) {
+            if (!supplierRepository.existsById(userId)) {
+                Supplier supplier = new Supplier();
+                supplier.setUser(user);  // set the actual user object
+                supplierRepository.save(supplier);
+            }
+            retailerRepository.deleteById(userId);
+        } else if (userDTO.getUserType() == UserType.RETAILER) {
+            if (!retailerRepository.existsById(userId)) {
+                Retailer retailer = new Retailer();
+                retailer.setUser(user);  // set the actual user object
+                retailerRepository.save(retailer);
+            }
+            supplierRepository.deleteById(userId);
+        }
+
         return mapToDTO(updatedUser);
     }
+
+
     @Override
     public void deleteUser(String userId) {
         User user = userRepository.findById(userId)
