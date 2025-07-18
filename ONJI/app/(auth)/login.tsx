@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LogBox } from 'react-native';
+import { LogBox, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
   StyleSheet,
@@ -14,6 +14,7 @@ import {
   KeyboardAvoidingView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import axiosInstance from '@/lib/api/axiosConfig';
 
 LogBox.ignoreLogs([
   'Invalid prop `style` supplied to `React.Fragment`',
@@ -22,6 +23,7 @@ LogBox.ignoreLogs([
 export default function CreateAccount() {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [isValid, setIsValid] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
   const validatePhoneNumber = (number: string) => {
@@ -39,12 +41,25 @@ export default function CreateAccount() {
     }
   };
 
-  const handleContinue = () => {
-    if (isButtonActive) {
+  const handleContinue = async () => {
+    if (!isButtonActive || isLoading) return;
+    setIsLoading(true);
+    const fullPhoneNumber = '+91' + phoneNumber;
+
+    try {
+      // Use your axiosInstance to ensure custom headers are sent
+      await axiosInstance.post('/api/auth/send-otp', {
+        phoneNumber: fullPhoneNumber,
+      });
+
       router.push({
         pathname: '/otpverify',
-        params: { phoneNumber }
+        params: { phoneNumber: fullPhoneNumber }
       });
+    } catch (e) {
+      Alert.alert("Error", "Failed to send OTP. Please try again.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -107,7 +122,7 @@ export default function CreateAccount() {
               styles.continueButton,
               isButtonActive ? styles.continueButtonActive : styles.continueButtonDisabled
             ]}
-            disabled={!isButtonActive}
+            disabled={!isButtonActive || isLoading}
             activeOpacity={0.8}
             onPress={handleContinue}
           >
@@ -115,7 +130,7 @@ export default function CreateAccount() {
               styles.continueButtonText,
               isButtonActive ? styles.continueButtonTextActive : styles.continueButtonTextDisabled
             ]}>
-              Continue
+              {isLoading ? "Please wait..." : "Continue"}
             </Text>
           </TouchableOpacity>
         </View>
@@ -123,6 +138,9 @@ export default function CreateAccount() {
     </SafeAreaView>
   );
 }
+
+
+
 
 const styles = StyleSheet.create({
   container: {

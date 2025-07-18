@@ -12,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
+import axiosInstance from '@/lib/api/axiosConfig';
 
 const { width, height } = Dimensions.get('window');
 
@@ -23,10 +24,9 @@ export default function OTPVerification() {
   const [resendDisabled, setResendDisabled] = useState(true);
   const [countdown, setCountdown] = useState(30);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
-  
+  const [isVerifying, setIsVerifying] = useState(false);
   const inputRefs = useRef<TextInput[]>([]);
 
-  // Countdown timer for resend button
   useEffect(() => {
     if (countdown > 0) {
       const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
@@ -36,7 +36,6 @@ export default function OTPVerification() {
     }
   }, [countdown, resendDisabled]);
 
-  // Hide success message after 3 seconds
   useEffect(() => {
     if (showSuccessMessage) {
       const timer = setTimeout(() => setShowSuccessMessage(false), 3000);
@@ -45,20 +44,14 @@ export default function OTPVerification() {
   }, [showSuccessMessage]);
 
   const handleOtpChange = (value: string, index: number) => {
-    // Only allow single digit
     if (value.length > 1) return;
-    
     const newOtp = [...otp];
     newOtp[index] = value;
     setOtp(newOtp);
-    
-    // Clear error state when user starts typing
     if (isError) {
       setIsError(false);
       setErrorMessage('');
     }
-
-    // Auto focus next input
     if (value && index < 5) {
       inputRefs.current[index + 1]?.focus();
     } else if (value && index === 5) {
@@ -67,7 +60,6 @@ export default function OTPVerification() {
   };
 
   const handleKeyPress = (key: string, index: number) => {
-    // Handle backspace
     if (key === 'Backspace' && !otp[index] && index > 0) {
       inputRefs.current[index - 1]?.focus();
     }
@@ -75,67 +67,60 @@ export default function OTPVerification() {
 
   const isOtpComplete = otp.every(digit => digit !== '');
 
-  const handleContinue = () => {
-    if (!isOtpComplete) {
+  const handleContinue = async () => {
+    if (!isOtpComplete || isVerifying) {
       setIsError(true);
       setErrorMessage('Please enter the complete 6-digit code.');
       setOtp(['', '', '', '', '', '']);
       inputRefs.current[0]?.focus();
       return;
     }
-
-    // Simulate OTP verification
+    setIsVerifying(true);
     const enteredOtp = otp.join('');
-    const correctOtp = '123456'; // Simulated correct OTP
+    try {
+      
+      await axiosInstance.post('/api/auth/login', {
+        phoneNumber: phoneNumber,
+        otpNumber: enteredOtp,
+      });
 
-    if (enteredOtp === correctOtp) {
-      router.replace("/(auth)/BusinessDetailsScreen");
-      // Alert.alert('Success', 'OTP verified successfully!', [
-      //   {
-      //     text: 'OK',
-      //     onPress: () => {
-      //       // Navigate to next screen (e.g., home or dashboard)
-      //       router.replace("/(auth)/BusinessDetailsScreen"); // Example for retailer
-      //       // router.replace('/(tabs)/home'); // Example for retailer
-      //     }
-      //   }
-      // ]);
       setIsError(false);
       setErrorMessage('');
-    } else {
+      router.replace('/(auth)/BusinessDetailsScreen');
+    } catch (error: any) {
       setIsError(true);
-      setErrorMessage('Incorrect OTP');
+      setErrorMessage('Incorrect OTP or verification failed.');
       setOtp(['', '', '', '', '', '']);
       inputRefs.current[0]?.focus();
+    } finally {
+      setIsVerifying(false);
     }
   };
 
-  const handleResendCode = () => {
+  const handleResendCode = async () => {
     if (resendDisabled) return;
-
-    // Reset countdown and disable resend button
     setCountdown(30);
     setResendDisabled(true);
-    
-    // Show success message
     setShowSuccessMessage(true);
-    
-    // Clear current OTP
     setOtp(['', '', '', '', '', '']);
     setIsError(false);
     setErrorMessage('');
+    try {
+      await axiosInstance.post('/api/auth/send-otp', {
+        phoneNumber: phoneNumber,
+      });
+    } catch (error) {
+      Alert.alert('Error', 'Failed to resend OTP. Please try again.');
+    }
   };
 
   const handleChangeNumber = () => {
-    // Navigate back to the create account screen
     router.back();
   };
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-      
-      {/* Header Market Scene Image */}
       <View style={styles.headerImageContainer}>
         <Image
           source={require('@/assets/images/otp_screen.jpg')}
@@ -144,9 +129,7 @@ export default function OTPVerification() {
         />
       </View>
 
-      {/* Content Container */}
       <View style={styles.contentContainer}>
-        {/* ONJI Logo Icon */}
         <View style={styles.iconContainer}>
           <Image
             source={require('@/assets/images/onjilogo.png')}
@@ -154,13 +137,9 @@ export default function OTPVerification() {
             resizeMode="contain"
           />
         </View>
-
-        {/* Title */}
         <ThemedText style={styles.title}>
-          Enter the 6 digit code sent via SMS to{'\n'}+91 {phoneNumber}
+          Enter the 6 digit code sent via SMS to{'\n'}{phoneNumber}
         </ThemedText>
-
-        {/* OTP Input Boxes */}
         <View style={styles.otpContainer}>
           {otp.map((digit, index) => (
             <TextInput
@@ -184,17 +163,13 @@ export default function OTPVerification() {
           ))}
         </View>
 
-        {/* Error Message */}
         {isError && (
           <ThemedText style={styles.errorText}>{errorMessage}</ThemedText>
         )}
-
-        {/* Success Message */}
         {showSuccessMessage && (
           <ThemedText style={styles.successText}>New code sent</ThemedText>
         )}
 
-        {/* Action Buttons Container */}
         <View style={styles.actionContainer}>
           <TouchableOpacity
             style={[styles.resendButton, resendDisabled && styles.disabledButton]}
@@ -205,32 +180,31 @@ export default function OTPVerification() {
               {resendDisabled ? `Resend code (${countdown}s)` : 'Resend code'}
             </ThemedText>
           </TouchableOpacity>
-
           <TouchableOpacity style={styles.changeNumberButton} onPress={handleChangeNumber}>
             <ThemedText style={styles.changeNumberText}>Change mobile number</ThemedText>
           </TouchableOpacity>
         </View>
-
-        {/* Continue Button */}
         <TouchableOpacity
           style={[
             styles.continueButton,
-            !isOtpComplete && styles.continueButtonDisabled
+            (!isOtpComplete || isVerifying) && styles.continueButtonDisabled
           ]}
           onPress={handleContinue}
-          disabled={!isOtpComplete}
+          disabled={!isOtpComplete || isVerifying}
         >
           <ThemedText style={[
             styles.continueText,
-            !isOtpComplete && styles.continueTextDisabled
+            (!isOtpComplete || isVerifying) && styles.continueTextDisabled
           ]}>
-            Continue
+            {isVerifying ? 'Verifying...' : 'Continue'}
           </ThemedText>
         </TouchableOpacity>
       </View>
     </View>
   );
 }
+
+
 
 const styles = StyleSheet.create({
   container: {
