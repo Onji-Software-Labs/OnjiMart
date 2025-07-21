@@ -15,8 +15,8 @@ const AnimatedImage = Animated.createAnimatedComponent(Image);
 export default function SplashScreen({ onAnimationEnd }: { onAnimationEnd: () => void }) {
   const logoScale = useRef(new Animated.Value(0)).current;
   const textOpacity = useRef(new Animated.Value(0)).current;
-  const bgColorAnim = useRef(new Animated.Value(0)).current; // 0 = white, 1 = green
-  const slideUpAnim = useRef(new Animated.Value(0)).current; // Y-translation for slide-up
+  const bgColorAnim = useRef(new Animated.Value(0)).current;
+  const slideUpAnim = useRef(new Animated.Value(0)).current;
   const [colorInverted, setColorInverted] = useState(false);
   const [showFinalWhiteScreen, setShowFinalWhiteScreen] = useState(false);
 
@@ -34,14 +34,13 @@ export default function SplashScreen({ onAnimationEnd }: { onAnimationEnd: () =>
           useNativeDriver: true,
         }).start(() => {
           setTimeout(() => {
-            setColorInverted(true); // update images
+            setColorInverted(true);
             Animated.timing(bgColorAnim, {
               toValue: 1,
               duration: 600,
               useNativeDriver: false,
             }).start(() => {
               setTimeout(() => {
-                // Start final slide-up animation
                 setShowFinalWhiteScreen(true);
                 Animated.timing(slideUpAnim, {
                   toValue: -height,
@@ -55,7 +54,7 @@ export default function SplashScreen({ onAnimationEnd }: { onAnimationEnd: () =>
             });
           }, 1000);
         });
-      }, 1000);
+      }, 200); 
     });
   }, []);
 
@@ -66,12 +65,10 @@ export default function SplashScreen({ onAnimationEnd }: { onAnimationEnd: () =>
 
   return (
     <View style={{ flex: 1 }}>
-      {/* Final white screen underneath */}
       {showFinalWhiteScreen && (
         <View style={StyleSheet.absoluteFillObject} pointerEvents="none" />
       )}
 
-      {/* Splash content that slides up */}
       <Animated.View
         style={[
           StyleSheet.absoluteFillObject,

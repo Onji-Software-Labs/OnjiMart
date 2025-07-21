@@ -123,25 +123,25 @@ const SupplierTab: React.FC<ISupplierTabProps> = ({ supplier }) => {
         </View>
 
         <View style={styles.supplierInfo}>
-          <Text style={styles.supplierName}>{supplier.name}</Text>
+          <Text style={styles.companyName}>{supplier.name}</Text>
           <Text style={styles.supplierDescription}>{supplier.description}</Text>
           <Text style={styles.supplierLocation}>{supplier.location}</Text>
+
+          <LinearGradient
+            colors={['rgba(248, 248, 248, 1)', 'rgba(248, 248, 248, 0)']}
+            start={{ x: 0, y: 0.5 }}
+            end={{ x: 1, y: 0.5 }}
+            locations={[0.85, 1]}
+            style={styles.reviewSectionBackground}
+          >
+            <View style={styles.reviewContent}>
+              <FontAwesome name="star" size={16} color="#0F9D58" style={styles.starIcon} />
+              <Text style={styles.reviewText}>{supplier.rating}</Text>
+              <Text style={styles.reviewText}> ({supplier.reviews})</Text>
+            </View>
+          </LinearGradient>
         </View>
       </>
-
-      <LinearGradient
-        colors={['rgba(248, 248, 248, 1)', 'rgba(248, 248, 248, 0)']}
-        start={{ x: 0, y: 0.5 }}
-        end={{ x: 1, y: 0.5 }}
-        locations={[0.85, 1]}
-        style={styles.reviewSectionBackground}
-      >
-        <View style={styles.reviewContent}>
-          <FontAwesome name="star" size={16} color="#22C55E" style={styles.starIcon} />
-          <Text style={styles.reviewText}>{supplier.rating}</Text>
-          <Text style={styles.reviewText}> ({supplier.reviews})</Text>
-        </View>
-      </LinearGradient>
 
       <TouchableOpacity
         onPress={() => console.log(`Connect button clicked for ${supplier.name}!`)}
@@ -157,7 +157,7 @@ const SupplierTab: React.FC<ISupplierTabProps> = ({ supplier }) => {
           ]}
         >
           <Text style={styles.connectButtonText}>Connect</Text>
-          <MaterialCommunityIcons name="account-plus" size={20} color="#34D399" />
+          <MaterialCommunityIcons name="account-plus" size={20} color="#0F9D58" />
         </Animated.View>
       </TouchableOpacity>
     </View>
@@ -204,10 +204,10 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     marginLeft: 16,
   },
-  supplierName: {
+  companyName: { 
     fontSize: 20,
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#545557ff',
   },
   supplierDescription: {
     fontSize: 16,
@@ -235,7 +235,7 @@ const styles = StyleSheet.create({
   },
   reviewText: {
     fontSize: 14,
-    color: '#047857',
+    color: '#0F9D58',
     fontWeight: '400',
   },
   connectButtonWrapper: {
@@ -248,22 +248,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 12,
-    borderWidth: 0.2,
-    borderColor: '#22C55E',
+    borderWidth: 0.5,
+    borderColor: '#0F9D58',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     columnGap: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 5,
+    elevation: 0,
   },
   connectButtonText: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#34D399',
+    color: '#0F9D58',
     marginRight: 4,
   },
 });
