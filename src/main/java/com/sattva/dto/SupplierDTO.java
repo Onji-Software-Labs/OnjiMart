@@ -15,6 +15,8 @@ public class SupplierDTO {
     private String id;
     private String fullName; // From User class (as Supplier extends User)
     private String email;    // From User class
+    private Double rating;
+    private String pincode; // From User class
     private List<String> categoryIds;
     private List<String> subCategoryIds;
 }
