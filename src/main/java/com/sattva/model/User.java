@@ -57,6 +57,9 @@ public  class User implements UserDetails {
     @Column(name = "verified")
     private Boolean verified;
 
+    @Column(name = "pincode")
+    private String pincode;
+
     private String username;
 
     private String password;
