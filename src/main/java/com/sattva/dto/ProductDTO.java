@@ -1,5 +1,6 @@
 package com.sattva.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.sattva.enums.QuantityType;
 
 import lombok.AllArgsConstructor;
@@ -11,6 +12,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class ProductDTO {
     private String productId;
     private String name;
