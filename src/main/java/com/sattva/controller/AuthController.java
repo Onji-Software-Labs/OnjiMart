@@ -82,9 +82,6 @@ public class AuthController {
     
     @PostMapping("/login")
     public ResponseEntity<LoginResponseDTO> login(@RequestBody LoginRequestDTO loginRequestDTO) {
-        System.out.println("Received orderId: " + loginRequestDTO.getOrderId());
-        System.out.println("Received otpNumber: " + loginRequestDTO.getOtpNumber());
-        System.out.println("Received phoneNumber: " + loginRequestDTO.getPhoneNumber());
 
         boolean isValid = smsService.validatePhoneNumberAndOtpLess(
             loginRequestDTO.getOrderId(),
