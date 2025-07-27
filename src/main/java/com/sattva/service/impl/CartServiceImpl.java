@@ -90,7 +90,8 @@ public class CartServiceImpl implements CartService {
 
     @Override
     public CartDTO getCartByShop(String shopId) {
-        Cart cart = cartRepository.findByShopId(shopId);
+        // Use the repository method that queries by the nested shop ID field.
+        Cart cart = cartRepository.findByShop_Id(shopId);
         if (cart == null) {
             throw new RuntimeException("Cart not found for shop with id: " + shopId);
         }
