@@ -18,6 +18,7 @@ import * as Yup from "yup";
 import FormikTextInput from "../../components/auth/FormikTextInput";
 import RadioInput from "../../components/auth/RadioInput";
 import { router } from "expo-router";
+import AuthButton from "../../components/auth/AuthButton";
 
 const { height, width } = Dimensions.get("window");
 
@@ -201,21 +202,13 @@ export function BusinessDetailsScreen() {
                       )}
                     </View>
                     <View>
-                      <Pressable
-                        className="justify-center rounded-[12px] items-center h-[60] "
-                        disabled={!isValid}
-                        style={{
-                          backgroundColor: isValid ? "#4CAF50" : "#E0E0E0",
-                        }}
+                      <AuthButton
+                        title="Continue"
                         onPress={() => handleSubmit()}
-                      >
-                        <Text
-                          className="text-[20px]  font-primarysemibold"
-                          style={{ color: isValid ? "#F3FAF3" : "#AAB2B8" }}
-                        >
-                          Continue
-                        </Text>
-                      </Pressable>
+                        disabled={!isValid}
+                        containerStyle={{ height: 60, borderRadius: 12 }}
+                        textStyle={{ fontSize: 20 }}
+                      />
                     </View>
                   </View>
               )

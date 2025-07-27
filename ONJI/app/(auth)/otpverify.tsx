@@ -4,7 +4,6 @@ import {
   Alert,
   Dimensions,
   Image,
-  Keyboard,
   StatusBar,
   StyleSheet,
   TextInput,
@@ -13,6 +12,8 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import axiosInstance from '@/lib/api/axiosConfig';
+import AuthButton from '@/components/auth/AuthButton';
+import OTPInput from '@/components/auth/OTPInput';
 
 const { width, height } = Dimensions.get('window');
 
@@ -43,27 +44,6 @@ export default function OTPVerification() {
     }
   }, [showSuccessMessage]);
 
-  const handleOtpChange = (value: string, index: number) => {
-    if (value.length > 1) return;
-    const newOtp = [...otp];
-    newOtp[index] = value;
-    setOtp(newOtp);
-    if (isError) {
-      setIsError(false);
-      setErrorMessage('');
-    }
-    if (value && index < 5) {
-      inputRefs.current[index + 1]?.focus();
-    } else if (value && index === 5) {
-      Keyboard.dismiss();
-    }
-  };
-
-  const handleKeyPress = (key: string, index: number) => {
-    if (key === 'Backspace' && !otp[index] && index > 0) {
-      inputRefs.current[index - 1]?.focus();
-    }
-  };
 
   const isOtpComplete = otp.every(digit => digit !== '');
 
@@ -140,28 +120,13 @@ export default function OTPVerification() {
         <ThemedText style={styles.title}>
           Enter the 6 digit code sent via SMS to{'\n'}{phoneNumber}
         </ThemedText>
-        <View style={styles.otpContainer}>
-          {otp.map((digit, index) => (
-            <TextInput
-              key={index}
-              ref={(ref) => {
-                if (ref) inputRefs.current[index] = ref;
-              }}
-              style={[
-                styles.otpInput,
-                isError && styles.otpInputError,
-                digit && styles.otpInputFilled
-              ]}
-              value={digit}
-              onChangeText={(value) => handleOtpChange(value, index)}
-              onKeyPress={({ nativeEvent }) => handleKeyPress(nativeEvent.key, index)}
-              keyboardType="numeric"
-              maxLength={1}
-              selectTextOnFocus
-              textAlign="center"
-            />
-          ))}
-        </View>
+        <OTPInput
+          value={otp}
+          onChange={setOtp}
+          inputRefs={inputRefs}
+          containerStyle={styles.otpContainer}
+          isError={isError}
+        />
 
         {isError && (
           <ThemedText style={styles.errorText}>{errorMessage}</ThemedText>
@@ -184,21 +149,14 @@ export default function OTPVerification() {
             <ThemedText style={styles.changeNumberText}>Change mobile number</ThemedText>
           </TouchableOpacity>
         </View>
-        <TouchableOpacity
-          style={[
-            styles.continueButton,
-            (!isOtpComplete || isVerifying) && styles.continueButtonDisabled
-          ]}
+        <AuthButton
+          title="Continue"
           onPress={handleContinue}
-          disabled={!isOtpComplete || isVerifying}
-        >
-          <ThemedText style={[
-            styles.continueText,
-            (!isOtpComplete || isVerifying) && styles.continueTextDisabled
-          ]}>
-            {isVerifying ? 'Verifying...' : 'Continue'}
-          </ThemedText>
-        </TouchableOpacity>
+          loading={isVerifying}
+          disabled={!isOtpComplete}
+          containerStyle={styles.continueButton}
+          textStyle={styles.continueText}
+        />
       </View>
     </View>
   );
@@ -332,17 +290,11 @@ const styles = StyleSheet.create({
     marginTop: 'auto',
     marginBottom: 34,
   },
-  continueButtonDisabled: {
-    backgroundColor: '#E0E0E0',
-  },
   continueText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
     letterSpacing: 0.5,
     textAlign: 'center',
-  },
-  continueTextDisabled: {
-    color: '#999',
   },
 });
