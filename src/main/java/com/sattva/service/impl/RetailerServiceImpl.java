@@ -10,8 +10,10 @@ import com.sattva.dto.SupplierDTO;
 import com.sattva.dto.SupplierFilterRequest;
 import com.sattva.model.Category;
 import com.sattva.model.Retailer;
+import com.sattva.model.Shop;
 import com.sattva.model.SubCategory;
 import com.sattva.model.Supplier;
+import com.sattva.model.SupplierBusiness;
 import com.sattva.repository.CategoryRepository;
 import com.sattva.repository.RetailerRepository;
 import com.sattva.repository.SupplierRepository;
@@ -48,20 +50,24 @@ public class RetailerServiceImpl implements RetailerService {
         Retailer retailer = retailerRepository.findById(retailerId)
                 .orElseThrow(() -> new RuntimeException("Retailer not found"));
 
-        String retailerPincode = retailer.getUser().getPincode();
+        // Get all pincodes from retailer's shops
+        List<String> retailerPincodes = retailer.getShops().stream()
+                .map(Shop::getPincode)
+                .collect(Collectors.toList());
+
         List<String> categoryNames = request.getCategoryNames();
         String pincodeFilter = request.getPincodeFilter();
-        Double ratingFilter = request.getRating(); // new line
+        Double ratingFilter = request.getRating();
 
         List<Supplier> suppliers;
 
-        //Filter by categories
+        // Filter suppliers by category
         if (categoryNames != null && !categoryNames.isEmpty()) {
             List<String> categoryIds = categoryRepository.findByNameIn(categoryNames)
-                                                        .stream()
-                                                        .map(Category::getId)
-                                                        .collect(Collectors.toList());
-            System.out.println("\n\nCategory IDs: " + categoryIds + "\n\n");
+                    .stream()
+                    .map(Category::getId)
+                    .collect(Collectors.toList());
+
             suppliers = supplierRepository.findDistinctByCategories_IdIn(categoryIds);
         } else {
             suppliers = supplierRepository.findAll();
@@ -69,17 +75,22 @@ public class RetailerServiceImpl implements RetailerService {
 
         suppliers = suppliers.stream()
             .filter(supplier -> {
-                String supplierPincode = supplier.getUser().getPincode(); //Filter by pincode
+                // Get all business pincodes for this supplier
+                List<String> supplierPincodes = supplier.getBusinesses().stream()
+                        .map(SupplierBusiness::getPincode)
+                        .collect(Collectors.toList());
+
                 if ("myPincode".equalsIgnoreCase(pincodeFilter)) {
-                    return retailerPincode.equals(supplierPincode);
+                    return supplierPincodes.stream().anyMatch(retailerPincodes::contains);
                 } else if ("others".equalsIgnoreCase(pincodeFilter)) {
-                    return !retailerPincode.equals(supplierPincode);
+                    return supplierPincodes.stream().noneMatch(retailerPincodes::contains);
                 }
                 return true;
             })
             .filter(supplier -> {
+                //Filter by rating
                 if (ratingFilter != null) {
-                    return supplier.getRating() != null && supplier.getRating() >= ratingFilter; ////Filter by rating
+                    return supplier.getRating() != null && supplier.getRating() >= ratingFilter;
                 }
                 return true;
             })
@@ -90,13 +101,21 @@ public class RetailerServiceImpl implements RetailerService {
                 .collect(Collectors.toList());
     }
 
+
     private SupplierDTO convertToDTO(Supplier supplier) {
         SupplierDTO dto = new SupplierDTO();
         dto.setId(supplier.getId());
         dto.setFullName(supplier.getUser().getFullName());
         dto.setEmail(supplier.getUser().getEmail());
         dto.setRating(supplier.getRating());
-        dto.setPincode(supplier.getUser().getPincode());
+        //dto.setPincode(supplier.getUser().getPincode());
+        String supplierPincodes = supplier.getBusinesses().stream()
+        .filter(SupplierBusiness::isActive)
+        .map(SupplierBusiness::getPincode)
+        .distinct()
+        .collect(Collectors.joining(", "));
+        dto.setPincode(supplierPincodes);
+
         
         dto.setCategoryIds(
             supplier.getCategories()
@@ -112,7 +131,6 @@ public class RetailerServiceImpl implements RetailerService {
                     .collect(Collectors.toList())
         );
 
-        // Add more fields if needed (like categories, etc.)
         return dto;
     }
 }

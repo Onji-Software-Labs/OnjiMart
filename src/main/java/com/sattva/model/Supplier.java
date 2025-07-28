@@ -36,6 +36,10 @@ public class Supplier implements Serializable {
     @JoinColumn(name = "id") // foreign key to 'users.id'
     private User user;
 
+    @OneToMany(mappedBy = "supplier", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<SupplierBusiness> businesses;
+
+
     @ManyToMany
     @JoinTable(
         name = "supplier_categories",
