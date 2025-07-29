@@ -11,9 +11,11 @@ import {
   ImageBackground,
   TouchableOpacity,
   useWindowDimensions,
-  Platform
+  Platform,
+  Alert
 } from 'react-native';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 
 export default function Dashboard() {
   const { width } = useWindowDimensions();
@@ -22,9 +24,8 @@ export default function Dashboard() {
   // dynamic measurements
   const horizontalPadding = 16;
   const availableWidth = width - horizontalPadding * 2;
-  // Make banners bigger and more responsive
   const bannerWidth = Math.min(availableWidth * 0.9, 320);
-  const bannerImageHeight = 120; // Increased height
+  const bannerImageHeight = 120;
   const tileSize = Math.min((availableWidth - 24) / 4, 60);
 
   // state
@@ -57,6 +58,36 @@ export default function Dashboard() {
     supplies: ['Vegetables']
   }));
 
+  // Navigation handlers with correct file paths
+  const handleTilePress = (tileLabel: string) => {
+    try {
+      switch (tileLabel) {
+        case 'My suppliers':
+          // Navigate to inventory.tsx (which is My Suppliers)
+          router.push('/inventory');
+          break;
+        case 'Credit':
+          // Navigate to Invoice screen
+          router.push('/invoice');
+          break;
+        case 'Orders':
+          // Navigate to Cart tab
+          router.push('/cart');
+          break;
+        case 'Saved items':
+          // Navigate to Saved Items screen
+       //   router.push('/(supplier)/saved');
+          break;
+        default:
+          console.log(`Navigation not implemented for: ${tileLabel}`);
+          break;
+      }
+    } catch (error) {
+      console.error('Navigation error:', error);
+      Alert.alert('Navigation Error', 'Unable to navigate to the requested screen.');
+    }
+  };
+
   const toggleConnection = (id: number) =>
     setConnections(prev => ({ ...prev, [id]: !prev[id] }));
   const toggleFavorite = (id: number) =>
@@ -87,7 +118,7 @@ export default function Dashboard() {
           position: 'relative'
         }}>
         
-        {/* TOP DECORATIVE IMAGE - Better positioned next to location */}
+        {/* TOP DECORATIVE IMAGE */}
         <View
           pointerEvents="none"
           style={{
@@ -256,17 +287,16 @@ export default function Dashboard() {
         contentContainerStyle={{ paddingBottom: 100 }}
         style={{ flex: 1, zIndex: 1 }}>
 
-        {/* FEATURED BANNER - Fixed positioning with homebg exactly behind banners */}
+        {/* FEATURED BANNER */}
         <View style={{
           marginHorizontal: horizontalPadding,
           marginTop: 16,
           marginBottom: 24,
           borderRadius: 20,
           overflow: 'hidden',
-          minHeight: 240, // Increased height for bigger banners
+          minHeight: 240,
           position: 'relative'
         }}>
-          {/* Background Image - Positioned exactly behind the banner content */}
           <ImageBackground
             source={require('../../../assets/images/homebg.jpg')}
             style={{
@@ -278,21 +308,18 @@ export default function Dashboard() {
               borderRadius: 20
             }}
             imageStyle={{ 
-              resizeMode: 'repeat', // Changed to repeat/tile as per Figma
+              resizeMode: 'repeat',
               borderRadius: 20,
-              opacity: 0.6 // Set to 60% opacity as per Figma
+              opacity: 0.6
             }}
-          >
-            {/* Removed overlay since we're using 60% opacity directly on image */}
-          </ImageBackground>
+          />
 
-          {/* Banner Content - Positioned over the background with Figma padding */}
           <View style={{
             flex: 1,
-            paddingTop: 20,    // Top: 20px
-            paddingRight: 10,  // Right: 10px  
-            paddingBottom: 20, // Bottom: 20px
-            paddingLeft: 10,   // Left: 10px
+            paddingTop: 20,
+            paddingRight: 10,
+            paddingBottom: 20,
+            paddingLeft: 10,
             justifyContent: 'center'
           }}>
             <ScrollView
@@ -340,7 +367,7 @@ export default function Dashboard() {
                     lineHeight: 20,
                     marginBottom: 16
                   }}>
-                    Sourced daily from trusted local farms with guaranteed freshness
+                    Sourced daily from trusted local farms
                   </Text>
                   <TouchableOpacity style={{
                     backgroundColor: '#059669',
@@ -423,7 +450,8 @@ export default function Dashboard() {
                     shadowRadius: 4,
                     elevation: 3
                   }}
-                  activeOpacity={0.7}>
+                  activeOpacity={0.7}
+                  onPress={() => handleTilePress(tile.label)}>
                   {tile.icon}
                 </TouchableOpacity>
                 <Text style={{
@@ -633,15 +661,23 @@ export default function Dashboard() {
             );
           })}
 
-          <TouchableOpacity style={{
-            alignSelf: 'center',
-            marginTop: 8,
-            paddingVertical: isWeb ? 14 : 12,
-            paddingHorizontal: isWeb ? 28 : 24,
-            borderWidth: 1,
-            borderColor: '#D1D5DB',
-            borderRadius: 10
-          }}>
+          <TouchableOpacity 
+            onPress={() => {
+              try {
+                router.push('/inventory');
+              } catch (error) {
+                console.error('Navigation error:', error);
+              }
+            }}
+            style={{
+              alignSelf: 'center',
+              marginTop: 8,
+              paddingVertical: isWeb ? 14 : 12,
+              paddingHorizontal: isWeb ? 28 : 24,
+              borderWidth: 1,
+              borderColor: '#D1D5DB',
+              borderRadius: 10
+            }}>
             <Text style={{
               fontSize: isWeb ? 15 : 14,
               fontWeight: '600',
