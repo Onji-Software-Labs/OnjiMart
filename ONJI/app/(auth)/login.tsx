@@ -6,7 +6,6 @@ import {
   Text,
   View,
   TextInput,
-  TouchableOpacity,
   SafeAreaView,
   StatusBar,
   Image,
@@ -14,6 +13,7 @@ import {
   KeyboardAvoidingView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import AuthButton from '@/components/auth/AuthButton';
 import axiosInstance from '@/lib/api/axiosConfig';
 
 LogBox.ignoreLogs([
@@ -117,22 +117,13 @@ export default function CreateAccount() {
             )}
           </View>
 
-          <TouchableOpacity
-            style={[
-              styles.continueButton,
-              isButtonActive ? styles.continueButtonActive : styles.continueButtonDisabled
-            ]}
-            disabled={!isButtonActive || isLoading}
-            activeOpacity={0.8}
+          <AuthButton
+            title="Continue"
             onPress={handleContinue}
-          >
-            <Text style={[
-              styles.continueButtonText,
-              isButtonActive ? styles.continueButtonTextActive : styles.continueButtonTextDisabled
-            ]}>
-              {isLoading ? "Please wait..." : "Continue"}
-            </Text>
-          </TouchableOpacity>
+            loading={isLoading}
+            disabled={!isButtonActive}
+            containerStyle={styles.continueButton}
+          />
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -237,20 +228,8 @@ const styles = StyleSheet.create({
     marginTop: 'auto',
     marginBottom: 40,
   },
-  continueButtonActive: {
-    backgroundColor: '#4CAF50',
-  },
-  continueButtonDisabled: {
-    backgroundColor: '#E0E0E0',
-  },
   continueButtonText: {
     fontSize: 16,
     fontWeight: '600',
-  },
-  continueButtonTextActive: {
-    color: '#FFFFFF',
-  },
-  continueButtonTextDisabled: {
-    color: '#9E9E9E',
   },
 });
