@@ -13,6 +13,7 @@ import com.sattva.service.CategoryService;
 
 @RestController
 @RequestMapping("/api/categories")
+@CrossOrigin
 public class CategoryController {
 	    @Autowired
 	    private CategoryService categoryService;
