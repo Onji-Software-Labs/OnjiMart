@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import axiosInstance from '@/lib/api/axiosConfig';
+import { saveTokens } from '@/lib/secureToken';
 
 const { width, height } = Dimensions.get('window');
 
@@ -78,11 +79,13 @@ export default function OTPVerification() {
     setIsVerifying(true);
     const enteredOtp = otp.join('');
     try {
-      
-      await axiosInstance.post('/api/auth/login', {
+      const response = await axiosInstance.post('/api/auth/login', {
         phoneNumber: phoneNumber,
         otpNumber: enteredOtp,
       });
+
+      // Store received tokens securely
+      await saveTokens(response.data.jwtToken, response.data.refreshToken);
 
       setIsError(false);
       setErrorMessage('');
