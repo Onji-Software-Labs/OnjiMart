@@ -401,7 +401,7 @@ export default function Dashboard() {
                 icon: <Feather name="shopping-bag" size={isWeb ? 22 : 20} color="#7C3AED" /> 
               },
               { 
-                label: 'Cart', 
+                label: 'Saved items', 
                 value: '', 
                 bg: '#FECACA', 
                 icon: <MaterialCommunityIcons name="fruit-grapes" size={isWeb ? 22 : 20} color="#E11D48" /> 
