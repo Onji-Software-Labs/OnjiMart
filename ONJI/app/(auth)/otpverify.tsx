@@ -86,7 +86,7 @@ export default function OTPVerification() {
 
       setIsError(false);
       setErrorMessage('');
-      router.replace('/(auth)/BusinessDetailsScreen');
+      router.replace('/(auth)/personalProfile');
     } catch (error: any) {
       setIsError(true);
       setErrorMessage('Incorrect OTP or verification failed.');
