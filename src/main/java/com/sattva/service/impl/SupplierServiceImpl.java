@@ -3,10 +3,12 @@ import org.springframework.stereotype.Service;
 
 import com.sattva.dto.CategoryDTO;
 import com.sattva.dto.SubCategoryDTO;
+import com.sattva.dto.SupplierBusinessRequestDTO;
 import com.sattva.dto.SupplierDTO;
 import com.sattva.model.Category;
 import com.sattva.model.SubCategory;
 import com.sattva.model.Supplier;
+import com.sattva.model.SupplierBusiness;
 import com.sattva.repository.CategoryRepository;
 import com.sattva.repository.SubCategoryRepository;
 import com.sattva.repository.SupplierRepository;
@@ -18,6 +20,7 @@ import org.modelmapper.ModelMapper;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -34,6 +37,51 @@ public class SupplierServiceImpl implements SupplierService {
 
     @Autowired
     private ModelMapper modelMapper;
+
+
+    @Override
+        public SupplierDTO createBusinessAndAssignCategories(SupplierBusinessRequestDTO dto) {
+        Supplier supplier = supplierRepository.findById(dto.getSupplierId())
+                .orElseThrow(() -> new RuntimeException("Supplier not found with id: " + dto.getSupplierId()));
+
+        //Save business
+        SupplierBusiness business = SupplierBusiness.builder()
+                .id(UUID.randomUUID().toString())
+                .supplier(supplier)
+                .name(dto.getName())
+                .address(dto.getAddress())
+                .city(dto.getCity())
+                .pincode(dto.getPincode())
+                .contactNumber(dto.getContactNumber())
+                .isActive(true)
+                .build();
+
+        supplier.getBusinesses().add(business); 
+
+        //Assign categories
+        if (dto.getCategoryIds() != null) {
+                Set<Category> categories = dto.getCategoryIds().stream()
+                        .map(id -> categoryRepository.findById(id)
+                                .orElseThrow(() -> new RuntimeException("Category not found: " + id)))
+                        .collect(Collectors.toSet());
+                supplier.getCategories().addAll(categories);
+        }
+
+        //Assign subcategories
+        if (dto.getSubCategoryIds() != null) {
+                Set<SubCategory> subCategories = dto.getSubCategoryIds().stream()
+                        .map(id -> subCategoryRepository.findById(id)
+                                .orElseThrow(() -> new RuntimeException("SubCategory not found: " + id)))
+                        .collect(Collectors.toSet());
+                supplier.getSubCategories().addAll(subCategories);
+        }
+
+        //Save supplier (which cascades and saves business too)
+        Supplier savedSupplier = supplierRepository.save(supplier);
+
+        return modelMapper.map(savedSupplier, SupplierDTO.class);
+        }
+
 
     // Add categories and subcategories to a supplier
     @Override
