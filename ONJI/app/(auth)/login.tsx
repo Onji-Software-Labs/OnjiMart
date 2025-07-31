@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import axiosInstance from '@/lib/api/axiosConfig';
+import AsyncStorage from "@react-native-async-storage/async-storage"
 
 LogBox.ignoreLogs([
   'Invalid prop `style` supplied to `React.Fragment`',
@@ -48,9 +49,11 @@ export default function CreateAccount() {
 
     try {
       // Use your axiosInstance to ensure custom headers are sent
-      await axiosInstance.post('/api/auth/send-otp', {
+      const res=await axiosInstance.post('/api/auth/send-otp', {
         phoneNumber: fullPhoneNumber,
       });
+
+      await AsyncStorage.setItem("id",res.data.userId);
 
       router.push({
         pathname: '/otpverify',
