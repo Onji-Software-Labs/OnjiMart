@@ -1,21 +1,20 @@
-/* app/(supplier)/(tabs)/dashboard.tsx */
+import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  SafeAreaView,
-  StatusBar,
-  View,
-  Text,
-  TextInput,
-  ScrollView,
+  Alert,
   Image,
   ImageBackground,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  Text,
+  TextInput,
   TouchableOpacity,
   useWindowDimensions,
-  Platform,
-  Alert
+  View
 } from 'react-native';
-import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
-import { router } from 'expo-router';
 
 export default function Dashboard() {
   const { width } = useWindowDimensions();
@@ -24,8 +23,6 @@ export default function Dashboard() {
   // dynamic measurements
   const horizontalPadding = 16;
   const availableWidth = width - horizontalPadding * 2;
-  const bannerWidth = Math.min(availableWidth * 0.9, 320);
-  const bannerImageHeight = 120;
   const tileSize = Math.min((availableWidth - 24) / 4, 60);
 
   // state
@@ -34,6 +31,7 @@ export default function Dashboard() {
   const [favorites, setFavorites] = useState<Record<number, boolean>>({});
   const [selectedAddress, setSelectedAddress] = useState('Mandavi palace');
   const [showAddressDropdown, setShowAddressDropdown] = useState(false);
+  const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
 
   // dummy data
   const addresses = [
@@ -43,9 +41,21 @@ export default function Dashboard() {
   ];
 
   const banners = [
-    { title: 'Fresh Vegetables', image: require('../../../assets/images/vegi.jpg') },
-    { title: 'Fresh from Farm to You', image: require('../../../assets/images/fresh.jpg') },
-    { title: 'Direct from Farms', image: require('../../../assets/images/farms.jpg') },
+    {
+      title: 'Fresh from Farm to You',
+      image: require('../../../assets/images/fresh.jpg'),
+      description: 'Sourced daily from trusted local farms'
+    },
+    {
+      title: 'Fresh Vegetables',
+      image: require('../../../assets/images/vegi.jpg'),
+      description: 'Sourced daily from trusted local farms with guaranteed freshness'
+    },
+    {
+      title: 'Direct from Farms',
+      image: require('../../../assets/images/farms.jpg'),
+      description: 'Connect directly with farmers for the freshest produce'
+    },
   ];
 
   const suppliers = Array.from({ length: 4 }, (_, i) => ({
@@ -58,25 +68,20 @@ export default function Dashboard() {
     supplies: ['Vegetables']
   }));
 
-  // Navigation handlers with correct file paths
+  // Navigation
   const handleTilePress = (tileLabel: string) => {
     try {
       switch (tileLabel) {
-        case 'My suppliers':
-          // Navigate to inventory.tsx (which is My Suppliers)
+        case 'My Suppliers':
           router.push('/inventory');
           break;
         case 'Credit':
-          // Navigate to Invoice screen
           router.push('/invoice');
           break;
         case 'Orders':
-          // Navigate to Cart tab
           router.push('/cart');
           break;
-        case 'Saved items':
-          // Navigate to Saved Items screen
-       //   router.push('/(supplier)/saved');
+        case 'Saved Items':
           break;
         default:
           console.log(`Navigation not implemented for: ${tileLabel}`);
@@ -107,7 +112,7 @@ export default function Dashboard() {
     <SafeAreaView style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
-      {/* HEADER with Address Dropdown and Top Image */}
+      {/* HEADER */}
       <View
         style={{
           paddingHorizontal: horizontalPadding,
@@ -117,8 +122,8 @@ export default function Dashboard() {
           zIndex: 10,
           position: 'relative'
         }}>
-        
-        {/* TOP DECORATIVE IMAGE */}
+
+        {/* Decorative Image */}
         <View
           pointerEvents="none"
           style={{
@@ -132,14 +137,15 @@ export default function Dashboard() {
           }}>
           <Image
             source={require('../../../assets/images/topimg.png')}
-            style={{ 
-              width: '100%', 
-              height: '100%', 
+            style={{
+              width: '100%',
+              height: '100%',
               resizeMode: 'contain'
             }}
           />
         </View>
 
+        {/* Address & Icons */}
         <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', zIndex: 2 }}>
           <View style={{ flex: 1 }}>
             <TouchableOpacity
@@ -157,13 +163,13 @@ export default function Dashboard() {
               }}>
                 {currentAddress.name}
               </Text>
-              <Feather 
-                name={showAddressDropdown ? "chevron-up" : "chevron-down"} 
-                size={20} 
-                color="#6B7280" 
+              <Feather
+                name={showAddressDropdown ? "chevron-up" : "chevron-down"}
+                size={20}
+                color="#6B7280"
               />
             </TouchableOpacity>
-            
+
             <Text style={{
               fontSize: isWeb ? 14 : 13,
               color: '#6B7280',
@@ -222,6 +228,7 @@ export default function Dashboard() {
             )}
           </View>
 
+          {/* Icons */}
           <View style={{ flexDirection: 'row', marginLeft: 12, zIndex: 3 }}>
             <TouchableOpacity style={{
               width: isWeb ? 44 : 40,
@@ -287,110 +294,162 @@ export default function Dashboard() {
         contentContainerStyle={{ paddingBottom: 100 }}
         style={{ flex: 1, zIndex: 1 }}>
 
-        {/* FEATURED BANNER */}
+        {/* BANNER SECTION - CENTERED TEXT AND BUTTON AT BOTTOM */}
         <View style={{
           marginHorizontal: horizontalPadding,
           marginTop: 16,
           marginBottom: 24,
-          borderRadius: 20,
-          overflow: 'hidden',
-          minHeight: 240,
           position: 'relative'
         }}>
-          <ImageBackground
-            source={require('../../../assets/images/homebg.jpg')}
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              borderRadius: 20
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            pagingEnabled
+            decelerationRate="fast"
+            snapToInterval={availableWidth}
+            snapToAlignment="start"
+            onScroll={(event) => {
+              const slideIndex = Math.round(event.nativeEvent.contentOffset.x / availableWidth);
+              if (slideIndex !== currentBannerIndex) {
+                setCurrentBannerIndex(slideIndex);
+              }
             }}
-            imageStyle={{ 
-              resizeMode: 'repeat',
-              borderRadius: 20,
-              opacity: 0.6
-            }}
-          />
-
-          <View style={{
-            flex: 1,
-            paddingTop: 20,
-            paddingRight: 10,
-            paddingBottom: 20,
-            paddingLeft: 10,
-            justifyContent: 'center'
-          }}>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingRight: 20 }}
-            >
-              {banners.map((banner, index) => (
-                <View
-                  key={index}
+            scrollEventThrottle={16}
+            style={{ borderRadius: 20 }}
+          >
+            {banners.map((banner, index) => (
+              <View
+                key={index}
+                style={{
+                  width: availableWidth,
+                  borderRadius: 20,
+                  overflow: 'hidden',
+                  position: 'relative'
+                }}>
+                
+                {/* Banner Image Background with centered text at bottom */}
+                <ImageBackground
+                  source={banner.image}
                   style={{
-                    width: bannerWidth,
-                    marginRight: index < banners.length - 1 ? 20 : 0,
-                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                    borderRadius: 20,
-                    padding: 20,
-                    shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 6 },
-                    shadowOpacity: 0.2,
-                    shadowRadius: 12,
-                    elevation: 8
-                  }}>
-                  <Image
-                    source={banner.image}
-                    style={{
-                      width: bannerWidth - 40,
-                      height: bannerImageHeight,
-                      borderRadius: 16,
-                      resizeMode: 'cover',
-                      marginBottom: 16
-                    }}
-                  />
-                  <Text style={{
-                    fontSize: isWeb ? 20 : 18,
-                    fontWeight: '700',
-                    color: '#1F2937',
-                    marginBottom: 8,
-                    lineHeight: isWeb ? 24 : 22
-                  }}>
-                    {banner.title}
-                  </Text>
-                  <Text style={{
-                    fontSize: isWeb ? 15 : 14,
-                    color: '#6B7280',
-                    lineHeight: 20,
-                    marginBottom: 16
-                  }}>
-                    Sourced daily from trusted local farms
-                  </Text>
-                  <TouchableOpacity style={{
-                    backgroundColor: '#059669',
-                    paddingVertical: isWeb ? 14 : 12,
-                    borderRadius: 16,
-                    shadowColor: '#059669',
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.3,
-                    shadowRadius: 4,
-                    elevation: 4
+                    width: '100%',
+                    height: 220,
+                    justifyContent: 'flex-end', // Push content to bottom
+                    alignItems: 'center', // Center content horizontally
+                  }}
+                  imageStyle={{
+                    resizeMode: 'cover',
+                    borderRadius: 20
+                  }}
+                >
+                  {/* Dark overlay for better text readability */}
+                  <View style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+                    borderRadius: 20
+                  }} />
+                  
+                  {/* Centered Text Content at Bottom of Image */}
+                  <View style={{ 
+                    zIndex: 2,
+                    alignItems: 'center', // Center all text and button
+                    paddingHorizontal: 20,
+                    paddingBottom: 0, // Bottom padding for spacing from edge
+                    width: '100%'
                   }}>
                     <Text style={{
+                      fontSize: 20,
+                      fontWeight: '700',
                       color: '#FFFFFF',
-                      textAlign: 'center',
-                      fontSize: isWeb ? 16 : 14,
-                      fontWeight: '700'
+                      marginBottom: 10,
+                      textAlign: 'center', // Center align title
+                      textShadowColor: 'rgba(0, 0, 0, 0.8)',
+                      textShadowOffset: { width: 1, height: 2 },
+                      textShadowRadius: 4,
+                      lineHeight: 24
                     }}>
-                      Shop for fresh produce
+                      {banner.title}
                     </Text>
-                  </TouchableOpacity>
-                </View>
-              ))}
-            </ScrollView>
+                    
+                    <Text style={{
+                      fontSize: 13,
+                      color: '#FFFFFF',
+                      marginBottom: 10,
+                      textAlign: 'center', // Center align description
+                      opacity: 0.95,
+                      textShadowColor: 'rgba(0, 0, 0, 0.7)',
+                      textShadowOffset: { width: 1, height: 1 },
+                      textShadowRadius: 3,
+                      lineHeight: 18,
+                      maxWidth: '90%' // Limit width for better readability
+                    }}>
+                      {banner.description}
+                    </Text>
+                    
+                    {/* Centered Button with exact specifications */}
+                    <TouchableOpacity 
+                      style={{
+                        backgroundColor: '#2E7D32',
+                        width: 160, // Exact width as specified
+                        height: 40, // Exact height as specified
+                        paddingTop: 6, // Exact padding as specified
+                        paddingRight: 16,
+                        paddingBottom: 6,
+                        paddingLeft: 16,
+                        borderRadius: 80,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 2 },
+                        shadowOpacity: 0.3,
+                        shadowRadius: 4,
+                        elevation: 4
+                      }}
+                      onPress={() => {
+                        console.log('Shop for fresh produce clicked - Banner:', banner.title);
+                        // Add your navigation logic here
+                      }}
+                    >
+                      <Text style={{
+                        color: '#FFFFFF',
+                        fontSize: 12, // Smaller font to fit in 30px height
+                        fontWeight: '500',
+                        textAlign: 'center'
+                      }}>
+                        Shop for fresh produce
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </ImageBackground>
+              </View>
+            ))}
+          </ScrollView>
+
+          {/* Working Page Indicators */}
+          <View style={{
+            flexDirection: 'row',
+            justifyContent: 'center',
+            marginTop: 16,
+            paddingHorizontal: 20
+          }}>
+            {banners.map((_, index) => (
+              <TouchableOpacity
+                key={index}
+                onPress={() => {
+                  setCurrentBannerIndex(index);
+                }}
+                style={{
+                  width: index === currentBannerIndex ? 24 : 8,
+                  height: 8,
+                  borderRadius: 4,
+                  backgroundColor: index === currentBannerIndex ? '#2E7D32' : '#D1D5DB',
+                  marginHorizontal: 3,
+                }}
+              />
+            ))}
           </View>
         </View>
 
@@ -409,29 +468,29 @@ export default function Dashboard() {
             justifyContent: 'space-between'
           }}>
             {[
-              { 
-                label: 'My suppliers', 
-                value: '26', 
-                bg: '#DCFCE7', 
-                icon: <MaterialCommunityIcons name="account-group" size={isWeb ? 22 : 20} color="#10B981" /> 
+              {
+                label: 'My Suppliers',
+                value: '20',
+                bg: '#DCFCE7',
+                icon: <MaterialCommunityIcons name="account-group" size={isWeb ? 22 : 20} color="#10B981" />
               },
-              { 
-                label: 'Credit', 
-                value: '3 active credits', 
-                bg: '#FEF3C7', 
-                icon: <MaterialCommunityIcons name="credit-card-outline" size={isWeb ? 22 : 20} color="#CA8A04" /> 
+              {
+                label: 'Orders',
+                value: '4 active orders',
+                bg: '#E9D5FF',
+                icon: <Feather name="shopping-bag" size={isWeb ? 22 : 20} color="#7C3AED" />
               },
-              { 
-                label: 'Orders', 
-                value: '', 
-                bg: '#E9D5FF', 
-                icon: <Feather name="shopping-bag" size={isWeb ? 22 : 20} color="#7C3AED" /> 
+              {
+                label: 'Credit',
+                value: '3 active credits',
+                bg: '#FEF3C7',
+                icon: <MaterialCommunityIcons name="credit-card-outline" size={isWeb ? 22 : 20} color="#CA8A04" />
               },
-              { 
-                label: 'Saved items', 
-                value: '', 
-                bg: '#FECACA', 
-                icon: <MaterialCommunityIcons name="fruit-grapes" size={isWeb ? 22 : 20} color="#E11D48" /> 
+              {
+                label: 'Saved Items',
+                value: '',
+                bg: '#FECACA',
+                icon: <MaterialCommunityIcons name="fruit-grapes" size={isWeb ? 22 : 20} color="#E11D48" />
               },
             ].map((tile, index) => (
               <View key={index} style={{ alignItems: 'center', flex: 1 }}>
@@ -494,7 +553,7 @@ export default function Dashboard() {
           {suppliers.map(supplier => {
             const requested = !!connections[supplier.id];
             const favored = !!favorites[supplier.id];
-            
+
             return (
               <View key={supplier.id} style={{
                 backgroundColor: '#FFFFFF',
@@ -551,15 +610,15 @@ export default function Dashboard() {
                       />
                     </TouchableOpacity>
                   </View>
-                  
-                  <Text style={{ 
-                    marginTop: 2, 
-                    fontSize: isWeb ? 13 : 12, 
-                    color: '#9CA3AF' 
+
+                  <Text style={{
+                    marginTop: 2,
+                    fontSize: isWeb ? 13 : 12,
+                    color: '#9CA3AF'
                   }}>
                     {supplier.distance}
                   </Text>
-                  
+
                   <View style={{
                     flexDirection: 'row',
                     alignItems: 'center',
@@ -574,7 +633,7 @@ export default function Dashboard() {
                       {supplier.rating} ({supplier.reviews})
                     </Text>
                   </View>
-                  
+
                   <View style={{
                     flexDirection: 'row',
                     justifyContent: 'space-between',
@@ -602,11 +661,11 @@ export default function Dashboard() {
                         </View>
                       ))}
                     </View>
-                    
+
                     {requested ? (
                       <View style={{ flexDirection: 'row', gap: 8 }}>
                         <TouchableOpacity style={{
-                          backgroundColor: '#059669',
+                          backgroundColor: '#2E7D32',
                           borderRadius: 8,
                           paddingHorizontal: isWeb ? 16 : 14,
                           paddingVertical: isWeb ? 10 : 8
@@ -641,7 +700,7 @@ export default function Dashboard() {
                       <TouchableOpacity
                         onPress={() => toggleConnection(supplier.id)}
                         style={{
-                          backgroundColor: '#059669',
+                          backgroundColor: '#2E7D32',
                           borderRadius: 8,
                           paddingHorizontal: isWeb ? 16 : 14,
                           paddingVertical: isWeb ? 10 : 8
@@ -661,7 +720,7 @@ export default function Dashboard() {
             );
           })}
 
-          <TouchableOpacity 
+          <TouchableOpacity
             onPress={() => {
               try {
                 router.push('/inventory');
