@@ -1,1 +1,22 @@
 // Profile tab placeholder
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+
+const RetailerProfileScreen = () => {
+  return (
+    <View style={styles.container}>
+      <Text>Retailer Profile Screen</Text>
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FFF0F5', // LavenderBlush
+  },
+});
+
+export default RetailerProfileScreen;

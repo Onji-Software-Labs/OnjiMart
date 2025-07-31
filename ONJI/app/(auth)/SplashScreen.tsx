@@ -48,15 +48,17 @@ export default function SplashScreen({ onAnimationEnd }: { onAnimationEnd: () =>
                   easing: Easing.inOut(Easing.ease),
                   useNativeDriver: true,
                 }).start(() => {
-                  setTimeout(onAnimationEnd, 400);
+                  // Removed the internal setTimeout(onAnimationEnd, 400);
+                  // The onAnimationEnd is now called directly when the slideUpAnim completes.
+                  onAnimationEnd(); // Call the prop function directly here
                 });
               }, 1000);
             });
           }, 1000);
         });
-      }, 200); 
+      }, 200);
     });
-  }, []);
+  }, []); // Empty dependency array ensures this runs once on mount
 
   const backgroundColor = bgColorAnim.interpolate({
     inputRange: [0, 1],
