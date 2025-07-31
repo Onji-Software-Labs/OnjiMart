@@ -3,7 +3,7 @@ import { View, Text, Image, TouchableOpacity } from 'react-native';
 import { AntDesign, FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
 
 const CARD_MARGIN = 8;
-const CARD_WIDTH = (require('react-native').Dimensions.get('window').width - 3 * CARD_MARGIN - 24) / 2; //gets dimensions and calculates card width based on margins
+const CARD_WIDTH = (require('react-native').Dimensions.get('window').width - 3 * CARD_MARGIN - 24) / 2; 
 
 export default function FavouriteCard({ data, onConnect, connected, style }: any) {
   return (
