@@ -153,3 +153,42 @@ Filter suppliers by multiple parameters.
     }
 ]
 ```
+
+## Supplier API
+
+**Base URL**: `https://example.ngrok-free.app/api/supplier-business`
+
+---
+
+## 1. POST `/create-full`
+
+**Description**:  
+Add supplier's business details. Requires user to have supplier role.
+
+**Request**:  
+`POST /create-full`  
+**Content-Type**: `application/json`
+
+**Body**:
+```json
+{
+    "supplierId" : "string",
+    "address" : "string",
+    "city" : "string",
+    "pincode" : "string",
+    "contactNumber" : "string",
+    "categoryIds" : ["string", ...],
+    "subCategoryIds" : ["string", ...]
+}
+```
+
+**Response**:
+```json
+{
+    "id": "string",
+    "fullName": "string",
+    "pincode": "string",
+    "categoryIds": ["string", ...],
+    "subCategoryIds": ["string", ...]
+}
+```
