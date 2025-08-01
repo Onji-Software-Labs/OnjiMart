@@ -57,10 +57,6 @@ public class JwtHelper {
 
         String token = doGenerateToken(claims, phoneNumber);
         
-        // Debugging logs to verify token generation
-        System.out.println("Generated Token: " + token);
-        System.out.println("With Claims - phoneNumber: " + phoneNumber + ", userId: " + userId);
-
         return token;
     }
 

@@ -19,7 +19,6 @@ public class SattvaApplication {
 
 	public static void main(String[] args) {
 		SpringApplication.run(SattvaApplication.class, args);
-		System.out.println("Ae Devi Bhairavi");
 	}
 	   @Bean
 	    public ModelMapper modelMapper() {

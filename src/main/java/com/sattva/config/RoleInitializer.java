@@ -19,7 +19,6 @@ public class RoleInitializer {
                     Role role = new Role();
                     role.setName(roleName);
                     roleRepository.save(role);
-                    System.out.println("Initialized role: " + roleName);
                     return role;
                 });
             }
