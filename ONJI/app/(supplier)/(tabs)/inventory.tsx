@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Text, View, TextInput, Pressable, ScrollView, StatusBar, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, MaterialCommunityIcons, FontAwesome5, AntDesign } from '@expo/vector-icons';
+import FavouriteModal from '../../../components/supplier/FavouriteModal';
 
 export default function Dashboard() {
   // State
@@ -10,7 +11,8 @@ export default function Dashboard() {
   const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
   const [isSortModalVisible, setIsSortModalVisible] = useState(false);
   const [selectedSort, setSelectedSort] = useState<string | null>(null);
-  
+  const [isFavouriteModalVisible, setIsFavouriteModalVisible] = useState(false);
+
   // Filter state
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [creditProvided, setCreditProvided] = useState<'yes' | 'no' | null>(null);
@@ -110,7 +112,7 @@ export default function Dashboard() {
                 <MaterialCommunityIcons name="sort" size={20} color={isSortModalVisible || selectedSort ? "#10B981" : "#6B7280"} />
                 <Text className={`text-xs mt-1 ${isSortModalVisible || selectedSort ? 'text-green-600 font-medium' : 'text-gray-500'}`}>Sort</Text>
               </Pressable>
-              <Pressable className="items-center">
+              <Pressable className="items-center" onPress={() => setIsFavouriteModalVisible(true)}>
                 <FontAwesome5 name="heart" size={18} color="#9CA3AF" />
                 <Text className="text-xs text-gray-500 mt-1">Favourite</Text>
               </Pressable>
@@ -279,6 +281,11 @@ export default function Dashboard() {
           </View>
         </View>
       )}
+      {/* Favourite Modal */}
+      <FavouriteModal
+        visible={isFavouriteModalVisible}
+        onClose={() => setIsFavouriteModalVisible(false)}
+      />
     </View>
   );
 }
