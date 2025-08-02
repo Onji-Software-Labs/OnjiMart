@@ -45,7 +45,7 @@ public  class User implements UserDetails {
     @UuidGenerator
     private String id;
 
-    @Column(unique = true)
+    @Column(name = "full_name")
     private String email;
 
     @Column(name = "full_name")
