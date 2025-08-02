@@ -23,12 +23,8 @@ public class SupplierBusiness {
     private String name;       
     private String street;
     private String city;
-    private String state;
+    private String address;
     private String pincode;
-    private String country;
-
-    private double latitude;
-    private double longitude;
 
     private String contactNumber;
 
