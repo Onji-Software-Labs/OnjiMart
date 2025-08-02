@@ -1,9 +1,12 @@
 import FormikTextInput from "@/components/auth/FormikTextInput";
+import axiosInstance from "@/lib/api/axiosConfig";
 import AntDesign from "@expo/vector-icons/AntDesign";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router, useLocalSearchParams } from "expo-router";
 import { Formik, FormikProps } from "formik";
 import React, { useEffect, useRef, useState } from "react";
 import {
+    Alert,
     FlatList,
     Image,
     Modal,
@@ -40,21 +43,15 @@ const formSchema = Yup.object().shape({
     pinCode: Yup.string().required().min(6).max(6),
 });
 
-const CategoryOptions = ["Vegetable", "Fruits", "Premium", "Seasonal"];
-const subCategoryOptions = [
-    "Leafy",
-    "Root",
-    "Berries & small fruits",
-    "Tropical fruits",
-    "Summer",
-    "Monsoon",
-    "Winter",
-    "Exotic",
-    "Organic farm fresh",
-];
+const CategoryOptions = [""];
+const subCategoryOptions = [""];
 
 const BuisnessScreen = () => {
     const formRef = useRef<FormikProps<formValues>>(null);
+
+    const [CategoryOptions, setCategoryOptions] = useState<string[]>([]);
+    const [subCategoryOptions, setSubCategoryOptions] = useState<string[]>([]);
+
     // const params = useLocalSearchParams<{
     //     name: string;
     //     number: string;
@@ -81,7 +78,31 @@ const BuisnessScreen = () => {
         radioState: string;
     }>();
 
-    // Destructure with default empty strings for safety and stability
+    const getArray = async () => {
+        if (radioState === "Supplier") {
+            try {
+                const res = await axiosInstance.get("/api/categories");
+                const categories: string[] = [];
+                const subCategories: string[] = [];
+
+                for (let i = 0; i < res.data.length; i++) {
+                    categories.push(res.data[i].name);
+                    for (let j = 0; j < res.data[i].subCategories.length; j++) {
+                        subCategories.push(res.data[i].subCategories[j].name);
+                    }
+                }
+                setCategoryOptions(categories);
+                setSubCategoryOptions(subCategories);
+            } catch (error) {
+                Alert.alert("Error");
+            }
+        }
+    };
+
+    useEffect(() => {
+        getArray();
+    }, []);
+    // Destructure with default empty strings for safety and stability25
     const { name = "", number = "", radioState = "" } = params;
 
     const [paramState, setParamState] = useState({
@@ -117,12 +138,35 @@ const BuisnessScreen = () => {
         router.back();
         setalertBoxVisibility(!alertBoxVisibility);
     };
-    const handleApiCall = () => {
-        console.log(formRef.current?.values);
-        if (paramState.radioState === "Supplier") {
-            router.replace("/(supplier)/(tabs)/dashboard");
-        } else if (paramState.radioState === "Retailer") {
-            router.replace("/(retailer)/(tabs)/home");
+    const handleApiCall = async () => {
+        try {
+            const id = await AsyncStorage.getItem("id");
+            console.log(formRef.current?.values);
+            if (paramState.radioState === "Supplier") {
+                router.replace("/(supplier)/(tabs)/dashboard");
+                //API for supplier details may be integrated here
+            } else if (paramState.radioState === "Retailer") {
+                const res = await axiosInstance.post("api/shops/create", {
+                    id: "string",
+                    retailerId: id,
+                    name: formRef.current?.values.fullName,
+                    location: "string",
+                    street: "string",
+                    city: formRef.current?.values.city,
+                    state: "string",
+                    pincode: formRef.current?.values.pinCode,
+                    country: "string",
+                    latitude: 0,
+                    longitude: 0,
+                    contactNumber: "string",
+                    openingHours: ["string"],
+                    active: true,
+                });
+                router.replace("/(retailer)/(tabs)/home");
+            }
+        } catch (e) {
+            console.log("Error");
+            Alert.alert("Error occurred");
         }
     };
     const [isCategoryVisible, setIsCategoryVisible] = useState(false);
@@ -375,265 +419,267 @@ const BuisnessScreen = () => {
                                                 </Text>
                                             </View>
                                         )}
-                                        <View className="mt-6">
-                                            {/* Label */}
-                                            <Text className="text-sm text-text-success font-primarymedium">
-                                                Business Category
-                                            </Text>
+                                        {radioState === "Supplier" ? (
+                                            <View>
+                                                <View className="mt-6">
+                                                    {/* Label */}
+                                                    <Text className="text-sm text-text-success font-primarymedium">
+                                                        Business Category
+                                                    </Text>
 
-                                            {/* Dropdown Trigger */}
-                                            <TouchableOpacity
-                                                onPress={toggleDropdownCategory}
-                                                className={`border border-xs rounded-md ${
-                                                    selectedItemsCategory.length >
-                                                    0
-                                                        ? "border-border-success"
-                                                        : "border-border-disabled"
-                                                }  bg-surface-pressed px-4 py-3 flex-row justify-between items-center`}
-                                            >
-                                                <Text
-                                                    className={`${
-                                                        selectedItemsCategory.length >
-                                                        0
-                                                            ? "text-text-body"
-                                                            : "text-text-disabled"
-                                                    }`}
-                                                >
-                                                    {selectedItemsCategory.length >
-                                                    0
-                                                        ? selectedItemsCategory.join(
-                                                              ", "
-                                                          )
-                                                        : "Business Category"}
-                                                </Text>
-                                                <View>
-                                                    <AntDesign
-                                                        name="down"
-                                                        size={15}
-                                                        color="black"
-                                                    />
-                                                </View>
-                                            </TouchableOpacity>
-
-                                            {/* Modal Dropdown */}
-                                            <Modal
-                                                visible={isCategoryVisible}
-                                                transparent
-                                                animationType="fade"
-                                                onRequestClose={
-                                                    toggleDropdownCategory
-                                                }
-                                            >
-                                                <Pressable
-                                                    onPress={
-                                                        toggleDropdownCategory
-                                                    }
-                                                    className="flex-1 bg-black/40 justify-center px-4"
-                                                >
-                                                    <View className="bg-surface-pressed rounded-xl p-4">
-                                                        <FlatList
-                                                            data={
-                                                                CategoryOptions
-                                                            }
-                                                            keyExtractor={(
-                                                                item
-                                                            ) => item}
-                                                            renderItem={({
-                                                                item,
-                                                            }) => (
-                                                                <View className="flex-row items-center justify-between py-2">
-                                                                    <View className="flex-row items-center">
-                                                                        {item ===
-                                                                        "Vegetable" ? (
-                                                                            <Image
-                                                                                source={require("../../assets/images/Vector.jpg")}
-                                                                            ></Image>
-                                                                        ) : (
-                                                                            <Image
-                                                                                source={require("../../assets/images/apple.jpg")}
-                                                                            ></Image>
-                                                                        )}
-                                                                        <Text className="px-2 text-base text-text-body">
-                                                                            {
-                                                                                item
-                                                                            }
-                                                                        </Text>
-                                                                    </View>
-                                                                    <Checkbox
-                                                                        status={
-                                                                            selectedItemsCategory.includes(
-                                                                                item
-                                                                            )
-                                                                                ? "checked"
-                                                                                : "unchecked"
-                                                                        }
-                                                                        onPress={() =>
-                                                                            toggleItemCategory(
-                                                                                item
-                                                                            )
-                                                                        }
-                                                                    />
-                                                                </View>
-                                                            )}
-                                                        />
-
-                                                        {/* Confirm Button */}
-                                                        <TouchableOpacity
-                                                            onPress={
-                                                                confirmSelectionCategory
-                                                            }
-                                                            className="bg-success w-[50%] mx-auto rounded-md mt-4 py-3"
+                                                    {/* Dropdown Trigger */}
+                                                    <TouchableOpacity
+                                                        onPress={
+                                                            toggleDropdownCategory
+                                                        }
+                                                        className={`border border-xs rounded-md ${
+                                                            selectedItemsCategory.length >
+                                                            0
+                                                                ? "border-border-success"
+                                                                : "border-border-disabled"
+                                                        }  bg-surface-pressed px-4 py-3 flex-row justify-between items-center`}
+                                                    >
+                                                        <Text
+                                                            className={`${
+                                                                selectedItemsCategory.length >
+                                                                0
+                                                                    ? "text-text-body"
+                                                                    : "text-text-disabled"
+                                                            }`}
                                                         >
-                                                            <Text className="text-text-on-action text-center font-medium">
-                                                                Confirm
-                                                            </Text>
-                                                        </TouchableOpacity>
-                                                    </View>
-                                                </Pressable>
-                                            </Modal>
-                                        </View>
-                                        <View className="mt-6">
-                                            {/* Label */}
-                                            <Text className="text-sm text-text-success font-primarymedium">
-                                                Business Subcategory
-                                            </Text>
+                                                            {selectedItemsCategory.length >
+                                                            0
+                                                                ? selectedItemsCategory.join(
+                                                                      ", "
+                                                                  )
+                                                                : "Business Category"}
+                                                        </Text>
+                                                        <View>
+                                                            <AntDesign
+                                                                name="down"
+                                                                size={15}
+                                                                color="black"
+                                                            />
+                                                        </View>
+                                                    </TouchableOpacity>
 
-                                            {/* Dropdown Trigger */}
-                                            <TouchableOpacity
-                                                onPress={
-                                                    toggleDropdownSubCategory
-                                                }
-                                                className={`border border-xs rounded-md ${
-                                                    selectedItemsSubCategory.length >
-                                                    0
-                                                        ? "border-border-success"
-                                                        : "border-border-disabled"
-                                                }  bg-surface-pressed px-4 py-3 flex-row justify-between items-center`}
-                                            >
-                                                <Text
-                                                    className={`${
-                                                        selectedItemsSubCategory.length >
-                                                        0
-                                                            ? "text-text-body"
-                                                            : "text-text-disabled"
-                                                    }`}
-                                                >
-                                                    {selectedItemsSubCategory.length >
-                                                    0
-                                                        ? selectedItemsSubCategory.join(
-                                                              ", "
-                                                          )
-                                                        : "Business Category"}
-                                                </Text>
-                                                <View>
-                                                    <AntDesign
-                                                        name="down"
-                                                        size={15}
-                                                        color="black"
-                                                    />
-                                                </View>
-                                            </TouchableOpacity>
-
-                                            {/* Modal Dropdown */}
-                                            <Modal
-                                                visible={isSubCategoryVisible}
-                                                transparent
-                                                animationType="fade"
-                                                onRequestClose={
-                                                    toggleDropdownSubCategory
-                                                }
-                                            >
-                                                <Pressable
-                                                    onPress={
-                                                        toggleDropdownSubCategory
-                                                    }
-                                                    className="flex-1 bg-black/40 justify-center px-4"
-                                                >
-                                                    <View className="bg-surface-pressed rounded-xl p-4">
-                                                        <FlatList
-                                                            data={
-                                                                subCategoryOptions
-                                                            }
-                                                            keyExtractor={(
-                                                                item
-                                                            ) => item}
-                                                            renderItem={({
-                                                                item,
-                                                            }) => (
-                                                                <View className="flex-row items-center justify-between py-2">
-                                                                    <View className="flex-row items-center">
-                                                                        {item ===
-                                                                        "Leafy" ? (
-                                                                            <Image
-                                                                                source={require("../../assets/images/Vector.jpg")}
-                                                                            ></Image>
-                                                                        ) : (
-                                                                            <Image
-                                                                                source={require("../../assets/images/apple.jpg")}
-                                                                            ></Image>
-                                                                        )}
-                                                                        <Text className="text-base px-2 text-text-body">
-                                                                            {
-                                                                                item
-                                                                            }
-                                                                        </Text>
-                                                                    </View>
-                                                                    <Checkbox
-                                                                        status={
-                                                                            selectedItemsSubCategory.includes(
-                                                                                item
-                                                                            )
-                                                                                ? "checked"
-                                                                                : "unchecked"
-                                                                        }
-                                                                        onPress={() =>
-                                                                            toggleItemSubCategory(
-                                                                                item
-                                                                            )
-                                                                        }
-                                                                    />
-                                                                </View>
-                                                            )}
-                                                        />
-
-                                                        {/* Confirm Button */}
-                                                        <TouchableOpacity
+                                                    {/* Modal Dropdown */}
+                                                    <Modal
+                                                        visible={
+                                                            isCategoryVisible
+                                                        }
+                                                        transparent
+                                                        animationType="fade"
+                                                        onRequestClose={
+                                                            toggleDropdownCategory
+                                                        }
+                                                    >
+                                                        <Pressable
                                                             onPress={
-                                                                confirmSelectionSubCategory
+                                                                toggleDropdownCategory
                                                             }
-                                                            className="bg-success w-[50%] mx-auto rounded-md mt-4 py-3"
+                                                            className="flex-1 bg-black/40 justify-center px-4"
                                                         >
-                                                            <Text className="text-text-on-action text-center font-medium">
-                                                                Confirm
-                                                            </Text>
-                                                        </TouchableOpacity>
-                                                    </View>
-                                                </Pressable>
-                                            </Modal>
-                                        </View>
+                                                            <View className="bg-surface-pressed rounded-xl p-4">
+                                                                <FlatList
+                                                                    data={
+                                                                        CategoryOptions
+                                                                    }
+                                                                    keyExtractor={(
+                                                                        item
+                                                                    ) => item}
+                                                                    renderItem={({
+                                                                        item,
+                                                                    }) => (
+                                                                        <View className="flex-row items-center justify-between py-2">
+                                                                            <View className="flex-row items-center">
+                                                                                <Image
+                                                                                    source={require("../../assets/images/apple.jpg")}
+                                                                                ></Image>
+                                                                                <Text className="px-2 text-base text-text-body">
+                                                                                    {
+                                                                                        item
+                                                                                    }
+                                                                                </Text>
+                                                                            </View>
+                                                                            <Checkbox
+                                                                                status={
+                                                                                    selectedItemsCategory.includes(
+                                                                                        item
+                                                                                    )
+                                                                                        ? "checked"
+                                                                                        : "unchecked"
+                                                                                }
+                                                                                onPress={() =>
+                                                                                    toggleItemCategory(
+                                                                                        item
+                                                                                    )
+                                                                                }
+                                                                            />
+                                                                        </View>
+                                                                    )}
+                                                                />
+
+                                                                {/* Confirm Button */}
+                                                                <TouchableOpacity
+                                                                    onPress={
+                                                                        confirmSelectionCategory
+                                                                    }
+                                                                    className="bg-success w-[50%] mx-auto rounded-md mt-4 py-3"
+                                                                >
+                                                                    <Text className="text-text-on-action text-center font-medium">
+                                                                        Confirm
+                                                                    </Text>
+                                                                </TouchableOpacity>
+                                                            </View>
+                                                        </Pressable>
+                                                    </Modal>
+                                                </View>
+                                                <View className="mt-6">
+                                                    {/* Label */}
+                                                    <Text className="text-sm text-text-success font-primarymedium">
+                                                        Business Subcategory
+                                                    </Text>
+
+                                                    {/* Dropdown Trigger */}
+                                                    <TouchableOpacity
+                                                        onPress={
+                                                            toggleDropdownSubCategory
+                                                        }
+                                                        className={`border border-xs rounded-md ${
+                                                            selectedItemsSubCategory.length >
+                                                            0
+                                                                ? "border-border-success"
+                                                                : "border-border-disabled"
+                                                        }  bg-surface-pressed px-4 py-3 flex-row justify-between items-center`}
+                                                    >
+                                                        <Text
+                                                            className={`${
+                                                                selectedItemsSubCategory.length >
+                                                                0
+                                                                    ? "text-text-body"
+                                                                    : "text-text-disabled"
+                                                            }`}
+                                                        >
+                                                            {selectedItemsSubCategory.length >
+                                                            0
+                                                                ? selectedItemsSubCategory.join(
+                                                                      ", "
+                                                                  )
+                                                                : "Business Category"}
+                                                        </Text>
+                                                        <View>
+                                                            <AntDesign
+                                                                name="down"
+                                                                size={15}
+                                                                color="black"
+                                                            />
+                                                        </View>
+                                                    </TouchableOpacity>
+
+                                                    {/* Modal Dropdown */}
+                                                    <Modal
+                                                        visible={
+                                                            isSubCategoryVisible
+                                                        }
+                                                        transparent
+                                                        animationType="fade"
+                                                        onRequestClose={
+                                                            toggleDropdownSubCategory
+                                                        }
+                                                    >
+                                                        <Pressable
+                                                            onPress={
+                                                                toggleDropdownSubCategory
+                                                            }
+                                                            className="flex-1 bg-black/40 justify-center px-4"
+                                                        >
+                                                            <View className="bg-surface-pressed rounded-xl p-4">
+                                                                <FlatList
+                                                                    data={
+                                                                        subCategoryOptions
+                                                                    }
+                                                                    keyExtractor={(
+                                                                        item
+                                                                    ) => item}
+                                                                    renderItem={({
+                                                                        item,
+                                                                    }) => (
+                                                                        <View className="flex-row items-center justify-between py-2">
+                                                                            <View className="flex-row items-center">
+                                                                                <Image
+                                                                                    source={require("../../assets/images/apple.jpg")}
+                                                                                ></Image>
+                                                                                <Text className="text-base px-2 text-text-body">
+                                                                                    {
+                                                                                        item
+                                                                                    }
+                                                                                </Text>
+                                                                            </View>
+                                                                            <Checkbox
+                                                                                status={
+                                                                                    selectedItemsSubCategory.includes(
+                                                                                        item
+                                                                                    )
+                                                                                        ? "checked"
+                                                                                        : "unchecked"
+                                                                                }
+                                                                                onPress={() =>
+                                                                                    toggleItemSubCategory(
+                                                                                        item
+                                                                                    )
+                                                                                }
+                                                                            />
+                                                                        </View>
+                                                                    )}
+                                                                />
+
+                                                                {/* Confirm Button */}
+                                                                <TouchableOpacity
+                                                                    onPress={
+                                                                        confirmSelectionSubCategory
+                                                                    }
+                                                                    className="bg-success w-[50%] mx-auto rounded-md mt-4 py-3"
+                                                                >
+                                                                    <Text className="text-text-on-action text-center font-medium">
+                                                                        Confirm
+                                                                    </Text>
+                                                                </TouchableOpacity>
+                                                            </View>
+                                                        </Pressable>
+                                                    </Modal>
+                                                </View>
+                                            </View>
+                                        ) : null}
                                     </View>
                                     <View>
                                         <Pressable
                                             className="justify-center  rounded-[12px] items-center h-[60] "
                                             disabled={
-                                                isValid
-                                                    ? selectedItemsCategory.length ==
-                                                          0 ||
-                                                      selectedItemsSubCategory.length ==
-                                                          0
-                                                        ? true
-                                                        : false
-                                                    : true
+                                                radioState === "Supplier"
+                                                    ? isValid
+                                                        ? selectedItemsCategory.length ==
+                                                              0 ||
+                                                          selectedItemsSubCategory.length ==
+                                                              0
+                                                            ? true
+                                                            : false
+                                                        : true
+                                                    : !isValid
                                             }
                                             style={{
                                                 backgroundColor:
-                                                    isValid &&
-                                                    selectedItemsCategory.length >
-                                                        0 &&
-                                                    selectedItemsSubCategory.length >
-                                                        0
-                                                        ? "#4CAF50"
-                                                        : "#E0E0E0",
+                                                    radioState === "Supplier"
+                                                        ? isValid &&
+                                                          selectedItemsCategory.length >
+                                                              0 &&
+                                                          selectedItemsSubCategory.length >
+                                                              0
+                                                            ? "#4CAF50"
+                                                            : "#E0E0E0"
+                                                        : isValid
+                                                          ? "#4CAF50"
+                                                          : "#E0E0E0",
                                             }}
                                             onPress={() => handleSubmit()}
                                         >
@@ -641,13 +687,18 @@ const BuisnessScreen = () => {
                                                 className="text-[20px]  font-primarysemibold"
                                                 style={{
                                                     color:
-                                                        isValid &&
-                                                        selectedItemsCategory.length >
-                                                            0 &&
-                                                        selectedItemsSubCategory.length >
-                                                            0
-                                                            ? "#F3FAF3"
-                                                            : "#AAB2B8",
+                                                        radioState ===
+                                                        "Supplier"
+                                                            ? isValid &&
+                                                              selectedItemsCategory.length >
+                                                                  0 &&
+                                                              selectedItemsSubCategory.length >
+                                                                  0
+                                                                ? "#F3FAF3"
+                                                                : "#AAB2B8"
+                                                            : isValid
+                                                              ? "#F3FAF3"
+                                                              : "#AAB2B8",
                                                 }}
                                             >
                                                 Continue
