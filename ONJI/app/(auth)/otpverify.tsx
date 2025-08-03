@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import axiosInstance from '@/lib/api/axiosConfig';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width, height } = Dimensions.get('window');
 
@@ -79,10 +80,15 @@ export default function OTPVerification() {
     const enteredOtp = otp.join('');
     try {
       
-      await axiosInstance.post('/api/auth/login', {
+      const res=await axiosInstance.post('/api/auth/login', {
         phoneNumber: phoneNumber,
         otpNumber: enteredOtp,
       });
+
+      await AsyncStorage.setItem("token",res.data.jwtToken);
+      await AsyncStorage.setItem("refreshToken",res.data.refreshToken)
+
+      console.log(res.data)
 
       setIsError(false);
       setErrorMessage('');

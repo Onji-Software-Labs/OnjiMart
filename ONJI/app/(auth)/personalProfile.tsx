@@ -1,7 +1,11 @@
 import RadioInput from "@/components/auth/RadioInput";
+import axiosInstance from "@/lib/api/axiosConfig";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { router } from "expo-router";
 import { Formik } from "formik";
 import React, { useState } from "react";
 import {
+    Alert,
     Dimensions,
     Image,
     Pressable,
@@ -9,8 +13,6 @@ import {
     TextInput,
     View,
 } from "react-native";
-import { Alert } from "react-native";
-import { useLocalSearchParams,router } from "expo-router";
 import {
     SafeAreaView,
     useSafeAreaInsets,
@@ -37,16 +39,40 @@ const PersonalProfile = () => {
         setRadioState(label);
     };
     const insets = useSafeAreaInsets();
-    const handleSubmit = (values: formValues) => {
+    const handleSubmit = async (values: formValues) => {
+        const role="ROLE_"+radioState.toUpperCase();
         console.log(
             "name : " + values.fullName + "   number : " + values.phoneNumber
         );
-        const name=values.fullName
-        const number=values.phoneNumber
-        router.push({
-            pathname:"/(auth)/buisnessScreen",
-            params:{name,number,radioState}
-        });
+        const name = values.fullName;
+        const number = values.phoneNumber;
+
+        try {
+            const id = await AsyncStorage.getItem("id");
+            
+            const res = await axiosInstance.put(`api/users/${id}`, {
+                id: "string",
+                username: "string",
+                password: "string",
+                roles: [role],
+                
+                email: "email10@gmail.com",
+                status: "ACTIVE",
+                userType: radioState.toUpperCase(),
+                active: true,
+                dateEntered: "2025-07-31T04:55:56.769Z",
+                dateModified: "2025-07-31T04:55:56.769Z",
+                onboardingStatus: true,
+            });
+
+            router.push({
+                pathname: "/(auth)/buisnessScreen",
+                params: { name, number, radioState },
+            });
+        } catch (e) {
+            console.log("Error");
+            Alert.alert("Pls try again");
+        }
     };
     return (
         <View
@@ -55,12 +81,10 @@ const PersonalProfile = () => {
         >
             <View className="mx-4  flex-1">
                 <SafeAreaView className="">
-                    <Pressable
-                        onPress={()=>router.navigate("/(auth)/login")}
-                    >
-                    <Image
-                        source={require("../../assets/images/arrow_back.png")}
-                    ></Image>
+                    <Pressable onPress={() => router.navigate("/(auth)/login")}>
+                        <Image
+                            source={require("../../assets/images/arrow_back.png")}
+                        ></Image>
                     </Pressable>
                 </SafeAreaView>
 
@@ -79,10 +103,12 @@ const PersonalProfile = () => {
                                 ></Image>
                             </View>
                         </View>
-                        <Pressable 
-                        onPress={()=>console.log("Image is editable")}
+                        <Pressable
+                            onPress={() => console.log("Image is editable")}
                         >
-                        <Text className="text-text-action font-primarysemibold mx-auto mt-3">Edit</Text>
+                            <Text className="text-text-action font-primarysemibold mx-auto mt-3">
+                                Edit
+                            </Text>
                         </Pressable>
                         <View className="flex-1 ">
                             <View className="mt-5">
