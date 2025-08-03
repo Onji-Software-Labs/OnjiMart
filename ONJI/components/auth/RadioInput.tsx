@@ -1,4 +1,4 @@
-import { View, Text, Pressable,StyleSheet } from 'react-native'
+import { View, Text, Pressable } from 'react-native'
 import React from 'react'
 
 interface RadioLabelType{
@@ -33,10 +33,4 @@ const RadioInput = ({ label, radioState, handleMethod }: RadioLabelType) => {
   );
 };
 
-const styles = StyleSheet.create({
-  outerRadio: {
-    borderRadius: "50%",
-  },
-});
-
-export default RadioInput
+export default RadioInput;
