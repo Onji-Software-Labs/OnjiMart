@@ -16,6 +16,278 @@ import {
   View
 } from 'react-native';
 
+// Types
+interface Supplier {
+  id: number;
+  name: string;
+  storeName: string;
+  distance: string;
+  rating: number;
+  reviews: number;
+  supplies: string[];
+  avatar?: string;
+}
+
+interface SupplierCardProps {
+  supplier: Supplier;
+  isRequested: boolean;
+  isFavorited: boolean;
+  onConnect: (id: number) => void;
+  onToggleFavorite: (id: number) => void;
+  cardStyle?: any;
+  showDistance?: boolean;
+  showRating?: boolean;
+  maxSupplies?: number;
+}
+
+// Reusable Components
+
+// Stars Component
+const Stars = ({ value }: { value: number }) => (
+  <View style={{ flexDirection: 'row' }}>
+    {Array.from({ length: Math.floor(value) }).map((_, i) => (
+      <Feather key={i} name="star" size={12} color="#4ade80" />
+    ))}
+  </View>
+);
+
+// Reusable Supplier Card Component
+const SupplierCard = ({
+  supplier,
+  isRequested,
+  isFavorited,
+  onConnect,
+  onToggleFavorite,
+  cardStyle = {},
+  showDistance = true,
+  showRating = true,
+  maxSupplies = 2 // Reduced default to prevent overlap
+}: SupplierCardProps) => {
+  const isWeb = Platform.OS === 'web';
+
+  return (
+    <View style={[{
+      backgroundColor: '#FFFFFF',
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: '#E5E7EB',
+      padding: 16,
+      marginBottom: 16,
+      flexDirection: 'row',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.05,
+      shadowRadius: 4,
+      elevation: 2
+    }, cardStyle]}>
+      
+      {/* Avatar */}
+      <Image
+        source={
+          supplier.avatar 
+            ? { uri: supplier.avatar }
+            : require('../../../assets/images/3davatar.png')
+        }
+        style={{
+          width: isWeb ? 56 : 48,
+          height: isWeb ? 56 : 48,
+          borderRadius: isWeb ? 28 : 24,
+          resizeMode: 'cover'
+        }}
+      />
+      
+      {/* Content */}
+      <View style={{ flex: 1, marginLeft: 12 }}>
+        
+        {/* Header - Name and Favorite */}
+        <View style={{
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: 4
+        }}>
+          <View style={{ flex: 1, marginRight: 8 }}>
+            <Text style={{
+              fontSize: isWeb ? 17 : 16,
+              fontWeight: '600',
+              color: '#1F2937'
+            }}>
+              {supplier.name}
+            </Text>
+            <Text style={{
+              fontSize: isWeb ? 15 : 14,
+              color: '#6B7280',
+              marginTop: 1
+            }}>
+              {supplier.storeName}
+            </Text>
+          </View>
+          <TouchableOpacity onPress={() => onToggleFavorite(supplier.id)}>
+            <Feather
+              name="heart"
+              size={isWeb ? 20 : 18}
+              color={isFavorited ? '#EF4444' : '#D1D5DB'}
+              fill={isFavorited ? '#EF4444' : 'none'}
+            />
+          </TouchableOpacity>
+        </View>
+
+        {/* Distance */}
+        {showDistance && (
+          <Text style={{
+            marginTop: 2,
+            fontSize: isWeb ? 13 : 12,
+            color: '#9CA3AF'
+          }}>
+            {supplier.distance}
+          </Text>
+        )}
+
+        {/* Rating */}
+        {showRating && (
+          <View style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            marginTop: 8
+          }}>
+            <Stars value={supplier.rating} />
+            <Text style={{
+              marginLeft: 6,
+              fontSize: isWeb ? 13 : 12,
+              color: '#6B7280'
+            }}>
+              {supplier.rating} ({supplier.reviews})
+            </Text>
+          </View>
+        )}
+
+        {/* Supply Tags - Fixed to prevent overlap */}
+        <View style={{
+          marginTop: 12,
+          marginBottom: 12
+        }}>
+          <View style={{ 
+            flexDirection: 'row', 
+            flexWrap: 'wrap',
+            alignItems: 'center'
+          }}>
+            {supplier.supplies.slice(0, maxSupplies).map((tag, i) => (
+              <View
+                key={i}
+                style={{
+                  backgroundColor: '#F0FDF4',
+                  borderRadius: 12,
+                  paddingHorizontal: 10,
+                  paddingVertical: 5,
+                  marginRight: 8,
+                  marginBottom: 4 // Add margin bottom for wrapped items
+                }}>
+                <Text style={{
+                  fontSize: isWeb ? 11 : 10,
+                  fontWeight: '500',
+                  color: '#166534'
+                }}>
+                  {tag}
+                </Text>
+              </View>
+            ))}
+            {supplier.supplies.length > maxSupplies && (
+              <View style={{
+                backgroundColor: '#F3F4F6',
+                borderRadius: 12,
+                paddingHorizontal: 10,
+                paddingVertical: 5,
+                marginRight: 8,
+                marginBottom: 4
+              }}>
+                <Text style={{
+                  fontSize: isWeb ? 11 : 10,
+                  fontWeight: '500',
+                  color: '#6B7280'
+                }}>
+                  +{supplier.supplies.length - maxSupplies}
+                </Text>
+              </View>
+            )}
+          </View>
+        </View>
+
+        {/* Action Buttons - Separated from supply tags */}
+        <View style={{
+          flexDirection: 'row',
+          justifyContent: 'flex-end',
+          alignItems: 'center'
+        }}>
+          {isRequested ? (
+            <View style={{ 
+              flexDirection: 'row', 
+              gap: 8,
+              flexShrink: 0 // Prevent shrinking
+            }}>
+              <TouchableOpacity style={{
+                backgroundColor: '#2E7D32',
+                borderRadius: 8,
+                paddingHorizontal: isWeb ? 14 : 12,
+                paddingVertical: isWeb ? 8 : 6,
+                minWidth: isWeb ? 90 : 80 // Minimum width to prevent squishing
+              }}>
+                <Text style={{
+                  color: '#FFFFFF',
+                  fontSize: isWeb ? 12 : 11,
+                  fontWeight: '600',
+                  textAlign: 'center'
+                }}>
+                  Requested
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => onConnect(supplier.id)}
+                style={{
+                  borderWidth: 1,
+                  borderColor: '#D1D5DB',
+                  borderRadius: 8,
+                  paddingHorizontal: isWeb ? 14 : 12,
+                  paddingVertical: isWeb ? 8 : 6,
+                  minWidth: isWeb ? 70 : 60
+                }}>
+                <Text style={{
+                  color: '#6B7280',
+                  fontSize: isWeb ? 12 : 11,
+                  fontWeight: '600',
+                  textAlign: 'center'
+                }}>
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity
+              onPress={() => onConnect(supplier.id)}
+              style={{
+                backgroundColor: '#2E7D32',
+                borderRadius: 8,
+                paddingHorizontal: isWeb ? 16 : 14,
+                paddingVertical: isWeb ? 10 : 8,
+                minWidth: isWeb ? 80 : 70,
+                flexShrink: 0
+              }}>
+              <Text style={{
+                color: '#FFFFFF',
+                fontSize: isWeb ? 13 : 12,
+                fontWeight: '600',
+                textAlign: 'center'
+              }}>
+                Connect
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+    </View>
+  );
+};
+
+// Main Dashboard Component
 export default function Dashboard() {
   const { width } = useWindowDimensions();
   const isWeb = Platform.OS === 'web';
@@ -58,15 +330,44 @@ export default function Dashboard() {
     },
   ];
 
-  const suppliers = Array.from({ length: 4 }, (_, i) => ({
-    id: i + 1,
-    name: 'Sunway trading',
-    storeName: 'Random kaka',
-    distance: '3 kms away, Mangalore',
-    rating: 4.5,
-    reviews: 6,
-    supplies: ['Vegetables']
-  }));
+  const suppliers: Supplier[] = [
+    {
+      id: 1,
+      name: 'Sunway Trading',
+      storeName: 'Random Kaka',
+      distance: '3 kms away, Mangalore',
+      rating: 4.5,
+      reviews: 6,
+      supplies: ['Vegetables', 'Fruits']
+    },
+    {
+      id: 2,
+      name: 'Green Valley Farms',
+      storeName: 'Fresh Market',
+      distance: '5 kms away, Udupi',
+      rating: 4.8,
+      reviews: 12,
+      supplies: ['Vegetables', 'Herbs']
+    },
+    {
+      id: 3,
+      name: 'Coastal Suppliers',
+      storeName: 'Ocean Fresh',
+      distance: '2 kms away, Mangalore',
+      rating: 4.2,
+      reviews: 8,
+      supplies: ['Vegetables', 'Seafood']
+    },
+    {
+      id: 4,
+      name: 'Mountain Fresh',
+      storeName: 'Hill Station Store',
+      distance: '7 kms away, Dharwad',
+      rating: 4.6,
+      reviews: 15,
+      supplies: ['Fruits', 'Vegetables', 'Dairy']
+    }
+  ];
 
   // Navigation
   const handleTilePress = (tileLabel: string) => {
@@ -98,12 +399,11 @@ export default function Dashboard() {
   const toggleFavorite = (id: number) =>
     setFavorites(prev => ({ ...prev, [id]: !prev[id] }));
 
-  const Stars = ({ value }: { value: number }) => (
-    <View style={{ flexDirection: 'row' }}>
-      {Array.from({ length: Math.floor(value) }).map((_, i) => (
-        <Feather key={i} name="star" size={12} color="#4ade80" />
-      ))}
-    </View>
+  // Filter suppliers based on search
+  const filteredSuppliers = suppliers.filter(supplier =>
+    supplier.name.toLowerCase().includes(search.toLowerCase()) ||
+    supplier.storeName.toLowerCase().includes(search.toLowerCase()) ||
+    supplier.supplies.some(supply => supply.toLowerCase().includes(search.toLowerCase()))
   );
 
   const currentAddress = addresses.find(addr => addr.name === selectedAddress) || addresses[0];
@@ -276,7 +576,7 @@ export default function Dashboard() {
           <TextInput
             value={search}
             onChangeText={setSearch}
-            placeholder="Search: Random kaka"
+            placeholder="Search suppliers..."
             placeholderTextColor="#9CA3AF"
             style={{
               marginLeft: 12,
@@ -536,7 +836,7 @@ export default function Dashboard() {
           </View>
         </View>
 
-        {/* DISCOVER SUPPLIERS SECTION */}
+        {/* DISCOVER SUPPLIERS SECTION - Using Reusable Component */}
         <View style={{
           paddingHorizontal: horizontalPadding,
           marginBottom: 24
@@ -547,204 +847,69 @@ export default function Dashboard() {
             color: '#1F2937',
             marginBottom: 16
           }}>
-            Discover Suppliers
+            Discover Suppliers ({filteredSuppliers.length})
           </Text>
 
-          {suppliers.map(supplier => {
-            const requested = !!connections[supplier.id];
-            const favored = !!favorites[supplier.id];
-
-            return (
-              <View key={supplier.id} style={{
-                backgroundColor: '#FFFFFF',
-                borderRadius: 16,
-                borderWidth: 1,
-                borderColor: '#E5E7EB',
-                padding: 16,
-                marginBottom: 16,
-                flexDirection: 'row',
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.05,
-                shadowRadius: 4,
-                elevation: 2
+          {filteredSuppliers.length === 0 ? (
+            <View style={{ 
+              alignItems: 'center', 
+              paddingVertical: 40 
+            }}>
+              <Text style={{ 
+                color: '#6B7280', 
+                fontSize: 16 
               }}>
-                <Image
-                  source={require('../../../assets/images/3davatar.png')}
-                  style={{
-                    width: isWeb ? 56 : 48,
-                    height: isWeb ? 56 : 48,
-                    borderRadius: isWeb ? 28 : 24,
-                    resizeMode: 'cover'
-                  }}
+                {search ? 'No suppliers found for your search' : 'No suppliers available'}
+              </Text>
+            </View>
+          ) : (
+            filteredSuppliers.map(supplier => {
+              const requested = !!connections[supplier.id];
+              const favored = !!favorites[supplier.id];
+
+              return (
+                <SupplierCard
+                  key={supplier.id}
+                  supplier={supplier}
+                  isRequested={requested}
+                  isFavorited={favored}
+                  onConnect={toggleConnection}
+                  onToggleFavorite={toggleFavorite}
+                  showDistance={true}
+                  showRating={true}
+                  maxSupplies={2} // Reduced to prevent overlap
                 />
-                <View style={{ flex: 1, marginLeft: 12 }}>
-                  <View style={{
-                    flexDirection: 'row',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    marginBottom: 4
-                  }}>
-                    <View>
-                      <Text style={{
-                        fontSize: isWeb ? 17 : 16,
-                        fontWeight: '600',
-                        color: '#1F2937'
-                      }}>
-                        {supplier.name}
-                      </Text>
-                      <Text style={{
-                        fontSize: isWeb ? 15 : 14,
-                        color: '#6B7280',
-                        marginTop: 1
-                      }}>
-                        {supplier.storeName}
-                      </Text>
-                    </View>
-                    <TouchableOpacity onPress={() => toggleFavorite(supplier.id)}>
-                      <Feather
-                        name="heart"
-                        size={isWeb ? 20 : 18}
-                        color={favored ? '#EF4444' : '#D1D5DB'}
-                        fill={favored ? '#EF4444' : 'none'}
-                      />
-                    </TouchableOpacity>
-                  </View>
+              );
+            })
+          )}
 
-                  <Text style={{
-                    marginTop: 2,
-                    fontSize: isWeb ? 13 : 12,
-                    color: '#9CA3AF'
-                  }}>
-                    {supplier.distance}
-                  </Text>
-
-                  <View style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    marginTop: 8
-                  }}>
-                    <Stars value={supplier.rating} />
-                    <Text style={{
-                      marginLeft: 6,
-                      fontSize: isWeb ? 13 : 12,
-                      color: '#6B7280'
-                    }}>
-                      {supplier.rating} ({supplier.reviews})
-                    </Text>
-                  </View>
-
-                  <View style={{
-                    flexDirection: 'row',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    marginTop: 12
-                  }}>
-                    <View style={{ flexDirection: 'row' }}>
-                      {supplier.supplies.map((tag, i) => (
-                        <View
-                          key={i}
-                          style={{
-                            backgroundColor: '#F0FDF4',
-                            borderRadius: 12,
-                            paddingHorizontal: 10,
-                            paddingVertical: 5,
-                            marginRight: 8
-                          }}>
-                          <Text style={{
-                            fontSize: isWeb ? 11 : 10,
-                            fontWeight: '500',
-                            color: '#166534'
-                          }}>
-                            {tag}
-                          </Text>
-                        </View>
-                      ))}
-                    </View>
-
-                    {requested ? (
-                      <View style={{ flexDirection: 'row', gap: 8 }}>
-                        <TouchableOpacity style={{
-                          backgroundColor: '#2E7D32',
-                          borderRadius: 8,
-                          paddingHorizontal: isWeb ? 16 : 14,
-                          paddingVertical: isWeb ? 10 : 8
-                        }}>
-                          <Text style={{
-                            color: '#FFFFFF',
-                            fontSize: isWeb ? 13 : 12,
-                            fontWeight: '600'
-                          }}>
-                            Requested
-                          </Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          onPress={() => toggleConnection(supplier.id)}
-                          style={{
-                            borderWidth: 1,
-                            borderColor: '#D1D5DB',
-                            borderRadius: 8,
-                            paddingHorizontal: isWeb ? 16 : 14,
-                            paddingVertical: isWeb ? 10 : 8
-                          }}>
-                          <Text style={{
-                            color: '#6B7280',
-                            fontSize: isWeb ? 13 : 12,
-                            fontWeight: '600'
-                          }}>
-                            Cancel
-                          </Text>
-                        </TouchableOpacity>
-                      </View>
-                    ) : (
-                      <TouchableOpacity
-                        onPress={() => toggleConnection(supplier.id)}
-                        style={{
-                          backgroundColor: '#2E7D32',
-                          borderRadius: 8,
-                          paddingHorizontal: isWeb ? 16 : 14,
-                          paddingVertical: isWeb ? 10 : 8
-                        }}>
-                        <Text style={{
-                          color: '#FFFFFF',
-                          fontSize: isWeb ? 13 : 12,
-                          fontWeight: '600'
-                        }}>
-                          Connect
-                        </Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                </View>
-              </View>
-            );
-          })}
-
-          <TouchableOpacity
-            onPress={() => {
-              try {
-                router.push('/inventory');
-              } catch (error) {
-                console.error('Navigation error:', error);
-              }
-            }}
-            style={{
-              alignSelf: 'center',
-              marginTop: 8,
-              paddingVertical: isWeb ? 14 : 12,
-              paddingHorizontal: isWeb ? 28 : 24,
-              borderWidth: 1,
-              borderColor: '#D1D5DB',
-              borderRadius: 10
-            }}>
-            <Text style={{
-              fontSize: isWeb ? 15 : 14,
-              fontWeight: '600',
-              color: '#374151'
-            }}>
-              View all suppliers →
-            </Text>
-          </TouchableOpacity>
+          {filteredSuppliers.length > 0 && (
+            <TouchableOpacity
+              onPress={() => {
+                try {
+                  router.push('/inventory');
+                } catch (error) {
+                  console.error('Navigation error:', error);
+                }
+              }}
+              style={{
+                alignSelf: 'center',
+                marginTop: 8,
+                paddingVertical: isWeb ? 14 : 12,
+                paddingHorizontal: isWeb ? 28 : 24,
+                borderWidth: 1,
+                borderColor: '#D1D5DB',
+                borderRadius: 10
+              }}>
+              <Text style={{
+                fontSize: isWeb ? 15 : 14,
+                fontWeight: '600',
+                color: '#374151'
+              }}>
+                View all suppliers →
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
