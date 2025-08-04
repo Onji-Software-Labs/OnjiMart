@@ -90,8 +90,40 @@ public class SupplierServiceImpl implements SupplierService {
         public SupplierBusinessRequestDTO getBusinessDetails(String businessId) {
         SupplierBusiness business = supplierBusinessRepository.findById(businessId)
                 .orElseThrow(() -> new RuntimeException("Business not found with id: " + businessId));
-        return modelMapper.map(business, SupplierBusinessRequestDTO.class);
+
+        SupplierBusinessRequestDTO dto = modelMapper.map(business, SupplierBusinessRequestDTO.class);
+
+        populateCategoryDetails(dto, business.getSupplier());
+
+        return dto;
         }
+
+        @Override
+        public List<SupplierBusinessRequestDTO> getAllBusinesses() {
+        List<SupplierBusiness> businesses = supplierBusinessRepository.findAll();
+
+        return businesses.stream()
+                .map(business -> {
+                        SupplierBusinessRequestDTO dto = modelMapper.map(business, SupplierBusinessRequestDTO.class);
+                        populateCategoryDetails(dto, business.getSupplier());
+                        return dto;
+                })
+                .collect(Collectors.toList());
+        }
+
+        @Override
+        public List<SupplierBusinessRequestDTO> getBusinessesByPincode(String pincode) {
+        List<SupplierBusiness> businesses = supplierBusinessRepository.findByPincode(pincode);
+
+        return businesses.stream()
+                .map(business -> {
+                        SupplierBusinessRequestDTO dto = modelMapper.map(business, SupplierBusinessRequestDTO.class);
+                        populateCategoryDetails(dto, business.getSupplier());
+                        return dto;
+                })
+                .collect(Collectors.toList());
+        }
+
 
         @Override
         public SupplierDTO updateBusinessAndCategories(String businessId, SupplierBusinessRequestDTO dto) {
@@ -205,5 +237,19 @@ public class SupplierServiceImpl implements SupplierService {
         supplier.setCategories(categories);
         supplier.setSubCategories(subCategories);
         }
+
+        private void populateCategoryDetails(SupplierBusinessRequestDTO dto, Supplier supplier) {
+                List<String> categoryIds = supplier.getCategories().stream()
+                        .map(Category::getId)
+                        .collect(Collectors.toList());
+
+                List<String> subCategoryIds = supplier.getSubCategories().stream()
+                        .map(SubCategory::getId)
+                        .collect(Collectors.toList());
+
+                dto.setCategoryIds(categoryIds);
+                dto.setSubCategoryIds(subCategoryIds);
+                }
+
 
 }

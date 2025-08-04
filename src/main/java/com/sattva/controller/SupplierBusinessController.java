@@ -2,6 +2,8 @@ package com.sattva.controller;
 
 import lombok.RequiredArgsConstructor;
 
+import java.util.List;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -32,6 +34,20 @@ public class SupplierBusinessController {
     public ResponseEntity<SupplierBusinessRequestDTO> getBusiness(@PathVariable String businessId) {
         SupplierBusinessRequestDTO business = supplierService.getBusinessDetails(businessId);
         return ResponseEntity.ok(business);
+    }
+
+    @GetMapping("/all")
+    @PreAuthorize("hasRole('ROLE_SUPPLIER')")
+    public ResponseEntity<List<SupplierBusinessRequestDTO>> getAllBusinesses() {
+        List<SupplierBusinessRequestDTO> businesses = supplierService.getAllBusinesses();
+        return ResponseEntity.ok(businesses);
+    }
+
+    @GetMapping("/by-pincode/{pincode}")
+    @PreAuthorize("hasRole('ROLE_SUPPLIER')")
+    public ResponseEntity<List<SupplierBusinessRequestDTO>> getBusinessesByPincode(@PathVariable String pincode) {
+        List<SupplierBusinessRequestDTO> businesses = supplierService.getBusinessesByPincode(pincode);
+        return ResponseEntity.ok(businesses);
     }
 
     @PutMapping("/{businessId}")

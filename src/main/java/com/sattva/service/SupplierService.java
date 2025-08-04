@@ -15,4 +15,6 @@ public interface SupplierService {
     SupplierBusinessRequestDTO getBusinessDetails(String businessId);
     SupplierDTO updateBusinessAndCategories(String businessId, SupplierBusinessRequestDTO dto);
     void deleteBusinessAndCategories(String businessId);
+    List<SupplierBusinessRequestDTO> getAllBusinesses();
+    List<SupplierBusinessRequestDTO> getBusinessesByPincode(String pincode);
 }
