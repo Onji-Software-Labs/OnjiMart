@@ -12,4 +12,7 @@ public interface SupplierService {
     SupplierDTO addCategoriesAndSubCategoriesToSupplier(String supplierId, List<String> categoryIds, List<String> subCategoryIds);
     public List<CategoryDTO> getCategoriesForSupplier(String supplierId);
     public List<SubCategoryDTO> getSubCategoriesForSupplierAndCategory(String supplierId, String categoryId);
+    SupplierBusinessRequestDTO getBusinessDetails(String businessId);
+    SupplierDTO updateBusinessAndCategories(String businessId, SupplierBusinessRequestDTO dto);
+    void deleteBusinessAndCategories(String businessId);
 }

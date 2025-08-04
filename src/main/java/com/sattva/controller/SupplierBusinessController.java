@@ -26,4 +26,27 @@ public class SupplierBusinessController {
         SupplierDTO updatedSupplier = supplierService.createBusinessAndAssignCategories(dto);
         return new ResponseEntity<>(updatedSupplier, HttpStatus.CREATED);
     }
+
+    @GetMapping("/{businessId}")
+    @PreAuthorize("hasRole('ROLE_SUPPLIER')")
+    public ResponseEntity<SupplierBusinessRequestDTO> getBusiness(@PathVariable String businessId) {
+        SupplierBusinessRequestDTO business = supplierService.getBusinessDetails(businessId);
+        return ResponseEntity.ok(business);
+    }
+
+    @PutMapping("/{businessId}")
+    @PreAuthorize("hasRole('ROLE_SUPPLIER')")
+    public ResponseEntity<SupplierDTO> updateBusinessWithCategories(
+            @PathVariable String businessId,
+            @RequestBody SupplierBusinessRequestDTO dto) {
+        SupplierDTO updatedSupplier = supplierService.updateBusinessAndCategories(businessId, dto);
+        return ResponseEntity.ok(updatedSupplier);
+    }
+
+    @DeleteMapping("/{businessId}")
+    @PreAuthorize("hasRole('ROLE_SUPPLIER')")
+    public ResponseEntity<Void> deleteBusinessAndCategories(@PathVariable String businessId) {
+        supplierService.deleteBusinessAndCategories(businessId);
+        return ResponseEntity.noContent().build();
+    }
 }

@@ -11,6 +11,7 @@ import com.sattva.model.Supplier;
 import com.sattva.model.SupplierBusiness;
 import com.sattva.repository.CategoryRepository;
 import com.sattva.repository.SubCategoryRepository;
+import com.sattva.repository.SupplierBusinessRepository;
 import com.sattva.repository.SupplierRepository;
 import com.sattva.service.SupplierService;
 
@@ -37,6 +38,9 @@ public class SupplierServiceImpl implements SupplierService {
 
     @Autowired
     private ModelMapper modelMapper;
+
+    @Autowired
+        private SupplierBusinessRepository supplierBusinessRepository;
 
 
     @Override
@@ -82,6 +86,49 @@ public class SupplierServiceImpl implements SupplierService {
         return modelMapper.map(savedSupplier, SupplierDTO.class);
         }
 
+        @Override
+        public SupplierBusinessRequestDTO getBusinessDetails(String businessId) {
+        SupplierBusiness business = supplierBusinessRepository.findById(businessId)
+                .orElseThrow(() -> new RuntimeException("Business not found with id: " + businessId));
+        return modelMapper.map(business, SupplierBusinessRequestDTO.class);
+        }
+
+        @Override
+        public SupplierDTO updateBusinessAndCategories(String businessId, SupplierBusinessRequestDTO dto) {
+        SupplierBusiness business = supplierBusinessRepository.findById(businessId)
+                .orElseThrow(() -> new RuntimeException("Business not found"));
+
+        business.setName(dto.getName());
+        business.setAddress(dto.getAddress());
+        business.setCity(dto.getCity());
+        business.setPincode(dto.getPincode());
+        business.setContactNumber(dto.getContactNumber());
+
+        supplierBusinessRepository.save(business);
+
+        Supplier supplier = business.getSupplier();
+        updateSupplierCategoriesAndSubCategories(supplier, dto.getCategoryIds(), dto.getSubCategoryIds());
+
+        return modelMapper.map(supplierRepository.save(supplier), SupplierDTO.class);
+        }
+
+        @Override
+        public void deleteBusinessAndCategories(String businessId) {
+        SupplierBusiness business = supplierBusinessRepository.findById(businessId)
+                .orElseThrow(() -> new RuntimeException("Business not found"));
+
+        Supplier supplier = business.getSupplier();
+        supplier.getBusinesses().remove(business); // Remove the business
+        supplierBusinessRepository.delete(business); // Delete business
+
+        // Optionally, clean categories/subcategories if no other businesses remain
+        if (supplier.getBusinesses().isEmpty()) {
+                supplier.getCategories().clear();
+                supplier.getSubCategories().clear();
+        }
+
+        supplierRepository.save(supplier);
+        }
 
     // Add categories and subcategories to a supplier
     @Override
@@ -143,4 +190,20 @@ public class SupplierServiceImpl implements SupplierService {
                 .map(category -> modelMapper.map(category, CategoryDTO.class))
                 .collect(Collectors.toList());
     }	
+
+    private void updateSupplierCategoriesAndSubCategories(Supplier supplier, List<String> categoryIds, List<String> subCategoryIds) {
+        Set<Category> categories = categoryIds.stream()
+                .map(id -> categoryRepository.findById(id)
+                        .orElseThrow(() -> new RuntimeException("Category not found: " + id)))
+                .collect(Collectors.toSet());
+
+        Set<SubCategory> subCategories = subCategoryIds.stream()
+                .map(id -> subCategoryRepository.findById(id)
+                        .orElseThrow(() -> new RuntimeException("SubCategory not found: " + id)))
+                .collect(Collectors.toSet());
+
+        supplier.setCategories(categories);
+        supplier.setSubCategories(subCategories);
+        }
+
 }
