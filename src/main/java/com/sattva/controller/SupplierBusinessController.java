@@ -37,14 +37,12 @@ public class SupplierBusinessController {
     }
 
     @GetMapping("/all")
-    @PreAuthorize("hasRole('ROLE_SUPPLIER')")
     public ResponseEntity<List<SupplierBusinessRequestDTO>> getAllBusinesses() {
         List<SupplierBusinessRequestDTO> businesses = supplierService.getAllBusinesses();
         return ResponseEntity.ok(businesses);
     }
 
     @GetMapping("/by-pincode/{pincode}")
-    @PreAuthorize("hasRole('ROLE_SUPPLIER')")
     public ResponseEntity<List<SupplierBusinessRequestDTO>> getBusinessesByPincode(@PathVariable String pincode) {
         List<SupplierBusinessRequestDTO> businesses = supplierService.getBusinessesByPincode(pincode);
         return ResponseEntity.ok(businesses);
