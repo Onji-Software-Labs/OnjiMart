@@ -5,10 +5,7 @@ export default function AuthLayout() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="SplashScreen" />
       <Stack.Screen name="index" />
-      <Stack.Screen
-        name="login"
-        getComponent={() => import('./login').then((m) => m.default)}
-      />
+      <Stack.Screen name="login" />
       <Stack.Screen name="otpverify" />
       <Stack.Screen name="personalProfile"/>
       <Stack.Screen name="buisnessScreen"/>

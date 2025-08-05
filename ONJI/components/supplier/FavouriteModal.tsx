@@ -78,14 +78,14 @@ export default function FavouriteModal({ visible, onClose }: { visible: boolean;
       </View>
       {/* Cards Grid */}
       <ScrollView contentContainerStyle={{ padding: 12 }}>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-start' }}>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
           {FAVOURITES.concat(FAVOURITES).map((item, idx) => (
           <FavouriteCard
             key={item.id + idx}
             data={item}
             connected={connectedIds.includes(item.id + idx)}
             onConnect={() => handleConnect(item.id + idx)}
-            style={{ marginRight: (idx % 2 === 0) ? CARD_MARGIN : 0 }}
+            style={{ marginBottom: CARD_MARGIN }}
           />
           ))}
         </View>
