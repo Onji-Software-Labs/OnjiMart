@@ -1,7 +1,21 @@
-import React, { useState, useRef } from 'react';
-import { StyleSheet, View, Text, Image, TouchableOpacity, Animated, Easing } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { AntDesign, MaterialCommunityIcons, FontAwesome } from '@expo/vector-icons';
+import {
+    AntDesign,
+    FontAwesome,
+    MaterialCommunityIcons,
+} from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { LinearGradient } from "expo-linear-gradient";
+import { router } from "expo-router";
+import React, { useRef, useState } from "react";
+import {
+    Animated,
+    Easing,
+    Image,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+} from "react-native";
 
 export interface ISupplier {
   id: string;
@@ -70,22 +84,30 @@ const SupplierTab: React.FC<ISupplierTabProps> = ({ supplier }) => {
     ]).start();
   };
 
-  const handleConnectPressOut = () => {
-    Animated.parallel([
-      Animated.timing(connectScale, {
-        toValue: 1,
-        duration: 100,
-        easing: Easing.linear,
-        useNativeDriver: true,
-      }),
-      Animated.timing(connectBgColor, {
-        toValue: 0,
-        duration: 100,
-        easing: Easing.linear,
-        useNativeDriver: false,
-      }),
-    ]).start();
-  };
+    const handleConnectPressOut = async () => {
+        Animated.parallel([
+            Animated.timing(connectScale, {
+                toValue: 1,
+                duration: 100,
+                easing: Easing.linear,
+                useNativeDriver: true,
+            }),
+            Animated.timing(connectBgColor, {
+                toValue: 0,
+                duration: 100,
+                easing: Easing.linear,
+                useNativeDriver: false,
+            }),
+        ]).start();
+
+        try {
+            const id = await AsyncStorage.getItem("id");
+            //call api for supplier details
+            router.push("/(supplier)/connectScreen");
+        } catch (e) {
+            console.log("error");
+        }
+    };
 
   const rotateHeart = heartRotation.interpolate({
     inputRange: [0, 1],
