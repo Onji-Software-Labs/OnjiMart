@@ -1,15 +1,29 @@
-import React from 'react';
-import { View, Text, Image, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, Image, TouchableOpacity, Dimensions } from 'react-native';
 import { AntDesign, FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
 
 const CARD_MARGIN = 8;
-const CARD_WIDTH = (require('react-native').Dimensions.get('window').width - 3 * CARD_MARGIN - 24) / 2; 
+const SCROLL_PADDING = 24; // 12px padding on each side of ScrollView 
 
 export default function FavouriteCard({ data, onConnect, connected, style }: any) {
+  const [screenData, setScreenData] = useState(Dimensions.get('window'));
+
+  useEffect(() => {
+    const onChange = (result: any) => {
+      setScreenData(result.window);
+    };
+
+    const subscription = Dimensions.addEventListener('change', onChange);
+    return () => subscription?.remove();
+  }, []);
+
+  // Calculate card width dynamically based on current screen width
+  const cardWidth = (screenData.width - SCROLL_PADDING - CARD_MARGIN) / 2;
+
   return (
     <View
       style={[{
-        width: CARD_WIDTH,
+        width: cardWidth,
         marginBottom: CARD_MARGIN * 2,
         backgroundColor: 'white',
         borderRadius: 16,
