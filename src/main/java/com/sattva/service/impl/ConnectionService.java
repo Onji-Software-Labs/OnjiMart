@@ -22,7 +22,7 @@ public class ConnectionService {
         Connection conn = new Connection();
         conn.setRetailerId(retailerId);
         conn.setSupplierId(supplierId);
-        conn.setStatus(STATUS_CONNECTED);
+//        conn.setStatus(STATUS_CONNECTED);
         return repo.save(conn);
     }
 
