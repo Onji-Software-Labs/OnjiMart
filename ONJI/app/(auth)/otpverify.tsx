@@ -1,7 +1,6 @@
 import { ThemedText } from '@/components/ui/ThemedText';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  Alert,
   Dimensions,
   Image,
   Keyboard,
@@ -25,8 +24,14 @@ export default function OTPVerification() {
   const [countdown, setCountdown] = useState(30);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
+  const [otpSessionId, setOtpSessionId] = useState<string | null>(null);
   const inputRefs = useRef<TextInput[]>([]);
 
+  const normalizedPhoneNumber = phoneNumber.startsWith('+91')
+    ? phoneNumber
+    : `+91${phoneNumber}`;
+
+  // Countdown timer
   useEffect(() => {
     if (countdown > 0) {
       const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
@@ -48,6 +53,7 @@ export default function OTPVerification() {
     const newOtp = [...otp];
     newOtp[index] = value;
     setOtp(newOtp);
+
     if (isError) {
       setIsError(false);
       setErrorMessage('');
@@ -67,29 +73,159 @@ export default function OTPVerification() {
 
   const isOtpComplete = otp.every(digit => digit !== '');
 
+  // Resend OTP
+  const handleResendCode = async () => {
+    if (resendDisabled) return;
+
+    setCountdown(30);
+    setResendDisabled(true);
+    setShowSuccessMessage(true);
+    setOtp(['', '', '', '', '', '']);
+    setIsError(false);
+    setErrorMessage('');
+
+    const payload = {
+      userNames: "UserName",
+      fullName: "Full Name",
+      phoneNumber: normalizedPhoneNumber,
+      email: "example@email.com",
+      userType: "USER",
+      userOnboardingStatus: true,
+      supplier: false
+    };
+
+    console.log('Sending OTP payload:', payload);
+
+    try {
+      const response = await axiosInstance.post('/api/auth/send-otp', payload);
+      console.log("Full OTP Send Response:", JSON.stringify(response.data, null, 2));
+
+      // ✅ Handle different response structures
+      let sessionId = null;
+      
+      // Check various possible locations for session ID
+      if (response.data.id) {
+        sessionId = response.data.id;
+      } else if (response.data.sessionId) {
+        sessionId = response.data.sessionId;
+      } else if (response.data.data?.id) {
+        sessionId = response.data.data.id;
+      } else if (response.data.data?.sessionId) {
+        sessionId = response.data.data.sessionId;
+      } else if (response.data.result?.id) {
+        sessionId = response.data.result.id;
+      } else if (response.data.result?.sessionId) {
+        sessionId = response.data.result.sessionId;
+      } else if (response.data.otpSessionId) {
+        sessionId = response.data.otpSessionId;
+      } else if (response.data.sessionID) {
+        sessionId = response.data.sessionID;
+      }
+
+      if (sessionId) {
+        setOtpSessionId(sessionId);
+        console.log("✅ OTP Session ID saved:", sessionId);
+        
+        // Store in localStorage as fallback
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('otpSessionId', sessionId);
+        }
+      } else {
+        console.warn("❌ No OTP sessionId found in response structure");
+        
+        // Try to use previously stored session ID
+        const storedSessionId = typeof window !== 'undefined' ? localStorage.getItem('otpSessionId') : null;
+        if (storedSessionId) {
+          setOtpSessionId(storedSessionId);
+          console.log("Using stored session ID as fallback:", storedSessionId);
+        } else {
+          // Generate fallback session ID
+          const fallbackSessionId = Date.now().toString();
+          setOtpSessionId(fallbackSessionId);
+          console.log("Using generated fallback session ID:", fallbackSessionId);
+        }
+      }
+
+      setShowSuccessMessage(true);
+    } catch (error: any) {
+      console.error('Failed to send OTP:', error.response?.data || error.message);
+      setIsError(true);
+      setErrorMessage('Failed to resend OTP. Please try again.');
+    }
+  };
+
+  // Verify OTP
   const handleContinue = async () => {
     if (!isOtpComplete || isVerifying) {
       setIsError(true);
       setErrorMessage('Please enter the complete 6-digit code.');
-      setOtp(['', '', '', '', '', '']);
       inputRefs.current[0]?.focus();
       return;
     }
+
+    // Use stored session ID if state is null
+    let verificationSessionId = otpSessionId;
+    if (!verificationSessionId && typeof window !== 'undefined') {
+      verificationSessionId = localStorage.getItem('otpSessionId');
+      if (verificationSessionId) {
+        setOtpSessionId(verificationSessionId);
+        console.log("Using stored session ID for verification:", verificationSessionId);
+      }
+    }
+
+    if (!verificationSessionId) {
+      setIsError(true);
+      setErrorMessage('OTP session not found. Please resend OTP.');
+      return;
+    }
+
     setIsVerifying(true);
     const enteredOtp = otp.join('');
-    try {
-      
-      await axiosInstance.post('/api/auth/login', {
-        phoneNumber: phoneNumber,
-        otpNumber: enteredOtp,
-      });
 
-      setIsError(false);
-      setErrorMessage('');
-      router.replace('/(auth)/personalProfile');
+    const payload = {
+      phoneNumber: normalizedPhoneNumber,
+      otpNumber: enteredOtp,
+      id: verificationSessionId,
+    };
+
+    console.log('Verifying OTP with payload:', payload);
+    console.log('Using OTP Session ID:', verificationSessionId);
+
+    try {
+      const response = await axiosInstance.post('/api/auth/login', payload);
+      console.log('OTP verification response:', response.data);
+
+      if (response.data.status === 'FAILED' || !response.data.jwtToken) {
+        setIsError(true);
+        setErrorMessage(response.data.message || 'OTP verification failed.');
+        setOtp(['', '', '', '', '', '']);
+        inputRefs.current[0]?.focus();
+      } else {
+        setIsError(false);
+        setErrorMessage('');
+        
+        // Clear stored session ID on success
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('otpSessionId');
+        }
+        
+        router.replace('/(auth)/personalProfile');
+      }
     } catch (error: any) {
+      console.error('OTP verification error:', error.response?.data || error.message);
       setIsError(true);
-      setErrorMessage('Incorrect OTP or verification failed.');
+      
+      // More specific error messages
+      if (error.response?.status === 400) {
+        setErrorMessage('Invalid OTP. Please check and try again.');
+      } else if (error.response?.status === 404) {
+        setErrorMessage('OTP session expired. Please resend OTP.');
+      } else if (error.response?.status === 500) {
+        setErrorMessage('Server error. Please try again later.');
+      } else {
+        setErrorMessage('Incorrect OTP or verification failed.');
+      }
+      
       setOtp(['', '', '', '', '', '']);
       inputRefs.current[0]?.focus();
     } finally {
@@ -97,26 +233,7 @@ export default function OTPVerification() {
     }
   };
 
-  const handleResendCode = async () => {
-    if (resendDisabled) return;
-    setCountdown(30);
-    setResendDisabled(true);
-    setShowSuccessMessage(true);
-    setOtp(['', '', '', '', '', '']);
-    setIsError(false);
-    setErrorMessage('');
-    try {
-      await axiosInstance.post('/api/auth/send-otp', {
-        phoneNumber: phoneNumber,
-      });
-    } catch (error) {
-      Alert.alert('Error', 'Failed to resend OTP. Please try again.');
-    }
-  };
-
-  const handleChangeNumber = () => {
-    router.back();
-  };
+  const handleChangeNumber = () => router.back();
 
   return (
     <View style={styles.container}>
