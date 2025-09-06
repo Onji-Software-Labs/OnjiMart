@@ -1,5 +1,6 @@
 package com.sattva.model;
 
+import com.sattva.enums.ConnectionStatus;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
@@ -15,7 +16,9 @@ public class Connection {
 
     private String supplierId;
 
-    private String status; // e.g., PENDING, ACCEPTED, CANCELED
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private ConnectionStatus status; // e.g., PENDING, ACCEPTED, CANCELED
 
     private LocalDateTime createdAt = LocalDateTime.now();
 
@@ -32,7 +35,7 @@ public class Connection {
         return supplierId;
     }
 
-    public String getStatus() {
+    public ConnectionStatus getStatus() {
         return status;
     }
 
@@ -53,7 +56,7 @@ public class Connection {
         this.supplierId = supplierId;
     }
 
-    public void setStatus(String status) {
+    public void setStatus(ConnectionStatus status) {
         this.status = status;
     }
 
