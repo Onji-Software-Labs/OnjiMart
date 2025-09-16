@@ -53,8 +53,13 @@ public class UserServiceImpl implements UserService {
     public CreateUserDTO createUser(CreateUserDTO userDto) {
         User user = new User();
         user.setId(UUID.randomUUID().toString());
-        user.setPhoneNumber(userDto.getPhoneNumber());
-        user.setUserOnboardingStatus(false);
+        if (userDto.getPhoneNumber() != null) {
+            user.setPhoneNumber(userDto.getPhoneNumber());
+        }
+
+        if (userDto.getEmail() != null) {
+            user.setEmail(userDto.getEmail());
+        }
 
         // Save to DB
         User savedUser = userRepository.save(user);
