@@ -133,9 +133,9 @@ public class SmsServiceImpl implements SmsService {
 
 
     @Override
-    public String generateToken(String phoneNumber, String userId) {
+    public String generateToken(String phoneNumber, String userId, String type) {
         // Generate the token
-        return jwtHelper.generateToken(phoneNumber, userId);
+        return jwtHelper.generateToken(phoneNumber, userId, "phoneNumber");
     }
 
 

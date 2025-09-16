@@ -1,12 +1,17 @@
 package com.sattva.controller;
 
+import java.util.Collections;
+import java.util.Map;
 import java.util.Optional;
 
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
+import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.api.client.json.gson.GsonFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -29,7 +34,7 @@ import com.sattva.service.RefreshTokenService;
 import com.sattva.service.SmsService;
 import com.sattva.service.UserService;
 
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import javax.imageio.spi.IIORegistry;
 
 
 @RestController
@@ -53,6 +58,9 @@ public class AuthController {
 
     // @Autowired
     // private AuthenticationService authenticationService;
+
+    @Value("${spring.security.oauth2.client.registration.google.client-id}")
+    private String googleClientId;
 
     @PostMapping("/send-otp")
     public OTPLessResponse sendOtp(@RequestBody CreateUserDTO userDto) {
@@ -78,8 +86,6 @@ public class AuthController {
         return smsService.sendOtp(userDto, existUser, userId, userName, fullName, userOnboardingStatus);
     }
 
-    
-    
     @PostMapping("/login")
     public ResponseEntity<LoginResponseDTO> login(@RequestBody LoginRequestDTO loginRequestDTO) {
 
@@ -98,7 +104,7 @@ public class AuthController {
                 String userId = user.getId(); // Get userId from the User entity
 
                 // Generate JWT token and refresh token
-                String jwtToken = smsService.generateToken(loginRequestDTO.getPhoneNumber(), userId);
+                String jwtToken = smsService.generateToken(loginRequestDTO.getPhoneNumber(), userId, "phoneNumber");
                 String refreshToken = refreshTokenService.createRefreshToken(user).getToken();
 
                 // Return both tokens in LoginResponseDTO
@@ -113,6 +119,47 @@ public class AuthController {
         }
     }
 
+    @PostMapping("/google")
+    public ResponseEntity<?> googleLogin(@RequestBody Map<String, String> payload) {
+        String idTokenString = payload.get("idToken");
+
+        GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(
+                new NetHttpTransport(), GsonFactory.getDefaultInstance())
+                .setAudience(Collections.singletonList(googleClientId))
+                .build();
+
+        try {
+            GoogleIdToken idToken = verifier.verify(idTokenString);
+            if (idToken == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid ID token");
+            }
+
+            GoogleIdToken.Payload p = idToken.getPayload();
+            String email = p.getEmail();
+            String name = (String) p.get("name");
+
+            User user = userRepository.findByEmail(email).orElseGet(() -> {
+                CreateUserDTO dto = new CreateUserDTO();
+                dto.setEmail(email);
+                dto.setFullName(name);
+                CreateUserDTO created = userService.createUser(dto);
+                return userRepository.findById(created.getId()).get();
+            });
+
+            String jwt = jwtTokenProvider.generateToken(user.getEmail(), user.getId(), "email");
+            String refresh = refreshTokenService.createRefreshToken(user).getToken();
+
+            return ResponseEntity.ok(Map.of(
+                    "jwtToken", jwt,
+                    "refreshToken", refresh
+            ));
+
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Token verification failed: " + e.getMessage());
+        }
+    }
+
+
     // Refresh token endpoint remains the same
     @PostMapping("/refresh-token")
     public ResponseEntity<?> refreshToken(@RequestBody TokenRefreshRequest request) {
@@ -124,7 +171,14 @@ public class AuthController {
                 .orElseThrow(() -> new RuntimeException("Refresh token is not in database or has expired!"));
 
         User user = refreshToken.getUser();
-        String newToken = jwtTokenProvider.generateToken(user.getUsername(), user.getId());
+        String newToken;
+        if (user.getEmail() != null && !user.getEmail().isEmpty()) {
+            // Email login
+            newToken = jwtTokenProvider.generateToken(user.getEmail(), user.getId(), "email");
+        } else {
+            // OTP login
+            newToken = jwtTokenProvider.generateToken(user.getUsername(), user.getId(), "phoneNumber");
+        }
 
         return ResponseEntity.ok(new TokenRefreshResponse(newToken, requestRefreshToken));
     }
