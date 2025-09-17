@@ -94,8 +94,13 @@ public class UserServiceImpl implements UserService {
             .orElseThrow(() -> new RuntimeException("User not found with id: " + userId));
 
         user.setUsername(userDTO.getUsername());
-        user.setEmail(userDTO.getEmail());
-        user.setPassword(userDTO.getPassword()); 
+        if (userDTO.getEmail() != null) {
+            user.setEmail(userDTO.getEmail());
+        }
+        if (userDTO.getPhoneNumber() != null) {
+            user.setPhoneNumber(userDTO.getPhoneNumber());
+        }
+        user.setPassword(userDTO.getPassword());
         user.setUserType(userDTO.getUserType());
         user.setStatus(userDTO.getStatus());
         user.setUserOnboardingStatus(userDTO.isOnboardingStatus());
@@ -151,6 +156,7 @@ public class UserServiceImpl implements UserService {
         dto.setId(user.getId());
         dto.setUsername(user.getUsername());
         dto.setEmail(user.getEmail());
+        dto.setPhoneNumber(user.getPhoneNumber());
         dto.setUserType(user.getUserType());
         dto.setStatus(user.getStatus());
         return dto;
