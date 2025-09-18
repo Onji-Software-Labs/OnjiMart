@@ -21,6 +21,5 @@ public class RetailerBusinessRequestDTO {
     private String contactNumber;
 
     private List<String> categoryIds;
-    private List<String> subCategoryIds;
 
 }

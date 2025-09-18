@@ -33,9 +33,6 @@ public class RetailerServiceImpl implements RetailerService {
     private RetailerBusinessRepository retailerBusinessRepository;
 
     @Autowired
-    private SubCategoryRepository subCategoryRepository;
-
-    @Autowired
     private ModelMapper modelMapper;
 
     @Override
@@ -130,14 +127,6 @@ public class RetailerServiceImpl implements RetailerService {
                         .map(Category::getId)
                         .collect(Collectors.toList())
         );
-
-        dto.setSubCategoryIds(
-                supplier.getSubCategories()
-                        .stream()
-                        .map(SubCategory::getId)
-                        .collect(Collectors.toList())
-        );
-
         return dto;
     }
 
@@ -164,13 +153,6 @@ public class RetailerServiceImpl implements RetailerService {
                             .orElseThrow(() -> new RuntimeException("Category not found with id: " + id)))
                     .collect(Collectors.toSet());
             retailer.getCategories().addAll(categories);
-        }
-        if (dto.getSubCategoryIds() != null) {
-            Set<SubCategory> subCategories = dto.getSubCategoryIds().stream()
-                    .map(id -> subCategoryRepository.findById(id)
-                            .orElseThrow(() -> new RuntimeException("SubCategory not found with id: " + id)))
-                    .collect(Collectors.toSet());
-            retailer.getSubCategories().addAll(subCategories);
         }
 
         Retailer savedRetailer = retailerRepository.save(retailer);
@@ -221,7 +203,7 @@ public class RetailerServiceImpl implements RetailerService {
         business.setContactNumber(dto.getContactNumber());
 
         Retailer retailer = business.getRetailer();
-        updateRetalierCategoriesAndSubCategories(retailer, dto.getCategoryIds(), dto.getSubCategoryIds());
+        updateRetalierCategories(retailer, dto.getCategoryIds());
         return modelMapper.map(retailerRepository.save(retailer), RetailerDTO.class);
     }
 
@@ -235,24 +217,16 @@ public class RetailerServiceImpl implements RetailerService {
 
         if (retailer.getRetailerBusinesses().isEmpty()) {
             retailer.getCategories().clear();
-            retailer.getSubCategories().clear();
         }
         retailerRepository.save(retailer);
     }
 
-    private void updateRetalierCategoriesAndSubCategories(Retailer retailer, List<String> categoryIds, List<String> subCategoryIds) {
+    private void updateRetalierCategories(Retailer retailer, List<String> categoryIds) {
         Set<Category> categories = categoryIds.stream()
                 .map(id -> categoryRepository.findById(id)
                         .orElseThrow(() -> new RuntimeException("Category not found with id: " + id)))
                 .collect(Collectors.toSet());
-
-        Set<SubCategory> subCategories = subCategoryIds.stream()
-                .map(id -> subCategoryRepository.findById(id)
-                        .orElseThrow(() -> new RuntimeException("SubCategory not found with id: " + id)))
-                .collect(Collectors.toSet());
-
         retailer.setCategories(categories);
-        retailer.setSubCategories(subCategories);
     }
 
     private void populateCategoryDetails(RetailerBusinessRequestDTO dto, Retailer retailer) {
@@ -260,13 +234,6 @@ public class RetailerServiceImpl implements RetailerService {
                 retailer.getCategories()
                         .stream()
                         .map(Category::getId)
-                        .collect(Collectors.toList())
-        );
-
-        dto.setSubCategoryIds(
-                retailer.getSubCategories()
-                        .stream()
-                        .map(SubCategory::getId)
                         .collect(Collectors.toList())
         );
     }

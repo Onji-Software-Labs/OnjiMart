@@ -50,12 +50,4 @@ public class Retailer implements Serializable {
     )
     private Set<Category> categories;
 
-    @ManyToMany
-    @JoinTable(
-            name = "retailer_subcategories",
-            joinColumns = @JoinColumn(name = "retailer_id"),
-            inverseJoinColumns = @JoinColumn(name = "subcategory_id")
-    )
-    private Set<SubCategory> subCategories;
-
 }

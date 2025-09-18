@@ -18,5 +18,4 @@ public class RetailerDTO {
     private String email;
     private String pincode;
     private List<String> categoryIds;
-    private List<String> subCategoryIds;
 }
