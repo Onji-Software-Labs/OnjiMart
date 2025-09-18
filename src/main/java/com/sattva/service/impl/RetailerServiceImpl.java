@@ -1,22 +1,20 @@
 package com.sattva.service.impl;
 import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
+import com.sattva.dto.RetailerBusinessRequestDTO;
+import com.sattva.dto.RetailerDTO;
+import com.sattva.model.*;
+import com.sattva.repository.*;
+import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.netflix.discovery.converters.Auto;
 import com.sattva.dto.SupplierDTO;
 import com.sattva.dto.SupplierFilterRequest;
-import com.sattva.model.Category;
-import com.sattva.model.Retailer;
-import com.sattva.model.Shop;
-import com.sattva.model.SubCategory;
-import com.sattva.model.Supplier;
-import com.sattva.model.SupplierBusiness;
-import com.sattva.repository.CategoryRepository;
-import com.sattva.repository.RetailerRepository;
-import com.sattva.repository.SupplierRepository;
 import com.sattva.service.RetailerService;
 
 @Service
@@ -24,12 +22,21 @@ public class RetailerServiceImpl implements RetailerService {
 
     @Autowired
     private RetailerRepository retailerRepository;
-    
+
     @Autowired
     private SupplierRepository supplierRepository;
 
     @Autowired
     private CategoryRepository categoryRepository;
+
+    @Autowired
+    private RetailerBusinessRepository retailerBusinessRepository;
+
+    @Autowired
+    private SubCategoryRepository subCategoryRepository;
+
+    @Autowired
+    private ModelMapper modelMapper;
 
     @Override
     public List<SupplierDTO> getSuppliersForRetailer(String retailerId) {
@@ -74,27 +81,27 @@ public class RetailerServiceImpl implements RetailerService {
         }
 
         suppliers = suppliers.stream()
-            .filter(supplier -> {
-                // Get all business pincodes for this supplier
-                List<String> supplierPincodes = supplier.getBusinesses().stream()
-                        .map(SupplierBusiness::getPincode)
-                        .collect(Collectors.toList());
+                .filter(supplier -> {
+                    // Get all business pincodes for this supplier
+                    List<String> supplierPincodes = supplier.getBusinesses().stream()
+                            .map(SupplierBusiness::getPincode)
+                            .collect(Collectors.toList());
 
-                if ("myPincode".equalsIgnoreCase(pincodeFilter)) {
-                    return supplierPincodes.stream().anyMatch(retailerPincodes::contains);
-                } else if ("others".equalsIgnoreCase(pincodeFilter)) {
-                    return supplierPincodes.stream().noneMatch(retailerPincodes::contains);
-                }
-                return true;
-            })
-            .filter(supplier -> {
-                //Filter by rating
-                if (ratingFilter != null) {
-                    return supplier.getRating() != null && supplier.getRating() >= ratingFilter;
-                }
-                return true;
-            })
-            .collect(Collectors.toList());
+                    if ("myPincode".equalsIgnoreCase(pincodeFilter)) {
+                        return supplierPincodes.stream().anyMatch(retailerPincodes::contains);
+                    } else if ("others".equalsIgnoreCase(pincodeFilter)) {
+                        return supplierPincodes.stream().noneMatch(retailerPincodes::contains);
+                    }
+                    return true;
+                })
+                .filter(supplier -> {
+                    //Filter by rating
+                    if (ratingFilter != null) {
+                        return supplier.getRating() != null && supplier.getRating() >= ratingFilter;
+                    }
+                    return true;
+                })
+                .collect(Collectors.toList());
 
         return suppliers.stream()
                 .map(this::convertToDTO)
@@ -110,27 +117,157 @@ public class RetailerServiceImpl implements RetailerService {
         dto.setRating(supplier.getRating());
         //dto.setPincode(supplier.getUser().getPincode());
         String supplierPincodes = supplier.getBusinesses().stream()
-        .filter(SupplierBusiness::isActive)
-        .map(SupplierBusiness::getPincode)
-        .distinct()
-        .collect(Collectors.joining(", "));
+                .filter(SupplierBusiness::isActive)
+                .map(SupplierBusiness::getPincode)
+                .distinct()
+                .collect(Collectors.joining(", "));
         dto.setPincode(supplierPincodes);
 
-        
+
         dto.setCategoryIds(
-            supplier.getCategories()
-                    .stream()
-                    .map(Category::getId)
-                    .collect(Collectors.toList())
+                supplier.getCategories()
+                        .stream()
+                        .map(Category::getId)
+                        .collect(Collectors.toList())
         );
 
         dto.setSubCategoryIds(
-            supplier.getSubCategories()
-                    .stream()
-                    .map(SubCategory::getId)
-                    .collect(Collectors.toList())
+                supplier.getSubCategories()
+                        .stream()
+                        .map(SubCategory::getId)
+                        .collect(Collectors.toList())
         );
 
         return dto;
+    }
+
+    @Override
+    public RetailerDTO createBusinessAndAssignCategories(RetailerBusinessRequestDTO dto) {
+        Retailer retailer = retailerRepository.findById(dto.getRetailerId())
+                .orElseThrow(() -> new RuntimeException("Retailer not found with id: " + dto.getRetailerId()));
+        RetailerBusiness business = new RetailerBusiness().builder()
+                .id(UUID.randomUUID().toString())
+                .retailer(retailer)
+                .name(dto.getName())
+                .city(dto.getCity())
+                .address(dto.getAddress())
+                .pincode(dto.getPincode())
+                .contactNumber(dto.getContactNumber())
+                .isActive(true)
+                .build();
+
+        retailer.getRetailerBusinesses().add(business);
+
+        if (dto.getCategoryIds() != null) {
+            Set<Category> categories = dto.getCategoryIds().stream()
+                    .map(id -> categoryRepository.findById(id)
+                            .orElseThrow(() -> new RuntimeException("Category not found with id: " + id)))
+                    .collect(Collectors.toSet());
+            retailer.getCategories().addAll(categories);
+        }
+        if (dto.getSubCategoryIds() != null) {
+            Set<SubCategory> subCategories = dto.getSubCategoryIds().stream()
+                    .map(id -> subCategoryRepository.findById(id)
+                            .orElseThrow(() -> new RuntimeException("SubCategory not found with id: " + id)))
+                    .collect(Collectors.toSet());
+            retailer.getSubCategories().addAll(subCategories);
+        }
+
+        Retailer savedRetailer = retailerRepository.save(retailer);
+        return modelMapper.map(savedRetailer, RetailerDTO.class);
+    }
+
+    @Override
+    public RetailerBusinessRequestDTO getBusinessDetails(String businessId) {
+        RetailerBusiness business = retailerBusinessRepository.findById(businessId)
+                .orElseThrow(() -> new RuntimeException("Business not found with id: " + businessId));
+        RetailerBusinessRequestDTO dto = modelMapper.map(business, RetailerBusinessRequestDTO.class);
+        populateCategoryDetails(dto, business.getRetailer());
+        return dto;
+
+    }
+
+    @Override
+    public List<RetailerBusinessRequestDTO> getAllBusinesses() {
+        return retailerBusinessRepository.findAll().stream()
+                .map(business -> {
+                    RetailerBusinessRequestDTO dto = modelMapper.map(business, RetailerBusinessRequestDTO.class);
+                    populateCategoryDetails(dto, business.getRetailer());
+                    return dto;
+                })
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<RetailerBusinessRequestDTO> getBusinessesByPincode(String pincode) {
+        return retailerBusinessRepository.findByPincode(pincode).stream()
+                .map(business -> {
+                    RetailerBusinessRequestDTO dto = modelMapper.map(business, RetailerBusinessRequestDTO.class);
+                    populateCategoryDetails(dto, business.getRetailer());
+                    return dto;
+                })
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public RetailerDTO updateBusinessAndCategories(String businessId, RetailerBusinessRequestDTO dto) {
+        RetailerBusiness business = retailerBusinessRepository.findById(businessId)
+                .orElseThrow(() -> new RuntimeException("Business not found with id: " + businessId));
+
+        business.setName(dto.getName());
+        business.setCity(dto.getCity());
+        business.setAddress(dto.getAddress());
+        business.setPincode(dto.getPincode());
+        business.setContactNumber(dto.getContactNumber());
+
+        Retailer retailer = business.getRetailer();
+        updateRetalierCategoriesAndSubCategories(retailer, dto.getCategoryIds(), dto.getSubCategoryIds());
+        return modelMapper.map(retailerRepository.save(retailer), RetailerDTO.class);
+    }
+
+    @Override
+    public void deleteBusinessAndCategories(String businessId) {
+        RetailerBusiness business = retailerBusinessRepository.findById(businessId)
+                .orElseThrow(() -> new RuntimeException("Business not found with id: " + businessId));
+        Retailer retailer = business.getRetailer();
+        retailer.getRetailerBusinesses().remove(business);
+        retailerBusinessRepository.delete(business);
+
+        if (retailer.getRetailerBusinesses().isEmpty()) {
+            retailer.getCategories().clear();
+            retailer.getSubCategories().clear();
+        }
+        retailerRepository.save(retailer);
+    }
+
+    private void updateRetalierCategoriesAndSubCategories(Retailer retailer, List<String> categoryIds, List<String> subCategoryIds) {
+        Set<Category> categories = categoryIds.stream()
+                .map(id -> categoryRepository.findById(id)
+                        .orElseThrow(() -> new RuntimeException("Category not found with id: " + id)))
+                .collect(Collectors.toSet());
+
+        Set<SubCategory> subCategories = subCategoryIds.stream()
+                .map(id -> subCategoryRepository.findById(id)
+                        .orElseThrow(() -> new RuntimeException("SubCategory not found with id: " + id)))
+                .collect(Collectors.toSet());
+
+        retailer.setCategories(categories);
+        retailer.setSubCategories(subCategories);
+    }
+
+    private void populateCategoryDetails(RetailerBusinessRequestDTO dto, Retailer retailer) {
+        dto.setCategoryIds(
+                retailer.getCategories()
+                        .stream()
+                        .map(Category::getId)
+                        .collect(Collectors.toList())
+        );
+
+        dto.setSubCategoryIds(
+                retailer.getSubCategories()
+                        .stream()
+                        .map(SubCategory::getId)
+                        .collect(Collectors.toList())
+        );
     }
 }
