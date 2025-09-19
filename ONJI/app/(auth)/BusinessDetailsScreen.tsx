@@ -85,9 +85,9 @@ export function BusinessDetailsScreen() {
             );
             // Navigate based on user selection
             if (values.radioState === "Supplier") {
-                router.replace("/(supplier)/(tabs)/dashboard");
-            } else if (values.radioState === "Retailer") {
                 router.replace("/(retailer)/(tabs)/home");
+            } else if (values.radioState === "Retailer") {
+                router.replace("/(supplier)/(tabs)/dashboard");
             }
         } catch (e) {
             console.log("Role: " + role + e);
