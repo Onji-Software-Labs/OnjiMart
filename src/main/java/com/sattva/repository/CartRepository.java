@@ -4,6 +4,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.sattva.model.Cart;
 
+import java.util.List;
+
 public interface CartRepository extends JpaRepository<Cart, String> {
 
     /**
@@ -16,7 +18,7 @@ public interface CartRepository extends JpaRepository<Cart, String> {
      * {@link org.springframework.beans.factory.BeanCreationException} when the
      * repository was initialized.</p>
      */
-    Cart findByShop_Id(String shopId);
+    List<Cart> findByShop_Id(String shopId);
 
 	Cart findByShop_IdAndSupplier_Id(String shopId, String supplierId);
 }

@@ -43,8 +43,8 @@ public class CartController {
     // Endpoint to get the cart details for a specific shop
     @PreAuthorize("hasRole('ROLE_RETAILER')")
     @GetMapping("/{shopId}")
-    public ResponseEntity<CartDTO> getCartByShop(@PathVariable String shopId) {
-        CartDTO cart = cartService.getCartByShop(shopId);
+    public ResponseEntity<List<CartDTO>> getCartByShop(@PathVariable String shopId) {
+        List<CartDTO> cart = cartService.getCartByShop(shopId);
         return ResponseEntity.ok(cart);
     }
 
