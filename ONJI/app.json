@@ -21,6 +21,9 @@
     "web": {
       "bundler": "metro",
       "output": "static",
+      "webClientId": "825835520914-970op223room8ntm8rqfunpc7gtt84f7.apps.googleusercontent.com",
+      "redirecturi":"http://localhost:5000/login/oauth2/code/google",
+      "authUrl" : "http://localhost:5000/oauth2/authorization/google",
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
@@ -34,7 +37,8 @@
           "backgroundColor": "#ffffff"
         }
       ],
-      "expo-font"
+      "expo-font",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true

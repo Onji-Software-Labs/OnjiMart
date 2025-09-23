@@ -63,6 +63,11 @@ export default function CreateAccount() {
     }
   };
 
+  const navigateToSignup = () => {
+    // Navigate to signup page
+    router.push('/signup');
+  };
+
   const isButtonActive = phoneNumber.length === 10 && isValid;
 
   return (
@@ -133,14 +138,13 @@ export default function CreateAccount() {
               {isLoading ? "Please wait..." : "Continue"}
             </Text>
           </TouchableOpacity>
+          
+          
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
-
-
-
 
 const styles = StyleSheet.create({
   container: {
@@ -234,8 +238,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 'auto',
-    marginBottom: 40,
+    marginBottom: 20,
   },
   continueButtonActive: {
     backgroundColor: '#4CAF50',
@@ -252,5 +255,16 @@ const styles = StyleSheet.create({
   },
   continueButtonTextDisabled: {
     color: '#9E9E9E',
+  },
+  signupLink: {
+    marginTop: 10,
+  },
+  signupText: {
+    fontSize: 14,
+    color: '#666666',
+  },
+  signupLinkText: {
+    color: '#4CAF50',
+    fontWeight: '600',
   },
 });
