@@ -12,4 +12,5 @@ import lombok.Setter;
 public class LoginResponseDTO {
 	private String jwtToken;
 	private String refreshToken;
+	private String phoneNumber;
 }
