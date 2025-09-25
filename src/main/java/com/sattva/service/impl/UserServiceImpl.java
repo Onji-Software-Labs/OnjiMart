@@ -15,6 +15,7 @@ import com.sattva.repository.RetailerRepository;
 import com.sattva.repository.RoleRepository;
 import com.sattva.repository.SupplierRepository;
 import com.sattva.repository.UserRepository;
+import com.sattva.service.ProfilePhotoStorageService;
 import com.sattva.service.UserService;
 
 import jakarta.transaction.Transactional;
@@ -48,6 +49,9 @@ public class UserServiceImpl implements UserService {
 
     @Autowired
     private RetailerRepository retailerRepository;
+
+    @Autowired
+    private ProfilePhotoStorageService profilePhotoStorageService;
     
     @Override
     public CreateUserDTO createUser(CreateUserDTO userDto) {
@@ -100,6 +104,7 @@ public class UserServiceImpl implements UserService {
         if (userDTO.getPhoneNumber() != null) {
             user.setPhoneNumber(userDTO.getPhoneNumber());
         }
+        user.setProfilePhotoUrl(userDTO.getProfilePhotoUrl());
         user.setPassword(userDTO.getPassword());
         user.setUserType(userDTO.getUserType());
         user.setStatus(userDTO.getStatus());
@@ -150,6 +155,16 @@ public class UserServiceImpl implements UserService {
         userRepository.delete(user);
     }
 
+    @Override
+    @Transactional
+    public UserDTO updateProfilePhoto(String userId, String photoUrl) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found with id: " + userId));
+        user.setProfilePhotoUrl(photoUrl);
+        User updatedUser = userRepository.save(user);
+        return mapToDTO(updatedUser);
+    }
+
     // Helper method to map User to UserDTO
     private UserDTO mapToDTO(User user) {
         UserDTO dto = new UserDTO();
@@ -159,6 +174,10 @@ public class UserServiceImpl implements UserService {
         dto.setPhoneNumber(user.getPhoneNumber());
         dto.setUserType(user.getUserType());
         dto.setStatus(user.getStatus());
+        if(user.getProfilePhotoUrl()!= null && !user.getProfilePhotoUrl().isEmpty()) {
+            String presignedUrl = profilePhotoStorageService.generatePresignedGetUrl(user.getProfilePhotoUrl());
+            dto.setProfilePhotoUrl(presignedUrl);
+        }
         return dto;
     }
 
@@ -174,7 +193,5 @@ public class UserServiceImpl implements UserService {
         }
         return false;
     }
-
-
 
     }

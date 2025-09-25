@@ -15,6 +15,8 @@ public interface UserService {
     UserDTO updateUser(String userId, UserDTO userDTO);
 
     void deleteUser(String userId);
-    
+
+    UserDTO updateProfilePhoto(String userId, String photoUrl);
+
     public boolean logoutUser(String refreshToken);
 }
