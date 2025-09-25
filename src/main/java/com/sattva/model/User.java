@@ -83,6 +83,10 @@ public  class User implements UserDetails {
     @Column(name = "date_modified", nullable = false)
     private LocalDateTime dateModified;
     private boolean userOnboardingStatus;
+
+    @Column(name = "profile_photo_url")
+    private String profilePhotoUrl;
+
     @PrePersist
     protected void onCreate() {
         this.dateEntered = LocalDateTime.now();
