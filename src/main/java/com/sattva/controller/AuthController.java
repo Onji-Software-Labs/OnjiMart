@@ -108,14 +108,14 @@ public class AuthController {
                 String refreshToken = refreshTokenService.createRefreshToken(user).getToken();
 
                 // Return both tokens in LoginResponseDTO
-                return ResponseEntity.ok(new LoginResponseDTO(jwtToken, refreshToken));
+                return ResponseEntity.ok(new LoginResponseDTO(jwtToken, refreshToken, user.getPhoneNumber()));
             } else {
                 // If user is not found, return a response with null tokens or error message
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new LoginResponseDTO(null, null));
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new LoginResponseDTO(null, null,null));
             }
         } else {
             // Return a response with null tokens for invalid OTP or phone number
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new LoginResponseDTO(null, null));
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new LoginResponseDTO(null, null,null));
         }
     }
 
@@ -180,7 +180,7 @@ public class AuthController {
             newToken = jwtTokenProvider.generateToken(user.getUsername(), user.getId(), "phoneNumber");
         }
 
-        return ResponseEntity.ok(new TokenRefreshResponse(newToken, requestRefreshToken));
+        return ResponseEntity.ok(new TokenRefreshResponse(newToken, requestRefreshToken, user.getPhoneNumber()));
     }
     
     @PostMapping("/logout")

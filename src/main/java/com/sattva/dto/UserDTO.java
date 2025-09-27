@@ -27,4 +27,5 @@ public class UserDTO {
     private LocalDateTime dateEntered;   
     private LocalDateTime dateModified;  
     private boolean onboardingStatus;    // Updated naming convention
+    private String fullName;
 }

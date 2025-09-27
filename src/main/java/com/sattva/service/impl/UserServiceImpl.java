@@ -104,6 +104,7 @@ public class UserServiceImpl implements UserService {
         user.setUserType(userDTO.getUserType());
         user.setStatus(userDTO.getStatus());
         user.setUserOnboardingStatus(userDTO.isOnboardingStatus());
+        user.setFullName(userDTO.getFullName());
 
         if (userDTO.getRoles() != null && !userDTO.getRoles().isEmpty()) {
             Set<Role> updatedRoles = new HashSet<>();
@@ -159,7 +160,10 @@ public class UserServiceImpl implements UserService {
         dto.setPhoneNumber(user.getPhoneNumber());
         dto.setUserType(user.getUserType());
         dto.setStatus(user.getStatus());
+        dto.setFullName(user.getFullName());
         return dto;
+
+        
     }
 
 
