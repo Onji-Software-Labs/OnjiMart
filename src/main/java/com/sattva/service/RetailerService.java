@@ -2,13 +2,10 @@ package com.sattva.service;
 
 import java.util.List;
 
-import com.sattva.dto.RetailerBusinessRequestDTO;
-import com.sattva.dto.RetailerDTO;
-import com.sattva.dto.SupplierDTO;
-import com.sattva.dto.SupplierFilterRequest;
+import com.sattva.dto.*;
 
 public interface RetailerService {
-    List<SupplierDTO> getSuppliersForRetailer(String retailerId);
+    PaginatedResponseDTO<SupplierListDTO> getSuppliersForRetailer(String retailerId,int page, int size);
     List<SupplierDTO> filterSuppliers(String retailerId, SupplierFilterRequest request);
     RetailerDTO createBusinessAndAssignCategories(RetailerBusinessRequestDTO dto);
     RetailerBusinessRequestDTO getBusinessDetails(String businessId);

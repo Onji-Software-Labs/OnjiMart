@@ -4,12 +4,14 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import com.sattva.dto.RetailerBusinessRequestDTO;
-import com.sattva.dto.RetailerDTO;
+import com.sattva.dto.*;
 import com.sattva.model.*;
 import com.sattva.repository.*;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import com.netflix.discovery.converters.Auto;
@@ -36,19 +38,48 @@ public class RetailerServiceImpl implements RetailerService {
     private ModelMapper modelMapper;
 
     @Override
-    public List<SupplierDTO> getSuppliersForRetailer(String retailerId) {
+    public PaginatedResponseDTO<SupplierListDTO> getSuppliersForRetailer(String retailerId, int page, int size) {
         Retailer retailer = retailerRepository.findById(retailerId)
                 .orElseThrow(() -> new RuntimeException("Retailer not found with id: " + retailerId));
 
-        // Fetch all suppliers (or apply filtering logic here)
-        List<Supplier> suppliers = supplierRepository.findAll();
+        Pageable pageable = PageRequest.of(page, size);
+        Page<Supplier> supplierPage = supplierRepository.findAll(pageable);
 
-        // Convert to DTOs
-        return suppliers.stream()
-                .map(this::convertToDTO)
-                .collect(Collectors.toList());
+        PaginatedResponseDTO<SupplierListDTO> response = new PaginatedResponseDTO<>();
+        response.setContent(
+                supplierPage.getContent().stream()
+                        .map(this::convertToListDTO)
+                        .collect(Collectors.toList())
+        );
+
+        response.setPage(page);
+        response.setSize(size);
+        response.setTotalElements(supplierPage.getTotalElements());
+        response.setTotalPages(supplierPage.getTotalPages());
+        response.setLast(supplierPage.isLast());
+        return response;
     }
 
+    private SupplierListDTO convertToListDTO(Supplier supplier) {
+        String businessNames = supplier.getBusinesses().stream()
+                .map(SupplierBusiness::getName)
+                .collect(Collectors.joining(", "));
+
+        String cities = supplier.getBusinesses().stream()
+                .map(SupplierBusiness::getCity)
+                .filter(city -> city != null && !city.isEmpty())
+                .distinct()
+                .collect(Collectors.joining(", "));
+
+        return new SupplierListDTO(
+                supplier.getId(),
+                supplier.getUser().getFullName(),
+                businessNames,
+                cities,
+                supplier.getRating()
+        );
+    }
+    
     @Override
     public List<SupplierDTO> filterSuppliers(String retailerId, SupplierFilterRequest request) {
         Retailer retailer = retailerRepository.findById(retailerId)
