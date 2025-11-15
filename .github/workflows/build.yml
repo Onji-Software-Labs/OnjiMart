@@ -1,0 +1,66 @@
+name: CI - EAS Build (Android)
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'ONJI/**'
+  pull_request:
+    paths:
+      - 'ONJI/**'
+  workflow_dispatch: {}
+
+jobs:
+  build-android:
+    name: Build Android (EAS)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ONJI
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Cache node modules (ONJI)
+        uses: actions/cache@v4
+        with:
+          path: ONJI/node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('ONJI/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install EAS CLI
+        run: npm install -g eas-cli
+
+      - name: Expo / EAS login (using EXPO_TOKEN secret)
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          # ensure we are logged in; if not, login non-interactively
+          npx eas whoami || npx eas login --token "$EXPO_TOKEN"
+
+      - name: Run EAS Android build
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          # build using the `production` profile from eas.json (adjust profile name if needed)
+          npx eas build --platform android --profile production --non-interactive
+
+      - name: Print quick help (build output contains build URL)
+        run: |
+          echo "EAS build logs/URLs will appear above. Use the URL to download the APK from Expo dashboard or CLI."
+
+# Notes:
+# 1) Place this file at: .github/workflows/ci-eas-android.yml
+# 2) Set the repository secret EXPO_TOKEN (personal access token from Expo) in repo settings.
+# 3) The workflow sets the working directory to ONJI for all run steps via `defaults.run.working-directory`.
+# 4) Adjust node-version, cache key, and EAS profile as needed.
