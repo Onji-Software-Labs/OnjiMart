@@ -21,9 +21,10 @@ jobs:
         run: npm ci
 
       - name: Setup Expo and EAS
-        uses: expo/expo-github-action@v5
+        uses: expo/expo-github-action@v8
         with:
           eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
@@ -31,20 +32,20 @@ jobs:
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
-          eas build --platform android --profile preview --non-interactive --output json > eas-android.json
-          node -e "const fs=require('fs'); const data=JSON.parse(fs.readFileSync('eas-android.json')); const url=data.artifacts?.buildUrl || data.artifactUrl || data.downloadUrl; if(!url){throw new Error('No Android artifact URL');} console.log(url);" > android_url.txt
-          curl -L -o android_build.apk $(cat android_url.txt)
+          eas build --platform android --profile preview --non-interactive --output json > eas-android.json || true
+          node -e "const fs=require('fs'); const data=JSON.parse(fs.readFileSync('eas-android.json')); const url=data.builds?.android?.artifactUrl || ''; fs.writeFileSync('android_url.txt', url);"
+          if [ -s android_url.txt ]; then
+            curl -L -o android_build.apk $(cat android_url.txt)
+          fi
 
       - name: Build iOS (preview internal)
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
           eas build --platform ios --profile preview --non-interactive --output json > eas-ios.json || true
-          if [ -f eas-ios.json ]; then
-            node -e "const fs=require('fs'); const data=JSON.parse(fs.readFileSync('eas-ios.json')); const url=data.artifacts?.buildUrl || data.artifactUrl || data.downloadUrl; if(url) console.log(url);" > ios_url.txt || true
-            if [ -s ios_url.txt ]; then
-              curl -L -o ios_build.ipa $(cat ios_url.txt)
-            fi
+          node -e "const fs=require('fs'); const data=JSON.parse(fs.readFileSync('eas-ios.json')); const url=data.builds?.ios?.artifactUrl || ''; fs.writeFileSync('ios_url.txt', url);"
+          if [ -s ios_url.txt ]; then
+            curl -L -o ios_build.ipa $(cat ios_url.txt)
           fi
 
       - name: Send email with builds
@@ -55,12 +56,12 @@ jobs:
           server_port: ${{ secrets.MAIL_PORT }}
           username: ${{ secrets.MAIL_USERNAME }}
           password: ${{ secrets.MAIL_PASSWORD }}
-          from: ${{ secrets.MAIL_FROM }}
+          from: ${{ secrets.MAIL_USERNAME }}
           to: ${{ secrets.SUBSCRIBER_EMAILS }}
           subject: "New OnjiMart preview build"
           body: |
             Hello,
-
+            
             The latest preview build of the OnjiMart Expo app is attached.
           attachments: |
             android_build.apk
