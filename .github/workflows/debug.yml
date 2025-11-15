@@ -1,0 +1,115 @@
+name: CI - EAS Build & Firebase App Distribution
+
+on:
+  push:
+    branches:
+      - main
+      - release/*
+  workflow_dispatch:
+
+env:
+  EAS_PROFILE: ${{ secrets.EAS_BUILD_PROFILE || 'preview' }}
+  FIREBASE_SA_B64: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
+jobs:
+  build-and-distribute:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Debug — list repo files
+        run: |
+          echo "Workspace contents:"
+          ls -la
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install system deps
+        run: sudo apt-get update && sudo apt-get install -y openjdk-11-jdk unzip
+
+      - name: Install expo & eas CLI
+        run: npm install -g expo-cli eas-cli firebase-tools
+
+      - name: Install JS deps
+        run: npm ci
+
+      - name: Login to Expo
+        run: echo "${{ secrets.EXPO_TOKEN }}" > /tmp/expo_token && expo login --token "${{ secrets.EXPO_TOKEN }}"
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Decode Firebase service account
+        run: |
+          if [ -z "$FIREBASE_SA_B64" ]; then
+            echo "ERROR: FIREBASE_SA_B64 is empty — check the secret 'FIREBASE_SERVICE_ACCOUNT'"
+            exit 1
+          fi
+          echo "$FIREBASE_SA_B64" | base64 --decode > /tmp/firebase_sa.json
+        env:
+          FIREBASE_SA_B64: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
+      - name: EAS Build Android
+        if: always()
+        run: |
+          eas build --platform android --profile $EAS_PROFILE --non-interactive --output json > eas_android.json
+          node -e "const fs=require('fs'); const o=JSON.parse(fs.readFileSync('eas_android.json')); const url=(o.artifacts && o.artifacts.buildUrl)||o.artifactUrl||o.downloadUrl; if(!url){console.error('no url'); process.exit(1);} console.log(url);" > android_url.txt
+          curl -L -o android_build.aab $(cat android_url.txt)
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+      - name: EAS Build iOS (optional)
+        if: always()
+        run: |
+          eas build --platform ios --profile $EAS_PROFILE --non-interactive --output json > eas_ios.json || true
+          if [ -s eas_ios.json ]; then
+            node -e "const fs=require('fs'); const o=JSON.parse(fs.readFileSync('eas_ios.json')); const url=(o.artifacts && o.artifacts.buildUrl)||o.artifactUrl||o.downloadUrl; if(url) console.log(url);" > ios_url.txt || true
+            if [ -s ios_url.txt ]; then curl -L -o ios_build.ipa $(cat ios_url.txt); fi
+          fi
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install Firebase CLI and auth
+        run: |
+          npm i -g firebase-tools
+          if [ ! -f /tmp/firebase_sa.json ]; then
+            echo "ERROR: /tmp/firebase_sa.json not found"
+            exit 1
+          fi
+          export GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase_sa.json
+        env:
+          FIREBASE_SA_B64: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
+      - name: Distribute Android to Firebase App Distribution
+        if: always()
+        run: |
+          if [ -f android_build.aab ]; then
+            echo "Found android_build.aab — uploading to Firebase App Distribution"
+            export GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase_sa.json
+            npx firebase appdistribution:distribute android_build.aab \
+              --app "${{ secrets.FIREBASE_APP_ID_ANDROID }}" \
+              --release-notes "CI build $GITHUB_SHA" \
+              --tester-emails "${{ secrets.FIREBASE_TESTERS }}"
+          else
+            echo "android_build.aab not found — skipping Android distribution"
+          fi
+        env:
+          FIREBASE_APP_ID_ANDROID: ${{ secrets.FIREBASE_APP_ID_ANDROID }}
+
+      - name: Distribute iOS to Firebase App Distribution
+        if: always()
+        run: |
+          if [ -f ios_build.ipa ]; then
+            echo "Found ios_build.ipa — uploading to Firebase App Distribution"
+            export GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase_sa.json
+            npx firebase appdistribution:distribute ios_build.ipa \
+              --app "${{ secrets.FIREBASE_APP_ID_IOS }}" \
+              --release-notes "CI build $GITHUB_SHA" \
+              --tester-emails "${{ secrets.FIREBASE_TESTERS }}"
+          else
+            echo "ios_build.ipa not found — skipping iOS distribution"
+          fi
+        env:
+          FIREBASE_APP_ID_IOS: ${{ secrets.FIREBASE_APP_ID_IOS }}
