@@ -1,8 +1,10 @@
 {
   "build": {
     "preview": {
+      "developmentClient": false,
+      "distribution": "internal",
       "android": {
-        "buildType": "app-bundle"
+        "buildType": "apk"
       },
       "ios": {
         "workflow": "managed"
