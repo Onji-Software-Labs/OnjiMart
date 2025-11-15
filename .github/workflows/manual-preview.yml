@@ -1,0 +1,67 @@
+name: Manual preview build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-and-email:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ONJI
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup Expo and EAS
+        uses: expo/expo-github-action@v5
+        with:
+          eas-version: latest
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Build Android (preview internal)
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          eas build --platform android --profile preview --non-interactive --output json > eas-android.json
+          node -e "const fs=require('fs'); const data=JSON.parse(fs.readFileSync('eas-android.json')); const url=data.artifacts?.buildUrl || data.artifactUrl || data.downloadUrl; if(!url){throw new Error('No Android artifact URL');} console.log(url);" > android_url.txt
+          curl -L -o android_build.apk $(cat android_url.txt)
+
+      - name: Build iOS (preview internal)
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          eas build --platform ios --profile preview --non-interactive --output json > eas-ios.json || true
+          if [ -f eas-ios.json ]; then
+            node -e "const fs=require('fs'); const data=JSON.parse(fs.readFileSync('eas-ios.json')); const url=data.artifacts?.buildUrl || data.artifactUrl || data.downloadUrl; if(url) console.log(url);" > ios_url.txt || true
+            if [ -s ios_url.txt ]; then
+              curl -L -o ios_build.ipa $(cat ios_url.txt)
+            fi
+          fi
+
+      - name: Send email with builds
+        if: always()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: ${{ secrets.MAIL_SERVER }}
+          server_port: ${{ secrets.MAIL_PORT }}
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          from: ${{ secrets.MAIL_FROM }}
+          to: ${{ secrets.SUBSCRIBER_EMAILS }}
+          subject: "New OnjiMart preview build"
+          body: |
+            Hello,
+
+            The latest preview build of the OnjiMart Expo app is attached.
+          attachments: |
+            android_build.apk
+            ios_build.ipa
