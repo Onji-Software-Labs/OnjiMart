@@ -15,9 +15,10 @@ jobs:
   build-and-distribute:
     runs-on: ubuntu-latest
     steps:
-      - name: Use correct working directory
-        run: ls -la
       - uses: actions/checkout@v4
+
+      - name: Use correct working directory
+        run: cd ONJI
 
       - name: Setup Node
         uses: actions/setup-node@v4
