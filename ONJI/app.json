@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "ONJI",
-    "slug": "ONJI",
+    "slug": "onjimart",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -38,6 +38,13 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "3b2357f2-2144-4b4b-8248-da161d98b25b"
+      }
+    },
+    "owner": "hasthik"
   }
 }
