@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - release/*
+      - 'release/*'
   workflow_dispatch:
 
 env:
@@ -14,71 +14,90 @@ env:
 jobs:
   build-and-distribute:
     runs-on: ubuntu-latest
+
+    # Default working directory for **run** steps is ONJI (so run steps will run from ONJI)
+    defaults:
+      run:
+        working-directory: ONJI
+
     steps:
       - uses: actions/checkout@v4
-
-      - name: Use correct working directory
-        run: cd ONJI
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
+      # These two run at repo root (override defaults) because they act on the system or global tools
       - name: Install system deps
         run: sudo apt-get update && sudo apt-get install -y openjdk-11-jdk unzip
+        working-directory: .   # run at repo root
 
-      - name: Install expo & eas CLI
+      - name: Install global CLIs (expo, eas, firebase-tools)
         run: npm install -g expo-cli eas-cli firebase-tools
+        working-directory: .   # run at repo root
 
+      # From here, run steps default to ONJI (so npm ci, eas build, downloads, etc. run inside ONJI)
       - name: Install JS deps
         run: npm ci
 
       - name: Login to Expo
-        run: echo "${{ secrets.EXPO_TOKEN }}" > /tmp/expo_token && expo login --token "${{ secrets.EXPO_TOKEN }}"
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          # write token to a temp file and login (non-interactive)
+          echo "${{ secrets.EXPO_TOKEN }}" > /tmp/expo_token
+          expo login --token "${{ secrets.EXPO_TOKEN }}"
 
+      # decode firebase service account: needs to write to /tmp; decode at repo root to avoid permission/path surprises
       - name: Decode Firebase service account
         run: |
           echo "$FIREBASE_SA_B64" | base64 --decode > /tmp/firebase_sa.json
         env:
           FIREBASE_SA_B64: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        working-directory: .   # override to root so file paths are predictable
 
       - name: EAS Build Android
         if: always()
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
+          set -o pipefail
           eas build --platform android --profile $EAS_PROFILE --non-interactive --output json > eas_android.json
           node -e "const fs=require('fs'); const o=JSON.parse(fs.readFileSync('eas_android.json')); const url=(o.artifacts && o.artifacts.buildUrl)||o.artifactUrl||o.downloadUrl; if(!url){console.error('no url'); process.exit(1);} console.log(url);" > android_url.txt
           curl -L -o android_build.aab $(cat android_url.txt)
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
       - name: EAS Build iOS (optional)
         if: always()
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
+          set -o pipefail
           eas build --platform ios --profile $EAS_PROFILE --non-interactive --output json > eas_ios.json || true
           if [ -s eas_ios.json ]; then
             node -e "const fs=require('fs'); const o=JSON.parse(fs.readFileSync('eas_ios.json')); const url=(o.artifacts && o.artifacts.buildUrl)||o.artifactUrl||o.downloadUrl; if(url) console.log(url);" > ios_url.txt || true
             if [ -s ios_url.txt ]; then curl -L -o ios_build.ipa $(cat ios_url.txt); fi
           fi
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
+      # Install Firebase CLI and configure auth (run at repo root)
       - name: Install Firebase CLI and auth
         run: |
           npm i -g firebase-tools
-          # Ensure file exists (decoded earlier)
           if [ ! -f /tmp/firebase_sa.json ]; then
             echo "ERROR: /tmp/firebase_sa.json not found"
             exit 1
           fi
           export GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase_sa.json
+          echo "Firebase service account present at /tmp/firebase_sa.json"
         env:
           FIREBASE_SA_B64: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        working-directory: .   # run at repo root
 
+      # Distribute Android to Firebase App Distribution (runs from ONJI by default, finds ONJI/android_build.aab)
       - name: Distribute Android to Firebase App Distribution
         if: always()
+        env:
+          FIREBASE_APP_ID_ANDROID: ${{ secrets.FIREBASE_APP_ID_ANDROID }}
         run: |
           if [ -f android_build.aab ]; then
             echo "Found android_build.aab — uploading to Firebase App Distribution"
@@ -90,11 +109,11 @@ jobs:
           else
             echo "android_build.aab not found — skipping Android distribution"
           fi
-        env:
-          FIREBASE_APP_ID_ANDROID: ${{ secrets.FIREBASE_APP_ID_ANDROID }}
 
       - name: Distribute iOS to Firebase App Distribution
         if: always()
+        env:
+          FIREBASE_APP_ID_IOS: ${{ secrets.FIREBASE_APP_ID_IOS }}
         run: |
           if [ -f ios_build.ipa ]; then
             echo "Found ios_build.ipa — uploading to Firebase App Distribution"
@@ -106,5 +125,3 @@ jobs:
           else
             echo "ios_build.ipa not found — skipping iOS distribution"
           fi
-        env:
-          FIREBASE_APP_ID_IOS: ${{ secrets.FIREBASE_APP_ID_IOS }}
