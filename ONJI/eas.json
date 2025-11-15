@@ -1,13 +1,13 @@
 {
   "build": {
-    "preview": {
-      "developmentClient": false,
-      "distribution": "internal",
+    "production": {
       "android": {
         "buildType": "apk"
-      },
-      "ios": {
-        "workflow": "managed"
+      }
+    },
+    "development": {
+      "android": {
+        "buildType": "apk"
       }
     }
   }
