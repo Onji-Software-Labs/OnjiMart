@@ -50,16 +50,12 @@ public class JwtHelper {
     }
 
     // Generate token with phoneNumber and userId
-    public String generateToken(String phoneNumber, String userId) {
+    public String generateToken(String identifier, String userId,String type) {
         Map<String, Object> claims = new HashMap<>();
-        claims.put("phoneNumber", phoneNumber);
+        claims.put(type, identifier); //type = "phoneNumber" or "email"
         claims.put("userId", userId); // Embed userId in the token
 
-        String token = doGenerateToken(claims, phoneNumber);
-        
-        // Debugging logs to verify token generation
-        System.out.println("Generated Token: " + token);
-        System.out.println("With Claims - phoneNumber: " + phoneNumber + ", userId: " + userId);
+        String token = doGenerateToken(claims, identifier);
 
         return token;
     }
@@ -76,13 +72,25 @@ public class JwtHelper {
     }
 
     // Validate token with phone number
-    public Boolean validateToken(String token, String phoneNumber) {
-        final String storedPhoneNumber = getPhoneNumberFromToken(token);
-        return (storedPhoneNumber.equals(phoneNumber) && !isTokenExpired(token));
+    public Boolean validateToken(String token, String identifier, String userId, String type) {
+        String storedIdentifier = getClaimFromToken(token, claims -> (String) claims.get(type));
+        String storedUserId = getUserIdFromToken(token);
+        return (storedIdentifier.equals(identifier) && storedUserId.equals(userId) && !isTokenExpired(token));
     }
+
+
+    public Boolean validateTokenByEmail(String token, String email) {
+        final String storedEmail = getEmailFromToken(token);
+        return (storedEmail.equals(email) && !isTokenExpired(token));
+    }
+
 
     // Retrieve phone number from token
     public String getPhoneNumberFromToken(String token) {
         return getClaimFromToken(token, claims -> (String) claims.get("phoneNumber"));
+    }
+
+    public  String getEmailFromToken(String token) {
+        return getClaimFromToken(token, claims -> (String) claims.get("email"));
     }
 }

@@ -35,7 +35,6 @@ import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "users")
-@Inheritance(strategy = InheritanceType.JOINED) 
 @Data
 @NoArgsConstructor
 public  class User implements UserDetails {
@@ -46,7 +45,7 @@ public  class User implements UserDetails {
     @UuidGenerator
     private String id;
 
-    @Column(unique = true)
+    @Column(name = "email")
     private String email;
 
     @Column(name = "full_name")
@@ -104,7 +103,7 @@ public  class User implements UserDetails {
     }
     @Override
     public String getUsername() {
-        return this.phoneNumber;
+        return this.id;
     }
 
     @Override

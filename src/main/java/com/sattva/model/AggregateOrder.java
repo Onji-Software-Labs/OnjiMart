@@ -64,6 +64,9 @@ public class AggregateOrder {
         this.dateEntered = LocalDateTime.now();
         this.dateModified = LocalDateTime.now();
         this.modifiedUserId = SecurityUtil.getCurrentUserId();
+        if (this.status == null) {
+            this.status = AggregateOrderStatus.PENDING;
+        }
     }
 
     @PreUpdate

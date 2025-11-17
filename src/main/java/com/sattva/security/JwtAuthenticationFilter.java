@@ -37,7 +37,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String path = request.getRequestURI();
 
         // List all endpoints that should NOT require authentication
-        if (path.startsWith("/api/auth/")) {
+        if (path.startsWith("/api/auth/")|| path.startsWith("/oauth2/")) {
             filterChain.doFilter(request, response); // Skip JWT check
             return;
         }
@@ -46,30 +46,35 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         logger.info("Authorization Header: {}", requestHeader);
 
         String token = null;
-        String phoneNumber = null;
+        String identifier = null;
+        String userId = null;
+
 
         if (requestHeader != null && requestHeader.startsWith("Bearer ")) {
             token = requestHeader.substring(7);
             logger.info("JWT Token: {}", token);
             try {
-                phoneNumber = jwtHelper.getPhoneNumberFromToken(token);
-                String userId = jwtHelper.getUserIdFromToken(token); // Log user ID if needed
-                logger.info("Extracted phoneNumber: {}, userId: {}", phoneNumber, userId);
+                identifier = jwtHelper.getPhoneNumberFromToken(token);
+                if (identifier == null) {
+                    identifier = jwtHelper.getEmailFromToken(token);
+                }
+                userId = jwtHelper.getUserIdFromToken(token); // Log user ID if needed
+                logger.info("Extracted identifier: {}, userId: {}", identifier, userId);
             } catch (Exception e) {
                 logger.warn("Token validation error: {}", e.getMessage());
             }
         }
 
-        if (phoneNumber != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            UserDetails userDetails = userDetailsService.loadUserByUsername(phoneNumber);
+        if (identifier != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+            UserDetails userDetails = userDetailsService.loadUserByUsername(identifier);
 
             if (userDetails != null) {
                 UsernamePasswordAuthenticationToken authenticationToken = 
                         new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
                 SecurityContextHolder.getContext().setAuthentication(authenticationToken);
-                logger.info("User authenticated with phone number: {}", phoneNumber);
+                logger.info("User authenticated with identifier: {}", identifier);
             } else {
-                logger.warn("UserDetails not found for phone number: {}", phoneNumber);
+                logger.warn("UserDetails not found for identifier: {}", identifier);
             }
         }
 

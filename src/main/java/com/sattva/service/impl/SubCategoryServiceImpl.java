@@ -44,8 +44,6 @@ public class SubCategoryServiceImpl implements SubCategoryService {
 
     @Override
     public SubCategoryDTO createSubCategory(SubCategoryDTO subCategoryDTO) {
-        // Log incoming DTO
-        System.out.println("Received SubCategoryDTO: " + subCategoryDTO);
 
         // Find category by ID
         Category category = categoryRepository.findById(subCategoryDTO.getCategoryId())
@@ -58,14 +56,10 @@ public class SubCategoryServiceImpl implements SubCategoryService {
         subCategory.setCategory(category);
         subCategory.setId(UUID.randomUUID().toString());
 
-        // Log the mapped entity
-        System.out.println("Mapped SubCategory: " + subCategory);
 
         // Save subcategory
         SubCategory savedSubCategory = subCategoryRepository.save(subCategory);
 
-        // Log saved entity
-        System.out.println("Saved SubCategory: " + savedSubCategory);
 
         return modelMapper.map(savedSubCategory, SubCategoryDTO.class);
     }

@@ -18,17 +18,18 @@ const FormikTextInput = ({
   const [field, meta, helpers] = useField(name);
 
   return (
-    <View className="mt-[22px]">
+    <View className="mt-6">
       <View className="h-[22px] ">
-        <Text className="text-[#2E7D32] text-sm" style={{ fontWeight: 500 }}>
+        <Text className="text-text-action text-sm font-primarymedium" >
           {fieldName}
         </Text>
       </View>
       <View className="">
         <TextInput
           placeholder={placeholder}
-          className="h-[44px] focus:outline-none font-poppins border  bg-[#F7F8F8] border- rounded-[4px] border-[#2E7D32] px-[12] py-[11px]"
-          placeholderTextColor={"#92999E"}
+          className="h-[44px] font-primary focus:outline-none bg-surface-pressed  border-xs rounded-md px-[12] py-[11px]"
+          placeholderTextColor={"#AAB2B8"}
+          style={{borderColor: meta.error ? "#AAB2B8" : "#4CAF50" }}
           value={field.value}
           onChangeText={helpers.setValue}
           keyboardType={keyboardType}

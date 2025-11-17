@@ -6,7 +6,8 @@ export default function AuthLayout() {
       <Stack.Screen name="index" />
       <Stack.Screen name="login" />
       <Stack.Screen name="otpverify" />
-      <Stack.Screen name="BusinessDetailsScreen"/>
+      <Stack.Screen name="personalProfile"/>
+      <Stack.Screen name="buisnessScreen"/>
     </Stack>
   );
 }

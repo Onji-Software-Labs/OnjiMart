@@ -71,6 +71,7 @@ public class SmsServiceImpl implements SmsService {
     public OTPLessResponse sendOtp(CreateUserDTO userDto, boolean userExists, String userId, String userName, String fullName, boolean userOnboardingStatus) {
         String phoneNumber = userDto.getPhoneNumber();
         String otp = generateOtp(); // implement this method to generate a 6-digit OTP
+        otpMap.put(phoneNumber, Integer.valueOf(otp));
 
         RestTemplate restTemplate = new RestTemplate();
         HttpHeaders headers = new HttpHeaders();
@@ -80,8 +81,6 @@ public class SmsServiceImpl implements SmsService {
         // Build the Wati API URL with the whatsappNumber query parameter
         String url = watiApiUrl + "?whatsappNumber=" + phoneNumber;
 
-        System.out.println("Wati URL: " + url);
-        System.out.println("Auth Header: " + headers.getFirst("Authorization"));
 
         Map<String, Object> request = new HashMap<>();
         request.put("template_name", watiTemplateName);
@@ -94,20 +93,18 @@ public class SmsServiceImpl implements SmsService {
         parameters.add(param);
         request.put("parameters", parameters);
 
-        System.out.println("Wati request: " + request);
 
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(request, headers);
 
         try {
             ResponseEntity<String> response = restTemplate.postForEntity(url, entity, String.class);
             if (response.getStatusCode().is2xxSuccessful()) {
-                otpMap.put(phoneNumber, Integer.valueOf(otp));
-                return new OTPLessResponse(OtpStatus.DELIVERED, "OTP sent via WhatsApp", userExists, null, userId, userName, fullName, userOnboardingStatus);
+                return new OTPLessResponse(OtpStatus.DELIVERED, "OTP sent via WhatsApp", userExists, otp, userId, userName, fullName, userOnboardingStatus);
             } else {
-                return new OTPLessResponse(OtpStatus.FAILED, "Failed to send OTP via WhatsApp", userExists, null, userId, userName, fullName, userOnboardingStatus);
+                return new OTPLessResponse(OtpStatus.FAILED, "Failed to send OTP via WhatsApp", userExists, otp, userId, userName, fullName, userOnboardingStatus);
             }
         } catch (Exception e) {
-            return new OTPLessResponse(OtpStatus.FAILED, "Error: " + e.getMessage(), userExists, null, userId, userName, fullName, userOnboardingStatus);
+            return new OTPLessResponse(OtpStatus.FAILED, "Error: " + e.getMessage(), userExists, otp, userId, userName, fullName, userOnboardingStatus);
         }
     }
 
@@ -130,51 +127,18 @@ public class SmsServiceImpl implements SmsService {
 
     @Override
     public boolean validatePhoneNumberAndOtpLess(String orderId, int otp, String phoneNumber) {
-        // You can ignore orderId, or log it for auditing
-        System.out.println("Validating OTP for phoneNumber: " + phoneNumber + ", otp: " + otp);
+        // You can ignore orderId or log it for auditing
         return validateOtp(phoneNumber, otp);
     }
 
 
     @Override
-    public String generateToken(String phoneNumber, String userId) {
+    public String generateToken(String phoneNumber, String userId, String type) {
         // Generate the token
-        return jwtHelper.generateToken(phoneNumber, userId);
+        return jwtHelper.generateToken(phoneNumber, userId, "phoneNumber");
     }
 
 
-    // @Override
-    // public OTPLessResponse sendOtp(CreateUserDTO userDto, boolean userExists, String userId, String userName, String fullName, boolean userOnboardingStatus) {
-        
-    //     OTPAuth otpAuth = new OTPAuth(clientId, clientSecret);
-
-    //     try {
-            
-    //         String phoneNumber = userDto.getPhoneNumber();
-    //         String orderId = generateOrderId();
-    //         Integer expiredInSec = 60; 
-    //         Integer otpLength = 6; 
-    //         String channel = "SMS"; 
-            
-    //         OTPResponse otpResponse = otpAuth.sendOTP(orderId, phoneNumber, null, null, expiredInSec, otpLength, channel);
-    //         System.out.println("\n\n\nOTP Service Response: " + otpResponse + "\n\n\n");
-
-    //         // Check if the OTP was sent successfully
-    //         if (otpResponse.isSuccess()) {
-    //             // If OTP sending was successful, return the OTP details in the response DTO
-    //             return new OTPLessResponse(OtpStatus.DELIVERED, "OTP sent successfully", userExists , otpResponse.getOrderId(), userId, userName, fullName, userOnboardingStatus);
-    //         } else {
-    //             // If OTP sending failed, handle it accordingly
-    //             System.out.println("Failed to send OTP. Reason: " + otpResponse.getErrorMessage());
-    //             return new OTPLessResponse(OtpStatus.FAILED, "Failed to send OTP", userExists, otpResponse.getOrderId(), userId, userName, fullName, userOnboardingStatus);
-    //         }
-    //     } catch (Exception e) {
-    //         // Handle exceptions
-    //         e.printStackTrace();
-    //         // Return an appropriate response indicating failure
-    //         return new OTPLessResponse(OtpStatus.FAILED, e.getMessage(), userExists, apiKey, userId, userName, fullName, userOnboardingStatus);
-    //     }
-    // }
 
 
     private String generateOrderId() {

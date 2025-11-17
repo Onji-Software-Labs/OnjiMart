@@ -11,7 +11,7 @@ public interface CartService {
 	public CartDTO addProductToCart(String shopId, String supplierId, String productId, int quantity);
 
     // Get the cart for a specific shop
-    CartDTO getCartByShop(String shopId);
+    List<CartDTO> getCartByShop(String shopId);
 
     // Remove a product from the cart
     CartDTO removeProductFromCart(String cartId, String productId);

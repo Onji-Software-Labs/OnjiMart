@@ -16,5 +16,5 @@ public interface UserService {
 
     void deleteUser(String userId);
     
-    public void logoutUser(String userId);
+    public boolean logoutUser(String refreshToken);
 }

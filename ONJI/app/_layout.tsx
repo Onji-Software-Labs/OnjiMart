@@ -1,26 +1,24 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { router, Stack } from 'expo-router';
-import SplashScreen from './(auth)/SplashScreen'; 
+import {
+  DarkTheme,
+  DefaultTheme,
+  ThemeProvider,
+} from "@react-navigation/native";
+import { useFonts } from "expo-font";
+import { Stack } from "expo-router";
+import { StatusBar } from "expo-status-bar";
+import "react-native-reanimated";
+import "../global.css"
 
-const App = () => {
-  const [isSplashAnimationComplete, setSplashAnimationComplete] = useState(false);
+import { useColorScheme } from "@/hooks/useColorScheme";
 
-  useEffect(() => {
+export default function RootLayout() {
+  const colorScheme = useColorScheme();
+  const [loaded] = useFonts({
+    SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
+  });
 
-  }, []);
-
-  if (!isSplashAnimationComplete) {
-    return (
-      <SplashScreen
-        onAnimationEnd={() => {
-          setSplashAnimationComplete(true);
-          setTimeout(() => {
-            router.replace('/(auth)');
-          }, 100);
-        }}
-      />
-    );
+  if (!loaded) {
+    return null;
   }
 
   return (

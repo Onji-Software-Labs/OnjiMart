@@ -89,12 +89,13 @@ public class CartServiceImpl implements CartService {
 
 
     @Override
-    public CartDTO getCartByShop(String shopId) {
-        Cart cart = cartRepository.findByShopId(shopId);
+    public List<CartDTO> getCartByShop(String shopId) {
+        // Use the repository method that queries by the nested shop ID field.
+        List<Cart> cart = cartRepository.findByShop_Id(shopId);
         if (cart == null) {
             throw new RuntimeException("Cart not found for shop with id: " + shopId);
         }
-        return convertToCartDTO(cart);
+        return cart.stream().map(this::convertToCartDTO).collect(Collectors.toList());
     }
 
     @Override
