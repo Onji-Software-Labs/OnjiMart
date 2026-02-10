@@ -1,4 +1,4 @@
-name: CI - EAS Build (Android)
+name: CI - EAS Build and Distribute (Android)
 
 on:
   push:
