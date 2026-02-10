@@ -99,7 +99,7 @@ jobs:
           username: ${{ secrets.MAIL_USERNAME }}
           password: ${{ secrets.MAIL_PASSWORD }}
           subject: "ONJI Android APK Build Ready 🚀"
-          to: hasthikdjathan644@gmail.com
+          to: mayurjathan999@gmail.com
           from: GitHub CI
           body: |
             Your Expo Android build is ready.
