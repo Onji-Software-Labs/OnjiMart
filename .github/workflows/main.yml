@@ -2,32 +2,39 @@ name: CI - EAS Build (Android)
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
     paths:
       - 'ONJI/**'
-  pull_request:
-    paths:
-      - 'ONJI/**'
-  workflow_dispatch: {}
 
 jobs:
   build-android:
     name: Build Android (EAS)
     runs-on: ubuntu-latest
+
     defaults:
       run:
         working-directory: ONJI
 
     steps:
+      # -----------------------------
+      # Checkout
+      # -----------------------------
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # -----------------------------
+      # Node setup
+      # -----------------------------
       - name: Use Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '24'
 
-      - name: Cache node modules (ONJI)
+      # -----------------------------
+      # Cache dependencies
+      # -----------------------------
+      - name: Cache node modules
         uses: actions/cache@v4
         with:
           path: ONJI/node_modules
@@ -35,25 +42,55 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-node-
 
+      # -----------------------------
+      # Install deps
+      # -----------------------------
       - name: Install dependencies
         run: npm ci
 
+      # -----------------------------
+      # Install EAS CLI
+      # -----------------------------
       - name: Install EAS CLI
         run: npm install -g eas-cli
 
-      - name: Expo / EAS login
+      # -----------------------------
+      # Expo login
+      # -----------------------------
+      - name: Expo login
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
           npx eas whoami || npx eas login --token "$EXPO_TOKEN"
 
-      - name: Run EAS Android build
+      # -----------------------------
+      # Build + extract APK URL
+      # -----------------------------
+      - name: Run EAS Android build and extract APK URL
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
-          npx eas build --platform android --profile production --non-interactive
+          BUILD_JSON=$(npx eas build \
+            --platform android \
+            --profile production \
+            --non-interactive \
+            --json)
 
-      # ✅ NEW STEP — Send APK link via email
+          echo "$BUILD_JSON" > build.json
+
+          APK_URL=$(jq -r '.[0].artifacts.applicationArchiveUrl' build.json)
+
+          if [ -z "$APK_URL" ] || [ "$APK_URL" = "null" ]; then
+            echo "Failed to extract APK URL"
+            exit 1
+          fi
+
+          echo "APK_URL=$APK_URL" >> $GITHUB_ENV
+          echo "APK URL: $APK_URL"
+
+      # -----------------------------
+      # Send email
+      # -----------------------------
       - name: Send APK download link via email
         uses: dawidd6/action-send-mail@v3
         with:
@@ -67,8 +104,7 @@ jobs:
           body: |
             Your Expo Android build is ready.
 
-            Download APK here:
-            https://expo.dev/artifacts/eas/w35h849RnBzUfoP33dikcW.apk
+            Download APK:
+            ${{ env.APK_URL }}
 
-            Triggered from GitHub Actions.
-
+            Commit: ${{ github.sha }}
