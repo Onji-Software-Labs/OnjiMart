@@ -1,6 +1,6 @@
 package com.sattva.dto;
 
-import java.util.List;
+import com.fasterxml.jackson.annotation.JsonInclude;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -13,11 +13,9 @@ import lombok.Setter;
 @Setter
 @AllArgsConstructor
 @Builder
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class CategoryDTO {
-	 private String id;
-	    
-	    private String name; 
-	    
-	    private String description;
-	    private List<SubCategoryDTO> subCategories;
+    private String id;
+    private String name;
+    private String description;
 }
