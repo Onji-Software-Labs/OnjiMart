@@ -10,6 +10,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.stereotype.Service;
 
+import com.amazonaws.waiters.WaiterParameters;
 import com.otpless.authsdk.OTPAuth;
 import com.otpless.authsdk.OTPResponse;
 import com.sattva.dto.CreateUserDTO;
@@ -18,6 +19,8 @@ import com.sattva.dto.OTPLessResponse;
 import com.sattva.enums.OtpStatus;
 import com.sattva.service.SmsService;
 import com.sattva.security.JwtHelper;
+// import com.sattva.dto.WatiParameter;
+// import com.sattva.dto.WatiRequestDTO;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -74,6 +77,7 @@ public class SmsServiceImpl implements SmsService {
         otpMap.put(phoneNumber, Integer.valueOf(otp));
 
         RestTemplate restTemplate = new RestTemplate();
+
         HttpHeaders headers = new HttpHeaders();
         headers.set("Content-Type", "application/json-patch+json");
         headers.set("Authorization", "Bearer " + watiApiToken);
@@ -107,6 +111,44 @@ public class SmsServiceImpl implements SmsService {
             return new OTPLessResponse(OtpStatus.FAILED, "Error: " + e.getMessage(), userExists, otp, userId, userName, fullName, userOnboardingStatus);
         }
     }
+
+    // Genrating OTP Message in whatsapp using wati
+    //  @Override
+    // public OTPLessResponse sendOtp(CreateUserDTO userDto, boolean userExists, String userId, String userName, String fullName, boolean userOnboardingStatus) {
+    //     String phoneNumber = userDto.getPhoneNumber();
+    //     String otp = generateOtp(); // implement this method to generate a 6-digit OTP
+    //     otpMap.put(phoneNumber, Integer.valueOf(otp));
+
+    //     RestTemplate restTemplate = new RestTemplate();
+
+    //     HttpHeaders headers = new HttpHeaders();
+    //     headers.set("Content-Type", "application/json-patch+json");
+    //     headers.set("Authorization", "Bearer " + watiApiToken);
+
+    //     // Build the Wati API URL with the whatsappNumber query parameter
+    //     String url = watiApiUrl + "?whatsappNumber=" + phoneNumber;
+    //     System.out.println("URL" +url);
+        
+    //     WatiParameter otpParam = new WatiParameter("name", otp);
+    //     List<WatiParameter> params = List.of(otpParam);
+
+    //     WatiRequestDTO request = new WatiRequestDTO("visit_website","welcome", params);
+    //     System.out.println("request:"+ request);
+
+    //     HttpEntity<WatiRequestDTO> entity = new HttpEntity<>(request, headers);
+    //     System.out.println("entity:" + entity);
+
+    //     try {
+    //         ResponseEntity<String> response = restTemplate.postForEntity(url, entity, String.class);
+    //         if (response.getStatusCode().is2xxSuccessful()) {
+    //             return new OTPLessResponse(OtpStatus.DELIVERED, "OTP sent via WhatsApp", userExists, otp, userId, userName, fullName, userOnboardingStatus);
+    //         } else {
+    //             return new OTPLessResponse(OtpStatus.FAILED, "Failed to send OTP via WhatsApp", userExists, otp, userId, userName, fullName, userOnboardingStatus);
+    //         }
+    //     } catch (Exception e) {
+    //         return new OTPLessResponse(OtpStatus.FAILED, "Error: " + e.getMessage(), userExists, otp, userId, userName, fullName, userOnboardingStatus);
+    //     }
+    // }
 
 
     private String generateOtp() {
