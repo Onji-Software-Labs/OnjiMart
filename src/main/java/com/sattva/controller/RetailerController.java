@@ -13,8 +13,11 @@ import com.sattva.dto.SupplierFilterRequest;
 import com.sattva.dto.SupplierDTO;
 import com.sattva.service.RetailerService;
 
+//Added newly
+@CrossOrigin
 @RestController
 @RequestMapping("/retailers")
+
 public class RetailerController {
 
     @Autowired
