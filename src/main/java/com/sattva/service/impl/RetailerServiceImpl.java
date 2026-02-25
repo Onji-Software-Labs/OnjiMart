@@ -14,7 +14,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
-import com.netflix.discovery.converters.Auto;
+//import com.netflix.discovery.converters.Auto;
 import com.sattva.dto.SupplierDTO;
 import com.sattva.dto.SupplierFilterRequest;
 import com.sattva.service.RetailerService;
