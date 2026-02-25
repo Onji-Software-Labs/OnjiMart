@@ -1,12 +1,4 @@
 package com.sattva.model;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.CascadeType;
-import jakarta.persistence.DiscriminatorValue;
-import jakarta.persistence.Entity;
-import jakarta.persistence.JoinTable;
-import jakarta.persistence.ManyToMany;
-import jakarta.persistence.OneToMany;
-import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.Getter;
@@ -36,10 +28,17 @@ public class Supplier implements Serializable {
     @Id
     private String id;  // This will be same as the user's ID
 
+    @Column
+    private Double rating;
+
     @OneToOne
     @MapsId
     @JoinColumn(name = "id") // foreign key to 'users.id'
     private User user;
+
+    @OneToMany(mappedBy = "supplier", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<SupplierBusiness> businesses;
+
 
     @ManyToMany
     @JoinTable(

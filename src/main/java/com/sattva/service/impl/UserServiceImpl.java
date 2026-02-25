@@ -53,8 +53,13 @@ public class UserServiceImpl implements UserService {
     public CreateUserDTO createUser(CreateUserDTO userDto) {
         User user = new User();
         user.setId(UUID.randomUUID().toString());
-        user.setPhoneNumber(userDto.getPhoneNumber());
-        user.setUserOnboardingStatus(false);
+        if (userDto.getPhoneNumber() != null) {
+            user.setPhoneNumber(userDto.getPhoneNumber());
+        }
+
+        if (userDto.getEmail() != null) {
+            user.setEmail(userDto.getEmail());
+        }
 
         // Save to DB
         User savedUser = userRepository.save(user);
@@ -89,11 +94,17 @@ public class UserServiceImpl implements UserService {
             .orElseThrow(() -> new RuntimeException("User not found with id: " + userId));
 
         user.setUsername(userDTO.getUsername());
-        user.setEmail(userDTO.getEmail());
-        user.setPassword(userDTO.getPassword()); 
+        if (userDTO.getEmail() != null) {
+            user.setEmail(userDTO.getEmail());
+        }
+        if (userDTO.getPhoneNumber() != null) {
+            user.setPhoneNumber(userDTO.getPhoneNumber());
+        }
+        user.setPassword(userDTO.getPassword());
         user.setUserType(userDTO.getUserType());
         user.setStatus(userDTO.getStatus());
         user.setUserOnboardingStatus(userDTO.isOnboardingStatus());
+        user.setFullName(userDTO.getFullName());
 
         if (userDTO.getRoles() != null && !userDTO.getRoles().isEmpty()) {
             Set<Role> updatedRoles = new HashSet<>();
@@ -146,9 +157,13 @@ public class UserServiceImpl implements UserService {
         dto.setId(user.getId());
         dto.setUsername(user.getUsername());
         dto.setEmail(user.getEmail());
+        dto.setPhoneNumber(user.getPhoneNumber());
         dto.setUserType(user.getUserType());
         dto.setStatus(user.getStatus());
+        dto.setFullName(user.getFullName());
         return dto;
+
+        
     }
 
 

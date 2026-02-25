@@ -1,7 +1,8 @@
 import { ThemedText } from '@/components/ui/ThemedText';
+import axiosInstance from '@/lib/api/axiosConfig';
+import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  Alert,
   Dimensions,
   Image,
   Keyboard,
@@ -11,22 +12,25 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useLocalSearchParams, router } from 'expo-router';
-import axiosInstance from '@/lib/api/axiosConfig';
 
 const { width, height } = Dimensions.get('window');
 
 export default function OTPVerification() {
   const { phoneNumber } = useLocalSearchParams<{ phoneNumber: string }>();
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
+  const [devOtp, setDevOtp] = useState<string | null>(null);
   const [isError, setIsError] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [resendDisabled, setResendDisabled] = useState(true);
   const [countdown, setCountdown] = useState(30);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
+  const [otpSessionId, setOtpSessionId] = useState<string | null>(null);
   const inputRefs = useRef<TextInput[]>([]);
 
+  const normalizedPhoneNumber = phoneNumber.startsWith('+91') ? phoneNumber : `+91${phoneNumber}`;
+
+  // Countdown timer
   useEffect(() => {
     if (countdown > 0) {
       const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
@@ -48,6 +52,7 @@ export default function OTPVerification() {
     const newOtp = [...otp];
     newOtp[index] = value;
     setOtp(newOtp);
+
     if (isError) {
       setIsError(false);
       setErrorMessage('');
@@ -65,31 +70,157 @@ export default function OTPVerification() {
     }
   };
 
-  const isOtpComplete = otp.every(digit => digit !== '');
+  const isOtpComplete = otp.every((digit) => digit !== '');
 
+  // Resend OTP
+  const handleResendCode = async () => {
+    if (resendDisabled) return;
+
+    setCountdown(30);
+    setResendDisabled(true);
+    setShowSuccessMessage(true);
+    setOtp(['', '', '', '', '', '']);
+    setIsError(false);
+    setErrorMessage('');
+
+    const payload = {
+      userNames: 'UserName',
+      fullName: 'Full Name',
+      phoneNumber: normalizedPhoneNumber,
+      email: 'example@email.com',
+      userType: 'USER',
+      userOnboardingStatus: true,
+      supplier: false,
+    };
+
+    console.log('Sending OTP payload:', payload);
+
+    try {
+      const response = await axiosInstance.post('/api/auth/send-otp', payload);
+      console.log('Full OTP Send Response:', JSON.stringify(response.data, null, 2));
+      // ✅ DEV ONLY: orderId is OTP
+      if (__DEV__ && response.data?.orderId) {
+        const orderOtp = String(response.data.orderId);
+
+        setDevOtp(orderOtp); // show OTP on UI
+
+        console.log('DEV OTP (orderId):', orderOtp);
+      }
+
+      // ✅ Handle different response structures
+      const sessionId = response.data?.orderId;
+
+      if (sessionId) {
+        setOtpSessionId(String(sessionId));
+        console.log('OTP Session ID (orderId):', sessionId);
+      }
+
+      if (sessionId) {
+        setOtpSessionId(sessionId);
+        console.log('✅ OTP Session ID saved:', sessionId);
+
+        // Store in localStorage as fallback
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('otpSessionId', sessionId);
+        }
+      } else {
+        console.warn('❌ No OTP sessionId found in response structure');
+
+        // Try to use previously stored session ID
+        const storedSessionId =
+          typeof window !== 'undefined' ? localStorage.getItem('otpSessionId') : null;
+        if (storedSessionId) {
+          setOtpSessionId(storedSessionId);
+          console.log('Using stored session ID as fallback:', storedSessionId);
+        } else {
+          // Generate fallback session ID
+          const fallbackSessionId = Date.now().toString();
+          setOtpSessionId(fallbackSessionId);
+          console.log('Using generated fallback session ID:', fallbackSessionId);
+        }
+      }
+
+      setShowSuccessMessage(true);
+    } catch (error: any) {
+      console.error('Failed to send OTP:', error.response?.data || error.message);
+      setIsError(true);
+      setErrorMessage('Failed to resend OTP. Please try again.');
+    }
+  };
+
+  // Verify OTP
   const handleContinue = async () => {
     if (!isOtpComplete || isVerifying) {
       setIsError(true);
       setErrorMessage('Please enter the complete 6-digit code.');
-      setOtp(['', '', '', '', '', '']);
       inputRefs.current[0]?.focus();
       return;
     }
+
+    // Use stored session ID if state is null
+    let verificationSessionId = otpSessionId;
+    if (!verificationSessionId && typeof window !== 'undefined') {
+      verificationSessionId = localStorage.getItem('otpSessionId');
+      if (verificationSessionId) {
+        setOtpSessionId(verificationSessionId);
+        console.log('Using stored session ID for verification:', verificationSessionId);
+      }
+    }
+
+    if (!verificationSessionId) {
+      setIsError(true);
+      setErrorMessage('OTP session not found. Please resend OTP.');
+      return;
+    }
+
     setIsVerifying(true);
     const enteredOtp = otp.join('');
-    try {
-      
-      await axiosInstance.post('/api/auth/login', {
-        phoneNumber: phoneNumber,
-        otpNumber: enteredOtp,
-      });
 
-      setIsError(false);
-      setErrorMessage('');
-      router.replace('/(auth)/BusinessDetailsScreen');
+    const payload = {
+      phoneNumber: normalizedPhoneNumber,
+      otpNumber: enteredOtp,
+      id: verificationSessionId,
+    };
+
+    console.log('Verifying OTP with payload:', payload);
+    console.log('Using OTP Session ID:', verificationSessionId);
+
+    try {
+      const response = await axiosInstance.post('/api/auth/login', payload);
+      console.log('OTP verification response:', response.data);
+
+      if (response.data.status === 'FAILED' || !response.data.jwtToken) {
+        setIsError(true);
+        setErrorMessage(response.data.message || 'OTP verification failed.');
+        setOtp(['', '', '', '', '', '']);
+        inputRefs.current[0]?.focus();
+      } else {
+        setIsError(false);
+        setErrorMessage('');
+
+        // Clear stored session ID on success
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('otpSessionId');
+        }
+
+        setDevOtp(null);
+        router.replace('/(auth)/personalProfile');
+      }
     } catch (error: any) {
+      console.error('OTP verification error:', error.response?.data || error.message);
       setIsError(true);
-      setErrorMessage('Incorrect OTP or verification failed.');
+
+      // More specific error messages
+      if (error.response?.status === 400) {
+        setErrorMessage('Invalid OTP. Please check and try again.');
+      } else if (error.response?.status === 404) {
+        setErrorMessage('OTP session expired. Please resend OTP.');
+      } else if (error.response?.status === 500) {
+        setErrorMessage('Server error. Please try again later.');
+      } else {
+        setErrorMessage('Incorrect OTP or verification failed.');
+      }
+
       setOtp(['', '', '', '', '', '']);
       inputRefs.current[0]?.focus();
     } finally {
@@ -97,26 +228,7 @@ export default function OTPVerification() {
     }
   };
 
-  const handleResendCode = async () => {
-    if (resendDisabled) return;
-    setCountdown(30);
-    setResendDisabled(true);
-    setShowSuccessMessage(true);
-    setOtp(['', '', '', '', '', '']);
-    setIsError(false);
-    setErrorMessage('');
-    try {
-      await axiosInstance.post('/api/auth/send-otp', {
-        phoneNumber: phoneNumber,
-      });
-    } catch (error) {
-      Alert.alert('Error', 'Failed to resend OTP. Please try again.');
-    }
-  };
-
-  const handleChangeNumber = () => {
-    router.back();
-  };
+  const handleChangeNumber = () => router.back();
 
   return (
     <View style={styles.container}>
@@ -138,8 +250,23 @@ export default function OTPVerification() {
           />
         </View>
         <ThemedText style={styles.title}>
-          Enter the 6 digit code sent via SMS to{'\n'}{phoneNumber}
+          Enter the 6 digit code sent via SMS to{'\n'}
+          {phoneNumber}
         </ThemedText>
+
+        {__DEV__ && devOtp && (
+          <ThemedText
+            style={{
+              textAlign: 'center',
+              marginBottom: 16,
+              color: '#2E7D32',
+              fontWeight: '600',
+            }}
+          >
+            DEV OTP: {devOtp}
+          </ThemedText>
+        )}
+
         <View style={styles.otpContainer}>
           {otp.map((digit, index) => (
             <TextInput
@@ -150,7 +277,7 @@ export default function OTPVerification() {
               style={[
                 styles.otpInput,
                 isError && styles.otpInputError,
-                digit && styles.otpInputFilled
+                digit && styles.otpInputFilled,
               ]}
               value={digit}
               onChangeText={(value) => handleOtpChange(value, index)}
@@ -163,12 +290,8 @@ export default function OTPVerification() {
           ))}
         </View>
 
-        {isError && (
-          <ThemedText style={styles.errorText}>{errorMessage}</ThemedText>
-        )}
-        {showSuccessMessage && (
-          <ThemedText style={styles.successText}>New code sent</ThemedText>
-        )}
+        {isError && <ThemedText style={styles.errorText}>{errorMessage}</ThemedText>}
+        {showSuccessMessage && <ThemedText style={styles.successText}>New code sent</ThemedText>}
 
         <View style={styles.actionContainer}>
           <TouchableOpacity
@@ -187,15 +310,17 @@ export default function OTPVerification() {
         <TouchableOpacity
           style={[
             styles.continueButton,
-            (!isOtpComplete || isVerifying) && styles.continueButtonDisabled
+            (!isOtpComplete || isVerifying) && styles.continueButtonDisabled,
           ]}
           onPress={handleContinue}
           disabled={!isOtpComplete || isVerifying}
         >
-          <ThemedText style={[
-            styles.continueText,
-            (!isOtpComplete || isVerifying) && styles.continueTextDisabled
-          ]}>
+          <ThemedText
+            style={[
+              styles.continueText,
+              (!isOtpComplete || isVerifying) && styles.continueTextDisabled,
+            ]}
+          >
             {isVerifying ? 'Verifying...' : 'Continue'}
           </ThemedText>
         </TouchableOpacity>
@@ -203,8 +328,6 @@ export default function OTPVerification() {
     </View>
   );
 }
-
-
 
 const styles = StyleSheet.create({
   container: {

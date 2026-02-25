@@ -12,7 +12,7 @@ public interface SmsService {
 	 public boolean validateOtp(String phoneNumber, int enteredOtp);
 	 public OTPLessResponse sendOtp(CreateUserDTO userDto, boolean userExists, String userId, String userName, String fullName, boolean userOnboardingStatus);
 	 public boolean validatePhoneNumberAndOtpLess(String orderId, int otp, String phoneNumber);
-	 public String generateToken(String phoneNumber, String userId);
+	 public String generateToken(String phoneNumber, String userId, String type);
 	 
 	
 }

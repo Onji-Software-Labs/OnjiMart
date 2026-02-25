@@ -18,7 +18,7 @@ const FormikTextInput = ({
   const [field, meta, helpers] = useField(name);
 
   return (
-    <View className="mt-[22px]">
+    <View className="mt-6">
       <View className="h-[22px] ">
         <Text className="text-text-action text-sm font-primarymedium" >
           {fieldName}

@@ -5,6 +5,7 @@ import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -20,6 +21,7 @@ import com.sattva.service.CartService;
 
 @RestController
 @RequestMapping("/api/carts")
+@CrossOrigin
 public class CartController {
 
     @Autowired
@@ -41,8 +43,8 @@ public class CartController {
     // Endpoint to get the cart details for a specific shop
     @PreAuthorize("hasRole('ROLE_RETAILER')")
     @GetMapping("/{shopId}")
-    public ResponseEntity<CartDTO> getCartByShop(@PathVariable String shopId) {
-        CartDTO cart = cartService.getCartByShop(shopId);
+    public ResponseEntity<List<CartDTO>> getCartByShop(@PathVariable String shopId) {
+        List<CartDTO> cart = cartService.getCartByShop(shopId);
         return ResponseEntity.ok(cart);
     }
 

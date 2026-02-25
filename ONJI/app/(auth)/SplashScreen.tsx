@@ -7,12 +7,23 @@ import {
   Easing,
   Dimensions,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 
 const { height } = Dimensions.get('window');
 
 const AnimatedImage = Animated.createAnimatedComponent(Image);
 
-export default function SplashScreen({ onAnimationEnd }: { onAnimationEnd: () => void }) {
+// FIX: Added useRouter to handle navigation after splash animation completes on Android
+export default function SplashScreen({ onAnimationEnd }: { onAnimationEnd?: () => void } = {}) {
+  const router = useRouter();
+  // FIX: Added after animation end handler for Android - navigates to login after splash
+  const handleAnimationEnd = () => {
+    if (onAnimationEnd) {
+      onAnimationEnd();
+    } else {
+      router.replace('/(auth)/login');
+    }
+  };
   const logoScale = useRef(new Animated.Value(0)).current;
   const textOpacity = useRef(new Animated.Value(0)).current;
   const bgColorAnim = useRef(new Animated.Value(0)).current; // 0 = white, 1 = green
@@ -49,7 +60,8 @@ export default function SplashScreen({ onAnimationEnd }: { onAnimationEnd: () =>
                   easing: Easing.inOut(Easing.ease),
                   useNativeDriver: true,
                 }).start(() => {
-                  setTimeout(onAnimationEnd, 400);
+                  // FIX: Updated callback to use handleAnimationEnd which manages Android navigation
+                  setTimeout(handleAnimationEnd, 400);
                 });
               }, 1000);
             });
@@ -57,7 +69,7 @@ export default function SplashScreen({ onAnimationEnd }: { onAnimationEnd: () =>
         });
       }, 1000);
     });
-  }, []);
+  }, [handleAnimationEnd]);
 
   const backgroundColor = bgColorAnim.interpolate({
     inputRange: [0, 1],

@@ -1,1 +1,0 @@
-// Retailer tabs layout placeholder

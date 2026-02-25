@@ -32,8 +32,8 @@ public class SwaggerConfig {
 	                                  )
 	                  )
 	                  .info(new Info()
-	                              .title("Snoodify-product-service")
-	                              .description("Product Service")
+	                              .title("Onji-service")
+	                              .description("Onji Service")
 	                              .version("1.0")
 	                  );
 	        }
