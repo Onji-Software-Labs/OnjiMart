@@ -10,7 +10,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-
+//Added newly
+@CrossOrigin
 @RestController
 @RequestMapping("/api/retailer-business")
 @RequiredArgsConstructor

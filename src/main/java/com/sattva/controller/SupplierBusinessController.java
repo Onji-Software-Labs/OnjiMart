@@ -13,9 +13,12 @@ import com.sattva.dto.SupplierBusinessRequestDTO;
 import com.sattva.dto.SupplierDTO;
 import com.sattva.service.SupplierService;
 
+//Added newly
+@CrossOrigin
 @RestController
 @RequestMapping("/api/supplier-business")
 @RequiredArgsConstructor
+
 public class SupplierBusinessController {
 
     private final SupplierService supplierService;
