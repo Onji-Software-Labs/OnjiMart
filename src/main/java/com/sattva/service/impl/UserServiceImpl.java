@@ -5,6 +5,8 @@ import com.sattva.dto.UserDTO;
 import com.sattva.enums.RoleName;
 import com.sattva.enums.UserStatus;
 import com.sattva.enums.UserType;
+import com.sattva.exception.InvalidInputException;
+import com.sattva.exception.ResourceNotFoundException;
 import com.sattva.model.RefreshToken;
 import com.sattva.model.Retailer;
 import com.sattva.model.Role;
@@ -76,7 +78,7 @@ public class UserServiceImpl implements UserService {
     @Override
     public UserDTO getUserById(String userId) {
         User user = userRepository.findById(userId)
-            .orElseThrow(() -> new RuntimeException("User not found with id: " + userId));
+            .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
         return mapToDTO(user);
     }
 
@@ -91,7 +93,7 @@ public class UserServiceImpl implements UserService {
     @Transactional
     public UserDTO updateUser(String userId, UserDTO userDTO) {
         User user = userRepository.findById(userId)
-            .orElseThrow(() -> new RuntimeException("User not found with id: " + userId));
+            .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
 
         user.setUsername(userDTO.getUsername());
         if (userDTO.getEmail() != null) {
@@ -112,10 +114,10 @@ public class UserServiceImpl implements UserService {
                 try {
                     RoleName roleNameEnum = RoleName.valueOf(roleNameStr);
                     Role role = roleRepository.findByName(roleNameEnum)
-                        .orElseThrow(() -> new RuntimeException("Role not found: " + roleNameStr));
+                        .orElseThrow(() -> new ResourceNotFoundException("Role not found: " + roleNameStr));
                     updatedRoles.add(role);
                 } catch (IllegalArgumentException e) {
-                    throw new RuntimeException("Invalid role name provided: " + roleNameStr);
+                    throw new InvalidInputException("Invalid role name provided: " + roleNameStr);
                 }
             }
             user.setRoles(updatedRoles);
@@ -147,7 +149,7 @@ public class UserServiceImpl implements UserService {
     @Override
     public void deleteUser(String userId) {
         User user = userRepository.findById(userId)
-            .orElseThrow(() -> new RuntimeException("User not found with id: " + userId));
+            .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
         userRepository.delete(user);
     }
 
@@ -162,8 +164,6 @@ public class UserServiceImpl implements UserService {
         dto.setStatus(user.getStatus());
         dto.setFullName(user.getFullName());
         return dto;
-
-        
     }
 
 
@@ -181,4 +181,4 @@ public class UserServiceImpl implements UserService {
 
 
 
-    }
+}

@@ -17,6 +17,7 @@ import com.sattva.dto.CreateUserDTO;
 import com.sattva.dto.LoginRequest;
 import com.sattva.dto.OTPLessResponse;
 import com.sattva.enums.OtpStatus;
+import com.sattva.exception.InvalidInputException;
 import com.sattva.service.SmsService;
 import com.sattva.security.JwtHelper;
 // import com.sattva.dto.WatiParameter;
@@ -159,6 +160,9 @@ public class SmsServiceImpl implements SmsService {
 
     public boolean validateOtp(String phoneNumber, int enteredOtp) {
         Integer storedOtp = otpMap.get(phoneNumber);
+         if (storedOtp == null) {
+            throw new InvalidInputException("Invalid OTP or phone number");
+        }
         if (storedOtp != null && storedOtp == enteredOtp) {
             otpMap.remove(phoneNumber); // clear after successful validation
             return true;

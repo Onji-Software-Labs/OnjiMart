@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.sattva.dto.ProductDTO;
+import com.sattva.exception.ResourceNotFoundException;
 import com.sattva.model.Category;
 import com.sattva.model.Product;
 import com.sattva.model.SubCategory;
@@ -43,19 +44,19 @@ public class ProductServiceImpl implements ProductService {
     @Override
     public ProductDTO getProductById(String productId) {
         Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new RuntimeException("Product not found with id: " + productId));
+                .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + productId));
         return modelMapper.map(product, ProductDTO.class);
     }
 
     @Override
     public ProductDTO createProduct(ProductDTO productDTO) {
         Category category = categoryRepository.findById(productDTO.getCategoryId())
-                .orElseThrow(() -> new RuntimeException("Category not found with id: " + productDTO.getCategoryId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + productDTO.getCategoryId()));
 
         SubCategory subCategory = null;
         if (productDTO.getSubCategoryId() != null) {
             subCategory = subCategoryRepository.findById(productDTO.getSubCategoryId())
-                    .orElseThrow(() -> new RuntimeException("SubCategory not found with id: " + productDTO.getSubCategoryId()));
+                    .orElseThrow(() -> new ResourceNotFoundException("SubCategory not found with id: " + productDTO.getSubCategoryId()));
         }
 
         Product product = modelMapper.map(productDTO, Product.class);
@@ -70,15 +71,15 @@ public class ProductServiceImpl implements ProductService {
     @Override
     public ProductDTO updateProduct(String productId, ProductDTO productDTO) {
         Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new RuntimeException("Product not found with id: " + productId));
+                .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + productId));
 
         Category category = categoryRepository.findById(productDTO.getCategoryId())
-                .orElseThrow(() -> new RuntimeException("Category not found with id: " + productDTO.getCategoryId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + productDTO.getCategoryId()));
 
         SubCategory subCategory = null;
         if (productDTO.getSubCategoryId() != null) {
             subCategory = subCategoryRepository.findById(productDTO.getSubCategoryId())
-                    .orElseThrow(() -> new RuntimeException("SubCategory not found with id: " + productDTO.getSubCategoryId()));
+                    .orElseThrow(() -> new ResourceNotFoundException("SubCategory not found with id: " + productDTO.getSubCategoryId()));
         }
 
         modelMapper.map(productDTO, product); // Update product fields with productDTO values
@@ -92,6 +93,9 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     public void deleteProduct(String productId) {
+        if (!productRepository.existsById(productId)) {
+            throw new ResourceNotFoundException("Product not found with id: " + productId);
+        }
         productRepository.deleteById(productId);
     }
     @Override

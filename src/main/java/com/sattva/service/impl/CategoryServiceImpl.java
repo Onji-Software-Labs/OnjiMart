@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 
 import com.sattva.dto.CategoryDTO;
 import com.sattva.dto.SubCategoryDTO;
+import com.sattva.exception.ResourceNotFoundException;
 import com.sattva.model.Category;
 import com.sattva.repository.CategoryRepository;
 import com.sattva.service.CategoryService;
@@ -34,7 +35,7 @@ public class CategoryServiceImpl implements CategoryService {
     @Override
     public CategoryDTO getCategoryById(String categoryId) {
         Category category = categoryRepository.findById(categoryId)
-                .orElseThrow(() -> new RuntimeException("Category not found with id: " + categoryId));
+                .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + categoryId));
         return modelMapper.map(category, CategoryDTO.class);
     }
 
@@ -49,7 +50,7 @@ public class CategoryServiceImpl implements CategoryService {
     @Override
     public CategoryDTO updateCategory(String categoryId, CategoryDTO categoryDTO) {
         Category existingCategory = categoryRepository.findById(categoryId)
-                .orElseThrow(() -> new RuntimeException("Category not found with id: " + categoryId));
+                .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + categoryId));
         existingCategory.setName(categoryDTO.getName());
         existingCategory.setDescription(categoryDTO.getDescription());
         Category updatedCategory = categoryRepository.save(existingCategory);
@@ -59,14 +60,14 @@ public class CategoryServiceImpl implements CategoryService {
     @Override
     public void deleteCategory(String categoryId) {
         Category existingCategory = categoryRepository.findById(categoryId)
-                .orElseThrow(() -> new RuntimeException("Category not found with id: " + categoryId));
+                .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + categoryId));
         categoryRepository.delete(existingCategory);
     }
 
     @Override
     public List<SubCategoryDTO> getSubcategoriesByCategoryId(String categoryId) {
         Category category = categoryRepository.findById(categoryId)
-                .orElseThrow(() -> new RuntimeException("Category not found with id: " + categoryId));
+                .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + categoryId));
         return category.getSubCategories()
                 .stream()
                 .map(subCategory -> modelMapper.map(subCategory, SubCategoryDTO.class))
