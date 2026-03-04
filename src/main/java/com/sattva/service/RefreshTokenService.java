@@ -7,8 +7,9 @@ import com.sattva.model.User;
 
 public interface RefreshTokenService {
 	 public Optional<RefreshToken> findByToken(String token);
-	public RefreshToken createRefreshToken(User user);
+    public RefreshToken createRefreshToken(User user,String deviceId);
 	public boolean isTokenExpired(RefreshToken token);
 	public void deleteByUser(User user);
 	public RefreshToken verifyExpiration(RefreshToken token);
+    public RefreshToken rotateRefreshToken(RefreshToken refreshToken);
 }

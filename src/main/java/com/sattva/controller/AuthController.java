@@ -1,22 +1,17 @@
 package com.sattva.controller;
 
-import java.util.Collections;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
+import com.sattva.repository.RefreshTokenRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import com.sattva.dto.CreateUserDTO;
 import com.sattva.dto.LoginRequestDTO;
@@ -35,6 +30,7 @@ import com.sattva.service.SmsService;
 import com.sattva.service.UserService;
 
 import javax.imageio.spi.IIORegistry;
+import javax.management.Query;
 
 
 @RestController
@@ -53,9 +49,12 @@ public class AuthController {
 
     @Autowired
     private SmsService smsService;
+
     @Autowired
     private UserService userService;
 
+    @Autowired
+    private RefreshTokenRepository refreshTokenRepository;
     // @Autowired
     // private AuthenticationService authenticationService;
 
@@ -87,12 +86,15 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<LoginResponseDTO> login(@RequestBody LoginRequestDTO loginRequestDTO) {
-
+    public ResponseEntity<LoginResponseDTO> login(@RequestBody LoginRequestDTO loginRequestDTO,
+                                                  @CookieValue(value = "deviceId", required = false) String cookieDeviceId
+    ) {
+        String refreshToken ="";
         boolean isValid = smsService.validatePhoneNumberAndOtpLess(
-            loginRequestDTO.getOrderId(),
-            loginRequestDTO.getOtpNumber(),
-            loginRequestDTO.getPhoneNumber()
+                loginRequestDTO.getOrderId(),
+                loginRequestDTO.getOtpNumber(),
+                loginRequestDTO.getPhoneNumber(),
+                loginRequestDTO.getDeviceId()
         );
 
         if (isValid) {
@@ -102,10 +104,62 @@ public class AuthController {
             if (userOptional.isPresent()) {
                 User user = userOptional.get();
                 String userId = user.getId(); // Get userId from the User entity
+//              String bodyDeviceId= loginRequestDTO.getDeviceId(); // get device id from the request login
 
+                // 1. Use deviceId from request body first (mobile)
+                String deviceId = loginRequestDTO.getDeviceId() != null
+                        ? loginRequestDTO.getDeviceId()
+                        : cookieDeviceId; // 2. fallback to cookie (web)
+
+                if (deviceId == null) {
+                    throw new RuntimeException("Device ID not found");
+                }
+
+                System.out.println("Resolved deviceId: " + deviceId);
+                // Check if device already used and saved
+                Optional<RefreshToken> existingDeviceToken = refreshTokenRepository.findByDeviceIdAndUserId(deviceId,userId);
+
+                //check number device used by the same user
+                Optional<List<RefreshToken>> existingDeviceByUser = refreshTokenRepository.findByUserId(userId);
+                int totalDevice = existingDeviceByUser.map(List::size).orElse(0);
+
+                System.out.println("Number of devices used by this user  =======>  " + totalDevice);
+
+                // login with same saved device
+                if  (existingDeviceToken.isPresent()) {
+                    RefreshToken oldDeviceToken = existingDeviceToken.get();
+                    System.out.println("old Token for the existing device : "+oldDeviceToken.getToken());
+                    RefreshToken regeneratedToken = refreshTokenService.rotateRefreshToken(oldDeviceToken);
+                    refreshToken = regeneratedToken.getToken();
+                    System.out.println("New Token Generated for same device  : "+refreshToken);
+
+                }
+                // login with New device and the user logged in with less than three devices
+
+                if (existingDeviceToken.isEmpty() && totalDevice < 3 ){
+                    refreshToken = refreshTokenService.createRefreshToken(user,deviceId).getToken(); // add deviceId as a parameter
+                }
+
+                // login with New device and the user had the maximum of device that can be logged with
+                if (existingDeviceToken.isEmpty() && totalDevice >= 3 ){
+//                    List<RefreshToken> deviceTokens = new ArrayList<>(); // déclaration globale dans la méthode
+
+                    List<RefreshToken> devicesToken = existingDeviceByUser.get();
+                    System.out.println("the three refresh tokens for the three existing devices ===============>  " + devicesToken);
+
+                    RefreshToken oldestToken = devicesToken.stream()
+                            .min(Comparator.comparing(RefreshToken::getLoginDate))
+                            .get();
+
+                    System.out.println("Oldest Token for the existing device "+deviceId +"  : "+ oldestToken.getToken() );
+
+                    refreshTokenRepository.delete(oldestToken);
+                    refreshToken = refreshTokenService.createRefreshToken(user,deviceId).getToken(); // add deviceId as a parameter
+
+                }
                 // Generate JWT token and refresh token
                 String jwtToken = smsService.generateToken(loginRequestDTO.getPhoneNumber(), userId, "phoneNumber");
-                String refreshToken = refreshTokenService.createRefreshToken(user).getToken();
+                //String refreshToken = refreshTokenService.createRefreshToken(user,deviceId).getToken(); // add deviceId as a parameter
 
                 // Return both tokens in LoginResponseDTO
                 return ResponseEntity.ok(new LoginResponseDTO(jwtToken, refreshToken, user.getPhoneNumber()));
@@ -119,45 +173,45 @@ public class AuthController {
         }
     }
 
-    @PostMapping("/google")
-    public ResponseEntity<?> googleLogin(@RequestBody Map<String, String> payload) {
-        String idTokenString = payload.get("idToken");
-
-        GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(
-                new NetHttpTransport(), GsonFactory.getDefaultInstance())
-                .setAudience(Collections.singletonList(googleClientId))
-                .build();
-
-        try {
-            GoogleIdToken idToken = verifier.verify(idTokenString);
-            if (idToken == null) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid ID token");
-            }
-
-            GoogleIdToken.Payload p = idToken.getPayload();
-            String email = p.getEmail();
-            String name = (String) p.get("name");
-
-            User user = userRepository.findByEmail(email).orElseGet(() -> {
-                CreateUserDTO dto = new CreateUserDTO();
-                dto.setEmail(email);
-                dto.setFullName(name);
-                CreateUserDTO created = userService.createUser(dto);
-                return userRepository.findById(created.getId()).get();
-            });
-
-            String jwt = jwtTokenProvider.generateToken(user.getEmail(), user.getId(), "email");
-            String refresh = refreshTokenService.createRefreshToken(user).getToken();
-
-            return ResponseEntity.ok(Map.of(
-                    "jwtToken", jwt,
-                    "refreshToken", refresh
-            ));
-
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Token verification failed: " + e.getMessage());
-        }
-    }
+  //  @PostMapping("/google")
+//    public ResponseEntity<?> googleLogin(@RequestBody Map<String, String> payload) {
+//        String idTokenString = payload.get("idToken");
+//
+//        GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(
+//                new NetHttpTransport(), GsonFactory.getDefaultInstance())
+//                .setAudience(Collections.singletonList(googleClientId))
+//                .build();
+//
+//        try {
+//            GoogleIdToken idToken = verifier.verify(idTokenString);
+//            if (idToken == null) {
+//                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid ID token");
+//            }
+//
+//            GoogleIdToken.Payload p = idToken.getPayload();
+//            String email = p.getEmail();
+//            String name = (String) p.get("name");
+//
+//            User user = userRepository.findByEmail(email).orElseGet(() -> {
+//                CreateUserDTO dto = new CreateUserDTO();
+//                dto.setEmail(email);
+//                dto.setFullName(name);
+//                CreateUserDTO created = userService.createUser(dto);
+//                return userRepository.findById(created.getId()).get();
+//            });
+//
+//            String jwt = jwtTokenProvider.generateToken(user.getEmail(), user.getId(), "email");
+//            String refresh = refreshTokenService.createRefreshToken(user,deviceId).getToken();
+//
+//            return ResponseEntity.ok(Map.of(
+//                    "jwtToken", jwt,
+//                    "refreshToken", refresh
+//            ));
+//
+//        } catch (Exception e) {
+//            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Token verification failed: " + e.getMessage());
+//        }
+//    }
 
 
     // Refresh token endpoint remains the same
@@ -185,7 +239,7 @@ public class AuthController {
     
     @PostMapping("/logout")
     public ResponseEntity<?> logout(@RequestBody LogoutRequest request) {
-    	userService.logoutUser(request.getUserId());
+    	userService.logoutUser(request.getDeviceId(), request.getUserId());
         return ResponseEntity.ok("Logout successful");
     }
 

@@ -1,14 +1,11 @@
 package com.sattva.model;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.Date;
 
+import jakarta.persistence.*;
 import org.hibernate.annotations.UuidGenerator;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.OneToOne;
 import lombok.Data;
 
 @Entity
@@ -22,12 +19,16 @@ public class RefreshToken {
     @Column(nullable = false, unique = true)
     private String token;
 
-    @OneToOne
+    @ManyToOne
     @JoinColumn(name = "userId", referencedColumnName = "id")
     private User user;
 
     @Column(nullable = false)
     private Instant expiryDate;
 
+    @Column(name="deviceId",nullable = false)
+    private String deviceId;
 
+    @Column(nullable = false)
+    private Instant loginDate;
 }

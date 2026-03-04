@@ -1,19 +1,19 @@
 package com.sattva.dto;
 
-// import lombok.Getter;
-// import lombok.Setter;
+ import lombok.Getter;
+ import lombok.Setter;
 
-// @Getter
-// @Setter
+ @Getter
+ @Setter
 public class WatiParameter {
 
-//     private String name;
-//     private String value;
+     private String name;
+     private String value;
 
-//     public WatiParameter() {}
+     public WatiParameter() {}
 
-//     public WatiParameter(String name, String value) {
-//         this.name = name;
-//         this.value = value;
-//     }
+     public WatiParameter(String name, String value) {
+         this.name = name;
+         this.value = value;
+     }
 }

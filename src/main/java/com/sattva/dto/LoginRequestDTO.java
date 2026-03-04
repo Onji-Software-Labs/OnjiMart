@@ -13,5 +13,6 @@ public class LoginRequestDTO {
 	private String orderId; 
     private int otpNumber;
     private String phoneNumber;
+    private String deviceId;
     
 }
