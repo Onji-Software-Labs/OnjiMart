@@ -1,6 +1,7 @@
 package com.sattva.service.impl;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -33,12 +34,15 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
     }
 
     // Create a new refresh token for a user
+    // Add deviceId as a parameter to be saved in the RefreshToken table
     @Override
-    public RefreshToken createRefreshToken(User user) {
+    public RefreshToken createRefreshToken(User user, String deviceId) {
         RefreshToken refreshToken = new RefreshToken();
         refreshToken.setUser(user);
         refreshToken.setExpiryDate(Instant.now().plusMillis(refreshTokenExpirationMs));
         refreshToken.setToken(UUID.randomUUID().toString());
+        refreshToken.setDeviceId(deviceId);
+        refreshToken.setLoginDate(Instant.now());
         
         return refreshTokenRepository.save(refreshToken);
     }
@@ -63,10 +67,14 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
         }
         return token;
     }
-
+    // !!!!!!!   I should change this to regenerate a new token based on the selected deviceId and user.
     // Rotate the refresh token for added security (optional)
     public RefreshToken rotateRefreshToken(RefreshToken oldToken) {
-        refreshTokenRepository.delete(oldToken); // Invalidate old token
-        return createRefreshToken(oldToken.getUser()); // Generate a new one
+//        refreshTokenRepository.delete(oldToken); // Invalidate old token
+        oldToken.setToken(UUID.randomUUID().toString());
+        oldToken.setExpiryDate(Instant.now().plusMillis(refreshTokenExpirationMs));
+        oldToken.setLoginDate(Instant.now());
+        refreshTokenRepository.save(oldToken);
+        return oldToken; // Generate a new one
     }
 }

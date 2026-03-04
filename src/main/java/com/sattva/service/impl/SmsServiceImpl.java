@@ -8,14 +8,12 @@ import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
+import com.sattva.dto.*;
 import org.springframework.stereotype.Service;
 
 import com.amazonaws.waiters.WaiterParameters;
 import com.otpless.authsdk.OTPAuth;
 import com.otpless.authsdk.OTPResponse;
-import com.sattva.dto.CreateUserDTO;
-import com.sattva.dto.LoginRequest;
-import com.sattva.dto.OTPLessResponse;
 import com.sattva.enums.OtpStatus;
 import com.sattva.service.SmsService;
 import com.sattva.security.JwtHelper;
@@ -75,33 +73,30 @@ public class SmsServiceImpl implements SmsService {
         String phoneNumber = userDto.getPhoneNumber();
         String otp = generateOtp(); // implement this method to generate a 6-digit OTP
         otpMap.put(phoneNumber, Integer.valueOf(otp));
+        String phoneNumberD = phoneNumber.replaceAll("\\D", "");
 
         RestTemplate restTemplate = new RestTemplate();
 
         HttpHeaders headers = new HttpHeaders();
-        headers.set("Content-Type", "application/json-patch+json");
+        headers.set("Content-Type", "application/json");
         headers.set("Authorization", "Bearer " + watiApiToken);
 
         // Build the Wati API URL with the whatsappNumber query parameter
-        String url = watiApiUrl + "?whatsappNumber=" + phoneNumber;
+        String url = watiApiUrl + "?whatsappNumber=" + phoneNumberD;
+        System.out.println("URL: " + url);
 
+        WatiParameter otpParam = new WatiParameter("name", otp);
+        List<WatiParameter> params = List.of(otpParam);
 
-        Map<String, Object> request = new HashMap<>();
-        request.put("template_name", watiTemplateName);
-        request.put("broadcast_name", "welcome_wati_v2"); // optional, can be used to group messages
+        WatiRequestDTO request = new WatiRequestDTO("visit_website","welcome", params);
+        System.out.println("request: " + request);
 
-        List<Map<String, String>> parameters = new ArrayList<>();
-        Map<String, String> param = new HashMap<>();
-        param.put("name", "name"); // must match your template variable
-        param.put("value", otp);
-        parameters.add(param);
-        request.put("parameters", parameters);
-
-
-        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(request, headers);
+        HttpEntity<WatiRequestDTO> entity = new HttpEntity<>(request, headers);
+        System.out.println("entity: " + entity);
 
         try {
             ResponseEntity<String> response = restTemplate.postForEntity(url, entity, String.class);
+            System.out.println("response: " + response);
             if (response.getStatusCode().is2xxSuccessful()) {
                 return new OTPLessResponse(OtpStatus.DELIVERED, "OTP sent via WhatsApp", userExists, otp, userId, userName, fullName, userOnboardingStatus);
             } else {
@@ -168,9 +163,9 @@ public class SmsServiceImpl implements SmsService {
 
 
     @Override
-    public boolean validatePhoneNumberAndOtpLess(String orderId, int otp, String phoneNumber) {
+    public boolean validatePhoneNumberAndOtpLess(String orderId, int otp, String phoneNumber,String deviceId) {
         // You can ignore orderId or log it for auditing
-        return validateOtp(phoneNumber, otp);
+        return validateOtp(phoneNumber, otp );
     }
 
 
