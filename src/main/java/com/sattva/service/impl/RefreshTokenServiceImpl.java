@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import com.sattva.exception.InvalidInputException;
 import com.sattva.model.RefreshToken;
 import com.sattva.model.User;
 import com.sattva.repository.RefreshTokenRepository;
@@ -59,7 +60,7 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
     public RefreshToken verifyExpiration(RefreshToken token) {
         if (isTokenExpired(token)) {
             refreshTokenRepository.delete(token); // Delete expired token
-            throw new RuntimeException("Refresh token was expired. Please login again.");
+            throw new InvalidInputException("Refresh token was expired. Please login again.");
         }
         return token;
     }

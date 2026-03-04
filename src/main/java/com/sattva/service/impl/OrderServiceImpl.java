@@ -14,6 +14,8 @@ import com.sattva.dto.OrderDTO;
 import com.sattva.dto.OrderItemDTO;
 import com.sattva.enums.OrderItemStatus;
 import com.sattva.enums.OrderStatus;
+import com.sattva.exception.InvalidInputException;
+import com.sattva.exception.ResourceNotFoundException;
 import com.sattva.model.AggregateOrder;
 import com.sattva.model.Cart;
 import com.sattva.model.Order;
@@ -56,7 +58,7 @@ public class OrderServiceImpl implements OrderService {
     public OrderDTO createOrderFromCart(String cartId) {
         // Step 1: Fetch the cart by cartId
         Cart cart = cartRepository.findById(cartId)
-                .orElseThrow(() -> new RuntimeException("Cart not found with id: " + cartId));
+                .orElseThrow(() -> new ResourceNotFoundException("Cart not found with id: " + cartId));
 
         // Step 2: Create a new order and set its relationships
         Order order = new Order();
@@ -66,7 +68,7 @@ public class OrderServiceImpl implements OrderService {
         // Set the retailer from the shop
         Shop shop = cart.getShop();
         if (shop == null || shop.getRetailer() == null) {
-            throw new RuntimeException("Shop or Retailer information is missing in the cart");
+            throw new InvalidInputException("Shop or Retailer information is missing in the cart");
         }
         order.setRetailer(shop.getRetailer()); // Set retailer of the order
 
@@ -115,7 +117,7 @@ public class OrderServiceImpl implements OrderService {
     @Override
     public OrderItemDTO updateOrderItemStatus(String orderId, String itemId, OrderItemStatus status) {
         OrderItem orderItem = orderItemRepository.findById(itemId)
-                .orElseThrow(() -> new RuntimeException("OrderItem not found with ID: " + itemId));
+                .orElseThrow(() -> new ResourceNotFoundException("OrderItem not found with ID: " + itemId));
 
         // Update the status of the item
         orderItem.setStatus(status);
@@ -147,20 +149,20 @@ public class OrderServiceImpl implements OrderService {
     public OrderItemDTO fulfillOrderItem(String orderId, String itemId, Double unitPrice, Integer fulfilledQuantity) {
         // Step 1: Fetch the order and order item
         Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new RuntimeException("Order not found with ID: " + orderId));
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found with ID: " + orderId));
         OrderItem orderItem = orderItemRepository.findById(itemId)
-                .orElseThrow(() -> new RuntimeException("OrderItem not found with ID: " + itemId));
+                .orElseThrow(() -> new ResourceNotFoundException("OrderItem not found with ID: " + itemId));
 
         // Step 2: Check if the item is editable
         if (!orderItem.isEditable()) {
-            throw new RuntimeException("This order item is no longer editable.");
+            throw new InvalidInputException("This order item is no longer editable.");
         }
 
         // Step 3: Fetch the aggregate order for today's date
         LocalDate today = LocalDate.now();
         AggregateOrder aggregateOrder = aggregateOrderRepository
                 .findBySupplierAndAggregateDate(order.getSupplier(), today)
-                .orElseThrow(() -> new RuntimeException("Aggregate order not found for supplier: " + order.getSupplier().getId() + " for today."));
+                .orElseThrow(() -> new ResourceNotFoundException("Aggregate order not found for supplier: " + order.getSupplier().getId() + " for today."));
 
         // Step 4: Find the product aggregate for the order item
         Product product = orderItem.getProduct();
@@ -175,7 +177,7 @@ public class OrderServiceImpl implements OrderService {
             unitPrice = productAggregate.getUnitPrice();
         } else if (unitPrice == null) {
             // Throw an exception if no unit price is available and none was provided
-            throw new RuntimeException("Unit price is not available in the aggregate data. Please provide a price to fulfill the order item.");
+            throw new InvalidInputException("Unit price is not available in the aggregate data. Please provide a price to fulfill the order item.");
         }
 
         // Step 6: Update the order item with the fulfilled quantity, unit price, and total price
