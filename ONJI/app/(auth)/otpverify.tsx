@@ -1,5 +1,6 @@
 import { ThemedText } from '@/components/ui/ThemedText';
 import axiosInstance from '@/lib/api/axiosConfig';
+import { storage } from '@/lib/storage';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
@@ -12,6 +13,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { getDeviceId } from '@/lib/utils';
 
 const { width, height } = Dimensions.get('window');
 
@@ -27,6 +29,7 @@ export default function OTPVerification() {
   const [isVerifying, setIsVerifying] = useState(false);
   const [otpSessionId, setOtpSessionId] = useState<string | null>(null);
   const inputRefs = useRef<TextInput[]>([]);
+  const [deviceId, setDeviceId] = useState<string | null>(null);
 
   const normalizedPhoneNumber = phoneNumber.startsWith('+91') ? phoneNumber : `+91${phoneNumber}`;
 
@@ -39,6 +42,16 @@ export default function OTPVerification() {
       setResendDisabled(false);
     }
   }, [countdown, resendDisabled]);
+// useEffect to get the deviceId
+  useEffect(() => {
+  const fetchDeviceId = async () => {
+    const id = await getDeviceId();
+    setDeviceId(id);
+    console.log('Device ID for OTP verification:', deviceId);
+  };
+
+  fetchDeviceId();
+}, []);
 
   useEffect(() => {
     if (showSuccessMessage) {
@@ -46,6 +59,10 @@ export default function OTPVerification() {
       return () => clearTimeout(timer);
     }
   }, [showSuccessMessage]);
+
+    useEffect(() => {
+    handleResendCode(true);
+  }, []);
 
   const handleOtpChange = (value: string, index: number) => {
     if (value.length > 1) return;
@@ -73,8 +90,9 @@ export default function OTPVerification() {
   const isOtpComplete = otp.every((digit) => digit !== '');
 
   // Resend OTP
-  const handleResendCode = async () => {
-    if (resendDisabled) return;
+  const handleResendCode = async (isFirstTime = false) => {
+    if (resendDisabled && !isFirstTime) return;
+    await storage.removeItem('otpSessionId'); // clear old OTP session
 
     setCountdown(30);
     setResendDisabled(true);
@@ -96,7 +114,7 @@ export default function OTPVerification() {
     console.log('Sending OTP payload:', payload);
 
     try {
-      const response = await axiosInstance.post('/api/auth/send-otp', payload);
+      const response = await axiosInstance.post('/api/auth/send-otp', payload,);
       console.log('Full OTP Send Response:', JSON.stringify(response.data, null, 2));
       // ✅ DEV ONLY: orderId is OTP
       if (__DEV__ && response.data?.orderId) {
@@ -119,16 +137,13 @@ export default function OTPVerification() {
         setOtpSessionId(sessionId);
         console.log('✅ OTP Session ID saved:', sessionId);
 
-        // Store in localStorage as fallback
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('otpSessionId', sessionId);
-        }
+        await storage.setItem('otpSessionId', sessionId);
+
       } else {
         console.warn('❌ No OTP sessionId found in response structure');
 
         // Try to use previously stored session ID
-        const storedSessionId =
-          typeof window !== 'undefined' ? localStorage.getItem('otpSessionId') : null;
+        const storedSessionId = await storage.getItem('otpSessionId');
         if (storedSessionId) {
           setOtpSessionId(storedSessionId);
           console.log('Using stored session ID as fallback:', storedSessionId);
@@ -159,8 +174,8 @@ export default function OTPVerification() {
 
     // Use stored session ID if state is null
     let verificationSessionId = otpSessionId;
-    if (!verificationSessionId && typeof window !== 'undefined') {
-      verificationSessionId = localStorage.getItem('otpSessionId');
+    if (!verificationSessionId) {
+      verificationSessionId = await storage.getItem('otpSessionId');
       if (verificationSessionId) {
         setOtpSessionId(verificationSessionId);
         console.log('Using stored session ID for verification:', verificationSessionId);
@@ -180,13 +195,14 @@ export default function OTPVerification() {
       phoneNumber: normalizedPhoneNumber,
       otpNumber: enteredOtp,
       id: verificationSessionId,
+      deviceId: deviceId,//Add deviceId to be sent during login to be saved in database with the token
     };
 
     console.log('Verifying OTP with payload:', payload);
     console.log('Using OTP Session ID:', verificationSessionId);
 
     try {
-      const response = await axiosInstance.post('/api/auth/login', payload);
+      const response = await axiosInstance.post('/api/auth/login', payload,{ withCredentials: true });
       console.log('OTP verification response:', response.data);
 
       if (response.data.status === 'FAILED' || !response.data.jwtToken) {
@@ -199,9 +215,7 @@ export default function OTPVerification() {
         setErrorMessage('');
 
         // Clear stored session ID on success
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('otpSessionId');
-        }
+        await storage.removeItem('otpSessionId');
 
         setDevOtp(null);
         router.replace('/(auth)/personalProfile');
@@ -296,7 +310,7 @@ export default function OTPVerification() {
         <View style={styles.actionContainer}>
           <TouchableOpacity
             style={[styles.resendButton, resendDisabled && styles.disabledButton]}
-            onPress={handleResendCode}
+            onPress={() => handleResendCode()}
             disabled={resendDisabled}
           >
             <ThemedText style={[styles.resendText, resendDisabled && styles.disabledText]}>
