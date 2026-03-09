@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.sattva.dto.ShopDTO;
+import com.sattva.exception.ResourceNotFoundException;
 import com.sattva.model.Retailer;
 import com.sattva.model.Shop;
 import com.sattva.repository.RetailerRepository;
@@ -38,7 +39,7 @@ public class ShopServiceImpl implements ShopService {
     @Override
     public ShopDTO getShopById(String shopId) {
         Shop shop = shopRepository.findById(shopId)
-                .orElseThrow(() -> new RuntimeException("Shop not found with id: " + shopId));
+                .orElseThrow(() -> new ResourceNotFoundException("Shop not found with id: " + shopId));
         return modelMapper.map(shop, ShopDTO.class);
     }
 
@@ -53,7 +54,7 @@ public class ShopServiceImpl implements ShopService {
     @Override
     public ShopDTO createShop(ShopDTO shopDTO) {
         Retailer retailer = retailerRepository.findById(shopDTO.getRetailerId())
-                .orElseThrow(() -> new RuntimeException("Retailer not found with id: " + shopDTO.getRetailerId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Retailer not found with id: " + shopDTO.getRetailerId()));
 
         Shop shop = modelMapper.map(shopDTO, Shop.class);
         shop.setId(UUID.randomUUID().toString()); // Generate a unique ID for the new shop
@@ -66,7 +67,7 @@ public class ShopServiceImpl implements ShopService {
     @Override
     public ShopDTO updateShop(String shopId, ShopDTO shopDTO) {
         Shop shop = shopRepository.findById(shopId)
-                .orElseThrow(() -> new RuntimeException("Shop not found with id: " + shopId));
+                .orElseThrow(() -> new ResourceNotFoundException("Shop not found with id: " + shopId));
 
         shop.setName(shopDTO.getName());
         shop.setStreet(shopDTO.getStreet());
@@ -87,6 +88,9 @@ public class ShopServiceImpl implements ShopService {
 
     @Override
     public void deleteShop(String shopId) {
+        if (!shopRepository.existsById(shopId)) {
+            throw new ResourceNotFoundException("Shop not found with id: " + shopId);
+        }
         shopRepository.deleteById(shopId);
     }
 }

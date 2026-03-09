@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 
 import com.sattva.dto.CartDTO;
 import com.sattva.dto.CartItemDTO;
+import com.sattva.exception.ResourceNotFoundException;
 import com.sattva.model.Cart;
 import com.sattva.model.CartItem;
 import com.sattva.model.Product;
@@ -45,11 +46,11 @@ public class CartServiceImpl implements CartService {
     public CartDTO addProductToCart(String shopId, String supplierId, String productId, int quantity) {
         // Fetch the shop by shopId
         Shop shop = shopRepository.findById(shopId)
-                .orElseThrow(() -> new RuntimeException("Shop not found with id: " + shopId));
+                .orElseThrow(() -> new ResourceNotFoundException("Shop not found with id: " + shopId));
 
         // Fetch the supplier by supplierId
         Supplier supplier = supplierRepository.findById(supplierId)
-                .orElseThrow(() -> new RuntimeException("Supplier not found with id: " + supplierId));
+                .orElseThrow(() -> new ResourceNotFoundException("Supplier not found with id: " + supplierId));
 
         // Declare cart as final
         final Cart cart;
@@ -67,7 +68,7 @@ public class CartServiceImpl implements CartService {
 
         // Fetch the product by productId
         Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new RuntimeException("Product not found with id: " + productId));
+                .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + productId));
 
         // Check if the product already exists in the cart
         CartItem cartItem = cartItemRepository.findByCart_IdAndProduct_ProductId(cart.getId(), productId)
@@ -93,7 +94,7 @@ public class CartServiceImpl implements CartService {
         // Use the repository method that queries by the nested shop ID field.
         List<Cart> cart = cartRepository.findByShop_Id(shopId);
         if (cart == null) {
-            throw new RuntimeException("Cart not found for shop with id: " + shopId);
+            throw new ResourceNotFoundException("Cart not found for shop with id: " + shopId);
         }
         return cart.stream().map(this::convertToCartDTO).collect(Collectors.toList());
     }
@@ -101,10 +102,10 @@ public class CartServiceImpl implements CartService {
     @Override
     public CartDTO removeProductFromCart(String cartId, String productId) {
         Cart cart = cartRepository.findById(cartId)
-                .orElseThrow(() -> new RuntimeException("Cart not found with id: " + cartId));
+                .orElseThrow(() -> new ResourceNotFoundException("Cart not found with id: " + cartId));
 
         CartItem cartItem = cartItemRepository.findByCart_IdAndProduct_ProductId(cartId, productId)
-                .orElseThrow(() -> new RuntimeException("Product not found in the cart with id: " + productId));
+                .orElseThrow(() -> new ResourceNotFoundException("Product not found in the cart with id: " + productId));
 
         cartItemRepository.delete(cartItem);
 
@@ -119,10 +120,10 @@ public class CartServiceImpl implements CartService {
     @Override
     public CartDTO updateProductQuantity(String cartId, String productId, int quantity) {
         Cart cart = cartRepository.findById(cartId)
-                .orElseThrow(() -> new RuntimeException("Cart not found with id: " + cartId));
+                .orElseThrow(() -> new ResourceNotFoundException("Cart not found with id: " + cartId));
 
         CartItem cartItem = cartItemRepository.findByCart_IdAndProduct_ProductId(cartId, productId)
-                .orElseThrow(() -> new RuntimeException("Product not found in the cart with id: " + productId));
+                .orElseThrow(() -> new ResourceNotFoundException("Product not found in the cart with id: " + productId));
 
         if (quantity <= 0) {
             // Remove product if quantity is zero or less
@@ -139,7 +140,7 @@ public class CartServiceImpl implements CartService {
     @Override
     public List<CartItemDTO> getAllCartItems(String cartId) {
         Cart cart = cartRepository.findById(cartId)
-                .orElseThrow(() -> new RuntimeException("Cart not found with id: " + cartId));
+                .orElseThrow(() -> new ResourceNotFoundException("Cart not found with id: " + cartId));
 
         return cart.getItems().stream()
                 .map(this::convertToCartItemDTO)
@@ -151,7 +152,7 @@ public class CartServiceImpl implements CartService {
         Cart cart = cartRepository.findByShop_IdAndSupplier_Id(shopId, supplierId);
         
         if (cart == null) {
-            throw new RuntimeException("No cart found for the given shop and supplier combination");
+            throw new ResourceNotFoundException("No cart found for the given shop and supplier combination");
         }
 
         return cart.getItems().stream()

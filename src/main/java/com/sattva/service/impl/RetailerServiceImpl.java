@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 //import com.netflix.discovery.converters.Auto;
 import com.sattva.dto.SupplierDTO;
 import com.sattva.dto.SupplierFilterRequest;
+import com.sattva.exception.ResourceNotFoundException;
 import com.sattva.service.RetailerService;
 
 @Service
@@ -40,7 +41,7 @@ public class RetailerServiceImpl implements RetailerService {
     @Override
     public PaginatedResponseDTO<SupplierListDTO> getSuppliersForRetailer(String retailerId, int page, int size) {
         Retailer retailer = retailerRepository.findById(retailerId)
-                .orElseThrow(() -> new RuntimeException("Retailer not found with id: " + retailerId));
+                .orElseThrow(() -> new ResourceNotFoundException("Retailer not found with id: " + retailerId));
 
         Pageable pageable = PageRequest.of(page, size);
         Page<Supplier> supplierPage = supplierRepository.findAll(pageable);
@@ -83,7 +84,7 @@ public class RetailerServiceImpl implements RetailerService {
     @Override
     public List<SupplierDTO> filterSuppliers(String retailerId, SupplierFilterRequest request) {
         Retailer retailer = retailerRepository.findById(retailerId)
-                .orElseThrow(() -> new RuntimeException("Retailer not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Retailer not found"));
 
         // Get all pincodes from retailer's shops
         List<String> retailerPincodes = retailer.getShops().stream()
@@ -164,7 +165,7 @@ public class RetailerServiceImpl implements RetailerService {
     @Override
     public RetailerDTO createBusinessAndAssignCategories(RetailerBusinessRequestDTO dto) {
         Retailer retailer = retailerRepository.findById(dto.getRetailerId())
-                .orElseThrow(() -> new RuntimeException("Retailer not found with id: " + dto.getRetailerId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Retailer not found with id: " + dto.getRetailerId()));
         RetailerBusiness business = new RetailerBusiness().builder()
                 .id(UUID.randomUUID().toString())
                 .retailer(retailer)
@@ -181,7 +182,7 @@ public class RetailerServiceImpl implements RetailerService {
         if (dto.getCategoryIds() != null) {
             Set<Category> categories = dto.getCategoryIds().stream()
                     .map(id -> categoryRepository.findById(id)
-                            .orElseThrow(() -> new RuntimeException("Category not found with id: " + id)))
+                            .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + id)))
                     .collect(Collectors.toSet());
             retailer.getCategories().addAll(categories);
         }
@@ -193,7 +194,7 @@ public class RetailerServiceImpl implements RetailerService {
     @Override
     public RetailerBusinessRequestDTO getBusinessDetails(String businessId) {
         RetailerBusiness business = retailerBusinessRepository.findById(businessId)
-                .orElseThrow(() -> new RuntimeException("Business not found with id: " + businessId));
+                .orElseThrow(() -> new ResourceNotFoundException("Business not found with id: " + businessId));
         RetailerBusinessRequestDTO dto = modelMapper.map(business, RetailerBusinessRequestDTO.class);
         populateCategoryDetails(dto, business.getRetailer());
         return dto;
@@ -225,7 +226,7 @@ public class RetailerServiceImpl implements RetailerService {
     @Override
     public RetailerDTO updateBusinessAndCategories(String businessId, RetailerBusinessRequestDTO dto) {
         RetailerBusiness business = retailerBusinessRepository.findById(businessId)
-                .orElseThrow(() -> new RuntimeException("Business not found with id: " + businessId));
+                .orElseThrow(() -> new ResourceNotFoundException("Business not found with id: " + businessId));
 
         business.setName(dto.getName());
         business.setCity(dto.getCity());
@@ -241,7 +242,7 @@ public class RetailerServiceImpl implements RetailerService {
     @Override
     public void deleteBusinessAndCategories(String businessId) {
         RetailerBusiness business = retailerBusinessRepository.findById(businessId)
-                .orElseThrow(() -> new RuntimeException("Business not found with id: " + businessId));
+                .orElseThrow(() -> new ResourceNotFoundException("Business not found with id: " + businessId));
         Retailer retailer = business.getRetailer();
         retailer.getRetailerBusinesses().remove(business);
         retailerBusinessRepository.delete(business);
@@ -255,7 +256,7 @@ public class RetailerServiceImpl implements RetailerService {
     private void updateRetalierCategories(Retailer retailer, List<String> categoryIds) {
         Set<Category> categories = categoryIds.stream()
                 .map(id -> categoryRepository.findById(id)
-                        .orElseThrow(() -> new RuntimeException("Category not found with id: " + id)))
+                        .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + id)))
                 .collect(Collectors.toSet());
         retailer.setCategories(categories);
     }

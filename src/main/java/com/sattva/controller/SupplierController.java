@@ -19,7 +19,7 @@ import com.sattva.dto.SupplierDTO;
 import com.sattva.service.SupplierService;
 @RestController
 @RequestMapping("/suppliers")
-@CrossOrigin
+@CrossOrigin    
 public class SupplierController {
 
     @Autowired

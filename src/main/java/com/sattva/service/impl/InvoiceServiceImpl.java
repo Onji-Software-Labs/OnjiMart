@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 
 import com.sattva.dto.InvoiceDTO;
 import com.sattva.enums.InvoiceStatus;
+import com.sattva.exception.ResourceNotFoundException;
 import com.sattva.model.Invoice;
 import com.sattva.model.InvoiceOrderItem;
 import com.sattva.model.Order;
@@ -42,9 +43,9 @@ public class InvoiceServiceImpl implements InvoiceService {
     @Override
     public InvoiceDTO generateInvoice(String supplierId, String orderId, Double deliveryCharge) {
         Supplier supplier = supplierRepository.findById(supplierId)
-                .orElseThrow(() -> new RuntimeException("Supplier not found with ID: " + supplierId));
+                .orElseThrow(() -> new ResourceNotFoundException("Supplier not found with ID: " + supplierId));
         Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new RuntimeException("Order not found with ID: " + orderId));
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found with ID: " + orderId));
 
         Invoice invoice = new Invoice();
         invoice.setSupplier(supplier);
@@ -97,7 +98,7 @@ public class InvoiceServiceImpl implements InvoiceService {
     @Override
     public InvoiceDTO viewInvoice(String invoiceId) {
         Invoice invoice = invoiceRepository.findById(invoiceId)
-                .orElseThrow(() -> new RuntimeException("Invoice not found with ID: " + invoiceId));
+                .orElseThrow(() -> new ResourceNotFoundException("Invoice not found with ID: " + invoiceId));
         return modelMapper.map(invoice, InvoiceDTO.class);
     }
 }

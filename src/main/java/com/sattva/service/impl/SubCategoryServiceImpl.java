@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.sattva.dto.SubCategoryDTO;
+import com.sattva.exception.ResourceNotFoundException;
 import com.sattva.model.Category;
 import com.sattva.model.SubCategory;
 import com.sattva.repository.CategoryRepository;
@@ -38,7 +39,7 @@ public class SubCategoryServiceImpl implements SubCategoryService {
     @Override
     public SubCategoryDTO getSubCategoryById(String subCategoryId) {
         SubCategory subCategory = subCategoryRepository.findById(subCategoryId)
-                .orElseThrow(() -> new RuntimeException("SubCategory not found with id: " + subCategoryId));
+                .orElseThrow(() -> new ResourceNotFoundException("SubCategory not found with id: " + subCategoryId));
         return modelMapper.map(subCategory, SubCategoryDTO.class);
     }
 
@@ -47,7 +48,7 @@ public class SubCategoryServiceImpl implements SubCategoryService {
 
         // Find category by ID
         Category category = categoryRepository.findById(subCategoryDTO.getCategoryId())
-                .orElseThrow(() -> new RuntimeException("Category not found with id: " + subCategoryDTO.getCategoryId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + subCategoryDTO.getCategoryId()));
 
         // Convert DTO to entity
         SubCategory subCategory = modelMapper.map(subCategoryDTO, SubCategory.class);
@@ -68,10 +69,10 @@ public class SubCategoryServiceImpl implements SubCategoryService {
     @Override
     public SubCategoryDTO updateSubCategory(String subCategoryId, SubCategoryDTO subCategoryDTO) {
         SubCategory subCategory = subCategoryRepository.findById(subCategoryId)
-                .orElseThrow(() -> new RuntimeException("SubCategory not found with id: " + subCategoryId));
+                .orElseThrow(() -> new ResourceNotFoundException("SubCategory not found with id: " + subCategoryId));
 
         Category category = categoryRepository.findById(subCategoryDTO.getCategoryId())
-                .orElseThrow(() -> new RuntimeException("Category not found with id: " + subCategoryDTO.getCategoryId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + subCategoryDTO.getCategoryId()));
 
         modelMapper.map(subCategoryDTO, subCategory);
         subCategory.setCategory(category);
@@ -82,6 +83,9 @@ public class SubCategoryServiceImpl implements SubCategoryService {
 
     @Override
     public void deleteSubCategory(String subCategoryId) {
+        if (!subCategoryRepository.existsById(subCategoryId)) {
+            throw new ResourceNotFoundException("SubCategory not found with id: " + subCategoryId);
+        }
         subCategoryRepository.deleteById(subCategoryId);
     }
 }
