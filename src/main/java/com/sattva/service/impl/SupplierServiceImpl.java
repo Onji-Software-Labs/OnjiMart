@@ -5,6 +5,7 @@ import com.sattva.dto.CategoryDTO;
 import com.sattva.dto.SubCategoryDTO;
 import com.sattva.dto.SupplierBusinessRequestDTO;
 import com.sattva.dto.SupplierDTO;
+import com.sattva.exception.ResourceNotFoundException;
 import com.sattva.model.Category;
 import com.sattva.model.SubCategory;
 import com.sattva.model.Supplier;
@@ -46,7 +47,7 @@ public class SupplierServiceImpl implements SupplierService {
     @Override
         public SupplierDTO createBusinessAndAssignCategories(SupplierBusinessRequestDTO dto) {
         Supplier supplier = supplierRepository.findById(dto.getSupplierId())
-                .orElseThrow(() -> new RuntimeException("Supplier not found with id: " + dto.getSupplierId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Supplier not found with id: " + dto.getSupplierId()));
 
         //Save business
         SupplierBusiness business = SupplierBusiness.builder()
@@ -66,7 +67,7 @@ public class SupplierServiceImpl implements SupplierService {
         if (dto.getCategoryIds() != null) {
                 Set<Category> categories = dto.getCategoryIds().stream()
                         .map(id -> categoryRepository.findById(id)
-                                .orElseThrow(() -> new RuntimeException("Category not found: " + id)))
+                                .orElseThrow(() -> new ResourceNotFoundException("Category not found: " + id)))
                         .collect(Collectors.toSet());
                 supplier.getCategories().addAll(categories);
         }
@@ -75,7 +76,7 @@ public class SupplierServiceImpl implements SupplierService {
         if (dto.getSubCategoryIds() != null) {
                 Set<SubCategory> subCategories = dto.getSubCategoryIds().stream()
                         .map(id -> subCategoryRepository.findById(id)
-                                .orElseThrow(() -> new RuntimeException("SubCategory not found: " + id)))
+                                .orElseThrow(() -> new ResourceNotFoundException("SubCategory not found: " + id)))
                         .collect(Collectors.toSet());
                 supplier.getSubCategories().addAll(subCategories);
         }
@@ -89,7 +90,7 @@ public class SupplierServiceImpl implements SupplierService {
         @Override
         public SupplierBusinessRequestDTO getBusinessDetails(String businessId) {
         SupplierBusiness business = supplierBusinessRepository.findById(businessId)
-                .orElseThrow(() -> new RuntimeException("Business not found with id: " + businessId));
+                .orElseThrow(() -> new ResourceNotFoundException("Business not found with id: " + businessId));
 
         SupplierBusinessRequestDTO dto = modelMapper.map(business, SupplierBusinessRequestDTO.class);
 
@@ -128,7 +129,7 @@ public class SupplierServiceImpl implements SupplierService {
         @Override
         public SupplierDTO updateBusinessAndCategories(String businessId, SupplierBusinessRequestDTO dto) {
         SupplierBusiness business = supplierBusinessRepository.findById(businessId)
-                .orElseThrow(() -> new RuntimeException("Business not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Business not found"));
 
         business.setName(dto.getName());
         business.setAddress(dto.getAddress());
@@ -147,7 +148,7 @@ public class SupplierServiceImpl implements SupplierService {
         @Override
         public void deleteBusinessAndCategories(String businessId) {
         SupplierBusiness business = supplierBusinessRepository.findById(businessId)
-                .orElseThrow(() -> new RuntimeException("Business not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Business not found"));
 
         Supplier supplier = business.getSupplier();
         supplier.getBusinesses().remove(business); // Remove the business
@@ -167,13 +168,13 @@ public class SupplierServiceImpl implements SupplierService {
     public SupplierDTO addCategoriesAndSubCategoriesToSupplier(String supplierId, List<String> categoryIds, List<String> subCategoryIds) {
         // Fetch the supplier by its ID
         Supplier supplier = supplierRepository.findById(supplierId)
-                .orElseThrow(() -> new RuntimeException("Supplier not found with id: " + supplierId));
+                .orElseThrow(() -> new ResourceNotFoundException("Supplier not found with id: " + supplierId));
 
         // Add categories to the supplier
         Set<Category> categories = new HashSet<>();
         for (String categoryId : categoryIds) {
             Category category = categoryRepository.findById(categoryId)
-                    .orElseThrow(() -> new RuntimeException("Category not found with id: " + categoryId));
+                    .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + categoryId));
             categories.add(category);
         }
         supplier.getCategories().addAll(categories);
@@ -182,7 +183,7 @@ public class SupplierServiceImpl implements SupplierService {
         Set<SubCategory> subCategories = new HashSet<>();
         for (String subCategoryId : subCategoryIds) {
             SubCategory subCategory = subCategoryRepository.findById(subCategoryId)
-                    .orElseThrow(() -> new RuntimeException("SubCategory not found with id: " + subCategoryId));
+                    .orElseThrow(() -> new ResourceNotFoundException("SubCategory not found with id: " + subCategoryId));
             subCategories.add(subCategory);
         }
         supplier.getSubCategories().addAll(subCategories);
@@ -198,10 +199,10 @@ public class SupplierServiceImpl implements SupplierService {
     @Override
     public List<SubCategoryDTO> getSubCategoriesForSupplierAndCategory(String supplierId, String categoryId) {
         Supplier supplier = supplierRepository.findById(supplierId)
-                .orElseThrow(() -> new RuntimeException("Supplier not found with id: " + supplierId));
+                .orElseThrow(() -> new ResourceNotFoundException("Supplier not found with id: " + supplierId));
 
         Category category = categoryRepository.findById(categoryId)
-                .orElseThrow(() -> new RuntimeException("Category not found with id: " + categoryId));
+                .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + categoryId));
 
         // Filter subcategories belonging to the given category and supplier
         return supplier.getSubCategories().stream()
@@ -215,7 +216,7 @@ public class SupplierServiceImpl implements SupplierService {
     public List<CategoryDTO> getCategoriesForSupplier(String supplierId) {
         // Fetch the supplier by its ID
         Supplier supplier = supplierRepository.findById(supplierId)
-                .orElseThrow(() -> new RuntimeException("Supplier not found with id: " + supplierId));
+                .orElseThrow(() -> new ResourceNotFoundException("Supplier not found with id: " + supplierId));
 
         // Map the categories of the supplier to CategoryDTO and return the list
         return supplier.getCategories().stream()
@@ -226,12 +227,12 @@ public class SupplierServiceImpl implements SupplierService {
     private void updateSupplierCategoriesAndSubCategories(Supplier supplier, List<String> categoryIds, List<String> subCategoryIds) {
         Set<Category> categories = categoryIds.stream()
                 .map(id -> categoryRepository.findById(id)
-                        .orElseThrow(() -> new RuntimeException("Category not found: " + id)))
+                        .orElseThrow(() -> new ResourceNotFoundException("Category not found: " + id)))
                 .collect(Collectors.toSet());
 
         Set<SubCategory> subCategories = subCategoryIds.stream()
                 .map(id -> subCategoryRepository.findById(id)
-                        .orElseThrow(() -> new RuntimeException("SubCategory not found: " + id)))
+                        .orElseThrow(() -> new ResourceNotFoundException("SubCategory not found: " + id)))
                 .collect(Collectors.toSet());
 
         supplier.setCategories(categories);

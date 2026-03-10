@@ -1,6 +1,7 @@
 package com.sattva.service.impl;
 
 import com.sattva.enums.ConnectionStatus;
+import com.sattva.exception.ResourceNotFoundException;
 import com.sattva.model.Connection;
 import com.sattva.repository.ConnectionRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,6 +16,7 @@ public class ConnectionService {
     private ConnectionRepository repo;
 
     public Connection connect(String retailerId, String supplierId) {
+
         Optional<Connection> existing = repo.findByRetailerIdAndSupplierId(retailerId, supplierId);
         if (existing.isPresent()) {
             return existing.get();

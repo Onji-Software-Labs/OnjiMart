@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import com.sattva.dto.AggregateOrderDTO;
 import com.sattva.dto.ProductAggregateDTO;
 import com.sattva.dto.ProductPriceRequest;
+import com.sattva.exception.ResourceNotFoundException;
 import com.sattva.model.AggregateOrder;
 import com.sattva.model.Order;
 import com.sattva.model.OrderItem;
@@ -84,7 +85,7 @@ public class AggregateOrderServiceImpl implements AggregateOrderService {
 
         AggregateOrder aggregateOrder = aggregateOrderRepository
                 .findBySupplierAndAggregateDate(supplier, today)
-                .orElseThrow(() -> new RuntimeException("Aggregate order not found for supplier: " + supplier.getId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Aggregate order not found for supplier: " + supplier.getId()));
 
         for (OrderItem item : order.getItems()) {
             Product product = item.getProduct();
@@ -92,7 +93,7 @@ public class AggregateOrderServiceImpl implements AggregateOrderService {
             ProductAggregate productAggregate = aggregateOrder.getProductAggregates().stream()
                     .filter(pa -> pa.getProduct().getProductId().equals(product.getProductId()))
                     .findFirst()
-                    .orElseThrow(() -> new RuntimeException("Product aggregate not found for product: " + product.getProductId()));
+                    .orElseThrow(() -> new ResourceNotFoundException("Product aggregate not found for product: " + product.getProductId()));
 
             productAggregate.setTotalQuantity(productAggregate.getTotalQuantity() - item.getRequestedQuantity());
         }
@@ -105,11 +106,11 @@ public class AggregateOrderServiceImpl implements AggregateOrderService {
     @Override
     public void clearAggregates(String supplierId) {
         Supplier supplier = supplierRepository.findById(supplierId)
-                .orElseThrow(() -> new RuntimeException("Supplier not found with id: " + supplierId));
+                .orElseThrow(() -> new ResourceNotFoundException("Supplier not found with id: " + supplierId));
 
         LocalDate today = LocalDate.now();
         AggregateOrder aggregateOrder = aggregateOrderRepository.findBySupplierAndAggregateDate(supplier, today)
-                .orElseThrow(() -> new RuntimeException("Aggregate order not found for today"));
+                .orElseThrow(() -> new ResourceNotFoundException("Aggregate order not found for today"));
 
         for (ProductAggregate productAggregate : aggregateOrder.getProductAggregates()) {
             productAggregate.setTotalQuantity(0); // Reset the total quantity for each product
@@ -132,7 +133,7 @@ public class AggregateOrderServiceImpl implements AggregateOrderService {
     @Override
     public void markAggregateOrderAsCompleted(String aggregateOrderId, List<ProductPriceRequest> productPrices) {
         AggregateOrder aggregateOrder = aggregateOrderRepository.findById(aggregateOrderId)
-                .orElseThrow(() -> new RuntimeException("Aggregate order not found with ID: " + aggregateOrderId));
+                .orElseThrow(() -> new ResourceNotFoundException("Aggregate order not found with ID: " + aggregateOrderId));
 
         // Set the aggregate order as completed
         aggregateOrder.setCompleted(true);
@@ -159,13 +160,13 @@ public class AggregateOrderServiceImpl implements AggregateOrderService {
 	public ProductAggregateDTO updateProductUnitPrice(String aggregateOrderId, String productId, double unitPrice) {
 	       // Step 1: Find the aggregate order by ID
         AggregateOrder aggregateOrder = aggregateOrderRepository.findById(aggregateOrderId)
-                .orElseThrow(() -> new RuntimeException("Aggregate order not found with ID: " + aggregateOrderId));
+                .orElseThrow(() -> new ResourceNotFoundException("Aggregate order not found with ID: " + aggregateOrderId));
 
         // Step 2: Find the relevant product aggregate
         ProductAggregate productAggregate = aggregateOrder.getProductAggregates().stream()
                 .filter(pa -> pa.getProduct().getProductId().equals(productId))
                 .findFirst()
-                .orElseThrow(() -> new RuntimeException("Product aggregate not found for product ID: " + productId));
+                .orElseThrow(() -> new ResourceNotFoundException("Product aggregate not found for product ID: " + productId));
 
         // Step 3: Update the unit price for the product aggregate
         productAggregate.setUnitPrice(unitPrice);
