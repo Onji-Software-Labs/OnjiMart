@@ -39,7 +39,7 @@ public class DeviceIdFilter extends OncePerRequestFilter {
 
             ResponseCookie cookie = ResponseCookie.from(DEVICE_COOKIE_NAME, deviceId)
                     .httpOnly(true)               // Not accessible via JS
-                    .secure(true)                 // HTTPS only (set false in local dev if needed)
+                    .secure(true)                  // HTTPS only (set false in local dev if needed)
                     .sameSite("None")           // CSRF protection for production use "None"
                     .path("/")
                     .maxAge(Duration.ofDays(30))  // 30 days persistence
