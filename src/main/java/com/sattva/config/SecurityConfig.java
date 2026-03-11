@@ -48,8 +48,8 @@ public class SecurityConfig {
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS) // Set session management to stateless
             );
 
-        //  Add DeviceIdFilter FIRST
-        http.addFilterBefore(deviceIdFilter, UsernamePasswordAuthenticationFilter.class);
+//        //  Add DeviceIdFilter FIRST
+//        http.addFilterBefore(deviceIdFilter, UsernamePasswordAuthenticationFilter.class);
         // Add JWT filter before UsernamePasswordAuthenticationFilter
         http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 

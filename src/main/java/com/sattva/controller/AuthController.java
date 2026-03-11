@@ -104,18 +104,18 @@ public class AuthController {
             if (userOptional.isPresent()) {
                 User user = userOptional.get();
                 String userId = user.getId(); // Get userId from the User entity
-//              String bodyDeviceId= loginRequestDTO.getDeviceId(); // get device id from the request login
+                String deviceId = loginRequestDTO.getDeviceId(); // get device id from the request login
 
-                // 1. Use deviceId from request body first (mobile)
-                String deviceId = loginRequestDTO.getDeviceId() != null
-                        ? loginRequestDTO.getDeviceId()
-                        : cookieDeviceId; // 2. fallback to cookie (web)
+//                // 1. Use deviceId from request body first (mobile)
+//                String deviceId = loginRequestDTO.getDeviceId() != null
+//                        ? loginRequestDTO.getDeviceId()
+//                        : cookieDeviceId; // 2. fallback to cookie (web)
 
-                if (deviceId == null) {
-                    throw new RuntimeException("Device ID not found");
-                }
+//                if (deviceId == null) {
+//                    throw new RuntimeException("Device ID not found");
+//                }
 
-                System.out.println("Resolved deviceId: " + deviceId);
+//                System.out.println("Resolved deviceId: " + deviceId);
                 // Check if device already used and saved
                 Optional<RefreshToken> existingDeviceToken = refreshTokenRepository.findByDeviceIdAndUserId(deviceId,userId);
 
