@@ -2,7 +2,6 @@ package com.sattva.security;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpHeaders;
@@ -40,8 +39,8 @@ public class DeviceIdFilter extends OncePerRequestFilter {
 
             ResponseCookie cookie = ResponseCookie.from(DEVICE_COOKIE_NAME, deviceId)
                     .httpOnly(true)               // Not accessible via JS
-                    .secure(false)                 // HTTPS only (set false in local dev if needed)
-                    .sameSite("Lax")           // CSRF protection for production use "None"
+                    .secure(true)                  // HTTPS only (set false in local dev if needed)
+                    .sameSite("None")           // CSRF protection for production use "None"
                     .path("/")
                     .maxAge(Duration.ofDays(30))  // 30 days persistence
                     .build();
