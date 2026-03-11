@@ -1,6 +1,5 @@
 package com.sattva.config;
 
-import com.sattva.security.DeviceIdFilter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -33,7 +32,7 @@ public class SecurityConfig {
     private JWTAuthenticationEntryPoint jwtAuthenticationEntryPoint;
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http ,DeviceIdFilter deviceIdFilter) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http ) throws Exception {
         http
             .csrf(csrf -> csrf.disable()) // Disable CSRF for stateless API authentication
             .authorizeHttpRequests(authorize -> authorize
