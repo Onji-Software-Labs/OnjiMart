@@ -1,8 +1,58 @@
 import React, { useState } from 'react';
-import { Text, View, TextInput, Pressable, ScrollView, StatusBar, TouchableOpacity } from 'react-native';
+import { Text, View, TextInput, Pressable, ScrollView, StatusBar, TouchableOpacity, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, MaterialCommunityIcons, FontAwesome5, AntDesign } from '@expo/vector-icons';
 import FavouriteModal from '../../../components/supplier/FavouriteModal';
+import NewSupplierCard, { INewSupplier } from '../../../components/supplier/NewSupplierCard';
+
+// Mock supplier data — replace with API call when backend is ready
+const MOCK_SUPPLIERS: INewSupplier[] = [
+  {
+    id: '1',
+    name: 'Sunway Trading',
+    description: 'Random kaka',
+    location: '3 kms away, Udupi',
+    rating: 4.5,
+    reviews: 6,
+    credit: true,
+  },
+  {
+    id: '2',
+    name: 'Green Valley Farms',
+    description: 'Fresh Market',
+    location: '5 kms away, Udupi',
+    rating: 4.8,
+    reviews: 12,
+    credit: false,
+  },
+  {
+    id: '3',
+    name: 'Coastal Suppliers',
+    description: 'Ocean Fresh',
+    location: '2 kms away, Mangalore',
+    rating: 4.2,
+    reviews: 8,
+    credit: true,
+  },
+  {
+    id: '4',
+    name: 'Mountain Fresh',
+    description: 'Hill Station Store',
+    location: '7 kms away, Dharwad',
+    rating: 4.6,
+    reviews: 15,
+    credit: false,
+  },
+  {
+    id: '5',
+    name: 'Harbour Trade Co.',
+    description: 'Port Goods',
+    location: '4 kms away, Mangalore',
+    rating: 4.3,
+    reviews: 9,
+    credit: true,
+  },
+];
 
 export default function Dashboard() {
   // State
@@ -12,6 +62,7 @@ export default function Dashboard() {
   const [isSortModalVisible, setIsSortModalVisible] = useState(false);
   const [selectedSort, setSelectedSort] = useState<string | null>(null);
   const [isFavouriteModalVisible, setIsFavouriteModalVisible] = useState(false);
+  const [connectedIds, setConnectedIds] = useState<string[]>([]);
 
   // Filter state
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
@@ -61,6 +112,19 @@ export default function Dashboard() {
 
   const hasActiveFilters = selectedCategories.length > 0 || creditProvided !== null || selectedFilters.length > 0 || selectedQuantity !== '';
 
+  const handleConnect = (id: string) => {
+    setConnectedIds(prev =>
+      prev.includes(id) ? prev.filter(cid => cid !== id) : [...prev, id]
+    );
+  };
+
+  // Filter suppliers by search query
+  const filteredSuppliers = MOCK_SUPPLIERS.filter(s =>
+    s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    s.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    s.location.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
     <View className="flex-1 bg-white">
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
@@ -92,7 +156,7 @@ export default function Dashboard() {
               </Pressable>
             </View>
             <View className="flex-row items-center space-x-6">
-              <Pressable 
+              <Pressable
                 className={`items-center p-2 rounded-lg ${isFilterModalVisible || hasActiveFilters ? 'border-2 border-green-500 bg-green-50' : ''}`}
                 onPress={() => {
                   setIsFilterModalVisible(true);
@@ -102,7 +166,7 @@ export default function Dashboard() {
                 <Feather name="filter" size={20} color={isFilterModalVisible || hasActiveFilters ? "#10B981" : "#6B7280"} />
                 <Text className={`text-xs mt-1 ${isFilterModalVisible || hasActiveFilters ? 'text-green-600 font-medium' : 'text-gray-500'}`}>Filter</Text>
               </Pressable>
-              <Pressable 
+              <Pressable
                 className={`items-center p-2 rounded-lg ${isSortModalVisible || selectedSort ? 'border-2 border-green-500 bg-green-50' : ''}`}
                 onPress={() => {
                   setIsSortModalVisible(true);
@@ -143,12 +207,25 @@ export default function Dashboard() {
           <View className="h-px bg-gray-200 mb-4" />
         </View>
       </SafeAreaView>
-      {/* Content Area */}
-      <ScrollView className="flex-1 px-4">
-        <View className="flex-1 items-center justify-center py-20">
-          <Text className="text-gray-400 text-lg">Search results will appear here</Text>
-        </View>
-      </ScrollView>
+      {/* Supplier List */}
+      <FlatList
+        data={filteredSuppliers}
+        keyExtractor={item => item.id}
+        renderItem={({ item }) => (
+          <NewSupplierCard
+            supplier={item}
+            isConnected={connectedIds.includes(item.id)}
+            onConnect={handleConnect}
+          />
+        )}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 120 }}
+        showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          <View style={{ alignItems: 'center', paddingTop: 60 }}>
+            <Text style={{ color: '#9CA3AF', fontSize: 16 }}>No suppliers found</Text>
+          </View>
+        }
+      />
 
       {/* Filter Modal */}
       {isFilterModalVisible && !isSortModalVisible && (
