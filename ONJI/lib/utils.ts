@@ -10,7 +10,17 @@ import { v4 as uuidv4 } from 'uuid';
 export const getDeviceId = async () => {
     // 🌐 Web → backend controls deviceId via cookie
   if (Platform.OS === 'web') {
-    return null;
+    // return null;
+      // 🌐 Web
+
+    let deviceId = localStorage.getItem('deviceId');
+
+    if (!deviceId) {
+      deviceId = uuidv4();
+      localStorage.setItem('deviceId', deviceId);
+    }
+
+    return deviceId;
   }
 
   try {
