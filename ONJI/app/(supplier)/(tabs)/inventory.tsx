@@ -1,58 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Text, View, TextInput, Pressable, ScrollView, StatusBar, TouchableOpacity, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, MaterialCommunityIcons, FontAwesome5, AntDesign } from '@expo/vector-icons';
 import FavouriteModal from '../../../components/supplier/FavouriteModal';
 import NewSupplierCard, { INewSupplier } from '../../../components/supplier/NewSupplierCard';
+import { getAllSuppliers, ISupplierResponse } from '../../../lib/api/supplier';
 
-// Mock supplier data — replace with API call when backend is ready
-const MOCK_SUPPLIERS: INewSupplier[] = [
-  {
-    id: '1',
-    name: 'Sunway Trading',
-    description: 'Random kaka',
-    location: '3 kms away, Udupi',
-    rating: 4.5,
-    reviews: 6,
-    credit: true,
-  },
-  {
-    id: '2',
-    name: 'Green Valley Farms',
-    description: 'Fresh Market',
-    location: '5 kms away, Udupi',
-    rating: 4.8,
-    reviews: 12,
-    credit: false,
-  },
-  {
-    id: '3',
-    name: 'Coastal Suppliers',
-    description: 'Ocean Fresh',
-    location: '2 kms away, Mangalore',
-    rating: 4.2,
-    reviews: 8,
-    credit: true,
-  },
-  {
-    id: '4',
-    name: 'Mountain Fresh',
-    description: 'Hill Station Store',
-    location: '7 kms away, Dharwad',
-    rating: 4.6,
-    reviews: 15,
-    credit: false,
-  },
-  {
-    id: '5',
-    name: 'Harbour Trade Co.',
-    description: 'Port Goods',
-    location: '4 kms away, Mangalore',
-    rating: 4.3,
-    reviews: 9,
-    credit: true,
-  },
-];
+// Maps backend ISupplierResponse → INewSupplier used by the card component
+const mapSupplier = (s: ISupplierResponse): INewSupplier => ({
+  id: s.supplierId,
+  name: s.name,
+  description: s.contactNumber,
+  location: `${s.city}${s.pincode ? ', ' + s.pincode : ''}`,
+  rating: 0,
+  reviews: 0,
+  credit: false,
+});
 
 export default function Dashboard() {
   // State
@@ -63,6 +26,28 @@ export default function Dashboard() {
   const [selectedSort, setSelectedSort] = useState<string | null>(null);
   const [isFavouriteModalVisible, setIsFavouriteModalVisible] = useState(false);
   const [connectedIds, setConnectedIds] = useState<string[]>([]);
+
+  // API data state
+  const [suppliers, setSuppliers] = useState<INewSupplier[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchSuppliers = async () => {
+      try {
+        setIsLoading(true);
+        setFetchError(null);
+        const data = await getAllSuppliers();
+        setSuppliers(data.map(mapSupplier));
+      } catch (err: any) {
+        console.error('Failed to fetch suppliers:', err);
+        setFetchError('Unable to load suppliers. Please try again.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchSuppliers();
+  }, []);
 
   // Filter state
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
@@ -118,8 +103,8 @@ export default function Dashboard() {
     );
   };
 
-  // Filter suppliers by search query
-  const filteredSuppliers = MOCK_SUPPLIERS.filter(s =>
+  // Filter live supplier list by search query
+  const filteredSuppliers = suppliers.filter(s =>
     s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     s.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
     s.location.toLowerCase().includes(searchQuery.toLowerCase())
@@ -207,6 +192,7 @@ export default function Dashboard() {
           <View className="h-px bg-gray-200 mb-4" />
         </View>
       </SafeAreaView>
+
       {/* Supplier List */}
       <FlatList
         data={filteredSuppliers}
@@ -221,9 +207,19 @@ export default function Dashboard() {
         contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 120 }}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
-          <View style={{ alignItems: 'center', paddingTop: 60 }}>
-            <Text style={{ color: '#9CA3AF', fontSize: 16 }}>No suppliers found</Text>
-          </View>
+          isLoading ? (
+            <View style={{ alignItems: 'center', paddingTop: 60 }}>
+              <Text style={{ color: '#6B7280', fontSize: 15 }}>Loading suppliers…</Text>
+            </View>
+          ) : fetchError ? (
+            <View style={{ alignItems: 'center', paddingTop: 60, paddingHorizontal: 24 }}>
+              <Text style={{ color: '#EF4444', fontSize: 15, textAlign: 'center', marginBottom: 8 }}>{fetchError}</Text>
+            </View>
+          ) : (
+            <View style={{ alignItems: 'center', paddingTop: 60 }}>
+              <Text style={{ color: '#9CA3AF', fontSize: 16 }}>No suppliers found</Text>
+            </View>
+          )
         }
       />
 
@@ -283,7 +279,7 @@ export default function Dashboard() {
                 ))}
               </View>
             </View>
-            {/* Supplier Ratings Section - Multi-select Chips */}
+            {/* Supplier Ratings Section */}
             <View className="mb-6">
               <Text className="text-base font-medium text-gray-800 mb-4">Supplier Ratings</Text>
               <View className="flex-row flex-wrap">
