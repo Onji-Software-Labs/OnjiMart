@@ -119,11 +119,16 @@ const BuisnessScreen = () => {
     };
     const handleApiCall = () => {
         console.log(formRef.current?.values);
-        if (paramState.radioState === "Supplier") {
-            router.replace("/(retailer)/(tabs)/home");
-        } else if (paramState.radioState === "Retailer") {
-            router.replace("/(supplier)/(tabs)/dashboard");
-        }
+        if (paramState.radioState === "Retailer") {
+    router.replace("/(retailer)/(tabs)/home");
+} else if (paramState.radioState === "Supplier") {
+    router.replace("/(supplier)/(tabs)/dashboard");
+}
+        //if (paramState.radioState === "Supplier") {
+          //  router.replace("/(retailer)/(tabs)/home");
+        //} else if (paramState.radioState === "Retailer") {
+          //  router.replace("/(supplier)/(tabs)/dashboard");
+        //}
     };
     const [isCategoryVisible, setIsCategoryVisible] = useState(false);
     const [selectedItemsCategory, setSelectedItemsCategory] = useState<
