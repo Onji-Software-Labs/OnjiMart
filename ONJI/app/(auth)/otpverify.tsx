@@ -7,6 +7,9 @@ import {
   Dimensions,
   Image,
   Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
   StatusBar,
   StyleSheet,
   TextInput,
@@ -42,16 +45,16 @@ export default function OTPVerification() {
       setResendDisabled(false);
     }
   }, [countdown, resendDisabled]);
-// useEffect to get the deviceId
-  useEffect(() => {
-  const fetchDeviceId = async () => {
-    const id = await getDeviceId();
-    setDeviceId(id);
-    console.log('Device ID for OTP verification:', deviceId);
-  };
 
-  fetchDeviceId();
-}, []);
+  // useEffect to get the deviceId
+  useEffect(() => {
+    const fetchDeviceId = async () => {
+      const id = await getDeviceId();
+      setDeviceId(id);
+      console.log('Device ID for OTP verification:', deviceId);
+    };
+    fetchDeviceId();
+  }, []);
 
   useEffect(() => {
     if (showSuccessMessage) {
@@ -60,7 +63,7 @@ export default function OTPVerification() {
     }
   }, [showSuccessMessage]);
 
-    useEffect(() => {
+  useEffect(() => {
     handleResendCode(true);
   }, []);
 
@@ -116,14 +119,20 @@ export default function OTPVerification() {
     try {
       const response = await axiosInstance.post('/api/auth/send-otp', payload,);
       console.log('Full OTP Send Response:', JSON.stringify(response.data, null, 2));
+
       // ✅ DEV ONLY: orderId is OTP
       if (__DEV__ && response.data?.orderId) {
         const orderOtp = String(response.data.orderId);
-
-        setDevOtp(orderOtp); // show OTP on UI
-
+        setDevOtp(orderOtp);
         console.log('DEV OTP (orderId):', orderOtp);
       }
+
+      // ── ADDED: Save userId from send-otp response ──
+      if (response.data.userId) {
+        await storage.setItem('userId', String(response.data.userId));
+        console.log('✅ userId saved from send-otp:', response.data.userId);
+      }
+      // ── END ADDED ──
 
       // ✅ Handle different response structures
       const sessionId = response.data?.orderId;
@@ -136,19 +145,15 @@ export default function OTPVerification() {
       if (sessionId) {
         setOtpSessionId(sessionId);
         console.log('✅ OTP Session ID saved:', sessionId);
-
         await storage.setItem('otpSessionId', sessionId);
-
       } else {
         console.warn('❌ No OTP sessionId found in response structure');
 
-        // Try to use previously stored session ID
         const storedSessionId = await storage.getItem('otpSessionId');
         if (storedSessionId) {
           setOtpSessionId(storedSessionId);
           console.log('Using stored session ID as fallback:', storedSessionId);
         } else {
-          // Generate fallback session ID
           const fallbackSessionId = Date.now().toString();
           setOtpSessionId(fallbackSessionId);
           console.log('Using generated fallback session ID:', fallbackSessionId);
@@ -172,7 +177,6 @@ export default function OTPVerification() {
       return;
     }
 
-    // Use stored session ID if state is null
     let verificationSessionId = otpSessionId;
     if (!verificationSessionId) {
       verificationSessionId = await storage.getItem('otpSessionId');
@@ -195,14 +199,14 @@ export default function OTPVerification() {
       phoneNumber: normalizedPhoneNumber,
       otpNumber: enteredOtp,
       id: verificationSessionId,
-      deviceId: deviceId,//Add deviceId to be sent during login to be saved in database with the token
+      deviceId: deviceId,
     };
 
     console.log('Verifying OTP with payload:', payload);
     console.log('Using OTP Session ID:', verificationSessionId);
 
     try {
-      const response = await axiosInstance.post('/api/auth/login', payload,{ withCredentials: true });
+      const response = await axiosInstance.post('/api/auth/login', payload,);
       console.log('OTP verification response:', response.data);
 
       if (response.data.status === 'FAILED' || !response.data.jwtToken) {
@@ -217,6 +221,36 @@ export default function OTPVerification() {
         // Clear stored session ID on success
         await storage.removeItem('otpSessionId');
 
+        // ── ADDED: Save jwtToken, refreshToken, phoneNumber and businessId ──
+        if (response.data.jwtToken) {
+          await storage.setItem('jwtToken', response.data.jwtToken);
+          console.log('✅ JWT Token saved');
+        }
+
+        if (response.data.refreshToken) {
+          await storage.setItem('refreshToken', response.data.refreshToken);
+          console.log('✅ Refresh Token saved');
+        }
+
+        // ── ADDED: Save phoneNumber for profile matching ──
+        if (response.data.phoneNumber) {
+          await storage.setItem('phoneNumber', response.data.phoneNumber);
+          console.log('✅ phoneNumber saved:', response.data.phoneNumber);
+        } else {
+          await storage.setItem('phoneNumber', normalizedPhoneNumber);
+          console.log('✅ phoneNumber saved from input:', normalizedPhoneNumber);
+        }
+        // ── END ADDED ──
+
+        const storedUserId = await storage.getItem('userId');
+        if (storedUserId) {
+          await storage.setItem('businessId', storedUserId);
+          console.log('✅ businessId saved from stored userId:', storedUserId);
+        } else {
+          console.warn('⚠️ No userId found in storage. Full login response:', JSON.stringify(response.data, null, 2));
+        }
+        // ── END ADDED ──
+
         setDevOtp(null);
         router.replace('/(auth)/personalProfile');
       }
@@ -224,7 +258,6 @@ export default function OTPVerification() {
       console.error('OTP verification error:', error.response?.data || error.message);
       setIsError(true);
 
-      // More specific error messages
       if (error.response?.status === 400) {
         setErrorMessage('Invalid OTP. Please check and try again.');
       } else if (error.response?.status === 404) {
@@ -245,8 +278,12 @@ export default function OTPVerification() {
   const handleChangeNumber = () => router.back();
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+
       <View style={styles.headerImageContainer}>
         <Image
           source={require('@/assets/images/otp_screen.jpg')}
@@ -255,91 +292,102 @@ export default function OTPVerification() {
         />
       </View>
 
-      <View style={styles.contentContainer}>
-        <View style={styles.iconContainer}>
-          <Image
-            source={require('@/assets/images/onjilogo.png')}
-            style={styles.iconLogo}
-            resizeMode="contain"
-          />
-        </View>
-        <ThemedText style={styles.title}>
-          Enter the 6 digit code sent via SMS to{'\n'}
-          {phoneNumber}
-        </ThemedText>
-
-        {__DEV__ && devOtp && (
-          <ThemedText
-            style={{
-              textAlign: 'center',
-              marginBottom: 16,
-              color: '#2E7D32',
-              fontWeight: '600',
-            }}
-          >
-            DEV OTP: {devOtp}
-          </ThemedText>
-        )}
-
-        <View style={styles.otpContainer}>
-          {otp.map((digit, index) => (
-            <TextInput
-              key={index}
-              ref={(ref) => {
-                if (ref) inputRefs.current[index] = ref;
-              }}
-              style={[
-                styles.otpInput,
-                isError && styles.otpInputError,
-                digit && styles.otpInputFilled,
-              ]}
-              value={digit}
-              onChangeText={(value) => handleOtpChange(value, index)}
-              onKeyPress={({ nativeEvent }) => handleKeyPress(nativeEvent.key, index)}
-              keyboardType="numeric"
-              maxLength={1}
-              selectTextOnFocus
-              textAlign="center"
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.contentContainer}>
+          <View style={styles.iconContainer}>
+            <Image
+              source={require('@/assets/images/onjilogo.png')}
+              style={styles.iconLogo}
+              resizeMode="contain"
             />
-          ))}
-        </View>
+          </View>
+          <ThemedText style={styles.title}>
+            Enter the 6 digit code sent via SMS to{'\n'}
+            {phoneNumber}
+          </ThemedText>
 
-        {isError && <ThemedText style={styles.errorText}>{errorMessage}</ThemedText>}
-        {showSuccessMessage && <ThemedText style={styles.successText}>New code sent</ThemedText>}
+          {__DEV__ && devOtp && (
+            <ThemedText
+              style={{
+                textAlign: 'center',
+                marginBottom: 16,
+                color: '#2E7D32',
+                fontWeight: '600',
+              }}
+            >
+              DEV OTP: {devOtp}
+            </ThemedText>
+          )}
 
-        <View style={styles.actionContainer}>
+          <View style={styles.otpContainer}>
+            {otp.map((digit, index) => (
+              <TextInput
+                key={index}
+                ref={(ref) => {
+                  if (ref) inputRefs.current[index] = ref;
+                }}
+                style={[
+                  styles.otpInput,
+                  isError && styles.otpInputError,
+                  digit && styles.otpInputFilled,
+                ]}
+                value={digit}
+                onChangeText={(value) => handleOtpChange(value, index)}
+                onKeyPress={({ nativeEvent }) => handleKeyPress(nativeEvent.key, index)}
+                keyboardType="numeric"
+                maxLength={1}
+                selectTextOnFocus
+                textAlign="center"
+              />
+            ))}
+          </View>
+
+          {isError && (
+            <ThemedText style={styles.errorText}>{errorMessage}</ThemedText>
+          )}
+          {showSuccessMessage && (
+            <ThemedText style={styles.successText}>New code sent</ThemedText>
+          )}
+
+          <View style={styles.actionContainer}>
+            <TouchableOpacity
+              style={[styles.resendButton, resendDisabled && styles.disabledButton]}
+              onPress={() => handleResendCode()}
+              disabled={resendDisabled}
+            >
+              <ThemedText style={[styles.resendText, resendDisabled && styles.disabledText]}>
+                {resendDisabled ? `Resend code (${countdown}s)` : 'Resend code'}
+              </ThemedText>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.changeNumberButton} onPress={handleChangeNumber}>
+              <ThemedText style={styles.changeNumberText}>Change mobile number</ThemedText>
+            </TouchableOpacity>
+          </View>
+
           <TouchableOpacity
-            style={[styles.resendButton, resendDisabled && styles.disabledButton]}
-            onPress={() => handleResendCode()}
-            disabled={resendDisabled}
+            style={[
+              styles.continueButton,
+              (!isOtpComplete || isVerifying) && styles.continueButtonDisabled,
+            ]}
+            onPress={handleContinue}
+            disabled={!isOtpComplete || isVerifying}
           >
-            <ThemedText style={[styles.resendText, resendDisabled && styles.disabledText]}>
-              {resendDisabled ? `Resend code (${countdown}s)` : 'Resend code'}
+            <ThemedText
+              style={[
+                styles.continueText,
+                (!isOtpComplete || isVerifying) && styles.continueTextDisabled,
+              ]}
+            >
+              {isVerifying ? 'Verifying...' : 'Continue'}
             </ThemedText>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.changeNumberButton} onPress={handleChangeNumber}>
-            <ThemedText style={styles.changeNumberText}>Change mobile number</ThemedText>
-          </TouchableOpacity>
         </View>
-        <TouchableOpacity
-          style={[
-            styles.continueButton,
-            (!isOtpComplete || isVerifying) && styles.continueButtonDisabled,
-          ]}
-          onPress={handleContinue}
-          disabled={!isOtpComplete || isVerifying}
-        >
-          <ThemedText
-            style={[
-              styles.continueText,
-              (!isOtpComplete || isVerifying) && styles.continueTextDisabled,
-            ]}
-          >
-            {isVerifying ? 'Verifying...' : 'Continue'}
-          </ThemedText>
-        </TouchableOpacity>
-      </View>
-    </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -348,8 +396,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
   },
+  scrollContent: {
+    flexGrow: 1,
+  },
   headerImageContainer: {
-    height: height * 0.35, // 35% of screen height
+    height: height * 0.35,
     width: '100%',
   },
   headerImage: {
@@ -360,6 +411,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 24,
     paddingTop: 30,
+    paddingBottom: 34,
     backgroundColor: '#fff',
   },
   iconContainer: {
@@ -467,7 +519,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginHorizontal: 8,
     marginTop: 'auto',
-    marginBottom: 34,
+    marginBottom: 0,
   },
   continueButtonDisabled: {
     backgroundColor: '#E0E0E0',
