@@ -1,9 +1,13 @@
+import 'react-native-get-random-values';
+
 import {
   DarkTheme,
   DefaultTheme,
   ThemeProvider,
 } from "@react-navigation/native";
+
 import { useFonts } from "expo-font";
+
 import {
   AlbertSans_400Regular,
   AlbertSans_700Bold,
@@ -11,6 +15,7 @@ import {
   AlbertSans_500Medium,
   AlbertSans_600SemiBold,
 } from "@expo-google-fonts/albert-sans";
+
 import {
   Inter_400Regular,
   Inter_700Bold,
@@ -18,15 +23,18 @@ import {
   Inter_500Medium,
   Inter_600SemiBold,
 } from "@expo-google-fonts/inter";
+
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import "react-native-reanimated";
-import "../global.css"
+import "../global.css";
 
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useColorScheme } from "@/hooks/useColorScheme";
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+
   const [loaded] = useFonts({
     AlbertSans_400Regular,
     AlbertSans_300Light,
@@ -46,14 +54,17 @@ export default function RootLayout() {
   }
 
   return (
-    <ThemeProvider value={colorScheme === "dark" ? DefaultTheme : DefaultTheme}>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-        <Stack.Screen name="(retailer)" options={{ headerShown: false }} />
-        <Stack.Screen name="(supplier)" options={{ headerShown: false }} />
-        <Stack.Screen name="+not-found" />
-      </Stack>
-      <StatusBar style="auto" />
-    </ThemeProvider>
+    <SafeAreaProvider>
+      <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="(auth)" />
+          <Stack.Screen name="(retailer)" />
+          <Stack.Screen name="(supplier)" />
+          <Stack.Screen name="+not-found" />
+        </Stack>
+
+        <StatusBar style="auto" />
+      </ThemeProvider>
+    </SafeAreaProvider>
   );
 }
