@@ -38,6 +38,9 @@ public class RetailerServiceImpl implements RetailerService {
     @Autowired
     private ModelMapper modelMapper;
 
+    @Autowired
+    private UserRepository userRepository;
+
     @Override
     public PaginatedResponseDTO<SupplierListDTO> getSuppliersForRetailer(String retailerId, int page, int size) {
         Retailer retailer = retailerRepository.findById(retailerId)
@@ -164,9 +167,23 @@ public class RetailerServiceImpl implements RetailerService {
 
     @Override
     public RetailerDTO createBusinessAndAssignCategories(RetailerBusinessRequestDTO dto) {
+
+        User user = userRepository.findById(dto.getRetailerId())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        // 2. Get or create retailer
         Retailer retailer = retailerRepository.findById(dto.getRetailerId())
-                .orElseThrow(() -> new ResourceNotFoundException("Retailer not found with id: " + dto.getRetailerId()));
-        RetailerBusiness business = new RetailerBusiness().builder()
+                .orElseGet(() -> retailerRepository.save(
+                        Retailer.builder()
+                                .user(user)
+                                .build()
+
+                ));
+
+        System.out.println("THe new retailer created successfully with ID : "+ retailer);
+
+        new RetailerBusiness();
+        RetailerBusiness business = RetailerBusiness.builder()
                 .id(UUID.randomUUID().toString())
                 .retailer(retailer)
                 .name(dto.getName())
@@ -178,14 +195,15 @@ public class RetailerServiceImpl implements RetailerService {
                 .build();
 
         retailer.getRetailerBusinesses().add(business);
+        System.out.println("THe new Business retailer created successfully with ID : "+ business);
 
-        if (dto.getCategoryIds() != null) {
-            Set<Category> categories = dto.getCategoryIds().stream()
-                    .map(id -> categoryRepository.findById(id)
-                            .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + id)))
-                    .collect(Collectors.toSet());
-            retailer.getCategories().addAll(categories);
-        }
+//        if (dto.getCategoryIds() != null) {
+//            Set<Category> categories = dto.getCategoryIds().stream()
+//                    .map(id -> categoryRepository.findById(id)
+//                            .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + id)))
+//                    .collect(Collectors.toSet());
+//            retailer.getCategories().addAll(categories);
+//        }
 
         Retailer savedRetailer = retailerRepository.save(retailer);
         return modelMapper.map(savedRetailer, RetailerDTO.class);

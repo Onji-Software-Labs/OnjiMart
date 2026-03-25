@@ -351,7 +351,7 @@ const BuisnessScreen = () => {
                         <Text className="text-text-error">Information is not valid</Text>
                       </View>
                     )}
-                    <View className="mt-6">
+                    {(paramState.radioState === 'Supplier')&&(<View className="mt-6">
                       {/* Label */}
                       <Text className="text-sm text-text-success font-primarymedium">
                         Business Category
@@ -433,7 +433,8 @@ const BuisnessScreen = () => {
                           </View>
                         </Pressable>
                       </Modal>
-                    </View>
+                    </View>)}
+                     { (paramState.radioState === 'Supplier')&&(
                     <View className="mt-6">
                       {/* Label */}
                       <Text className="text-sm text-text-success font-primarymedium">
@@ -518,24 +519,23 @@ const BuisnessScreen = () => {
                           </View>
                         </Pressable>
                       </Modal>
-                    </View>
+                    </View>)}
                   </View>
                   <View>
                     <Pressable
                       className="justify-center  rounded-[12px] items-center h-[60] "
-                      disabled={
-                        isValid
-                          ? selectedItemsCategory.length == 0 ||
-                            selectedItemsSubCategory.length == 0
-                            ? true
-                            : false
-                          : true
-                      }
+                     disabled={
+  !isValid ||
+  (paramState.radioState === 'Supplier' &&
+    (selectedItemsCategory.length === 0 ||
+     selectedItemsSubCategory.length === 0))
+}
                       style={{
                         backgroundColor:
-                          isValid &&
-                          selectedItemsCategory.length > 0 &&
-                          selectedItemsSubCategory.length > 0
+                  isValid &&
+(paramState.radioState !== 'Supplier' ||
+ (selectedItemsCategory.length > 0 &&
+  selectedItemsSubCategory.length > 0))
                             ? '#4CAF50'
                             : '#E0E0E0',
                       }}
@@ -545,9 +545,10 @@ const BuisnessScreen = () => {
                         className="text-[20px]  font-primarysemibold"
                         style={{
                           color:
-                            isValid &&
-                            selectedItemsCategory.length > 0 &&
-                            selectedItemsSubCategory.length > 0
+                             isValid &&
+(paramState.radioState !== 'Supplier' ||
+ (selectedItemsCategory.length > 0 &&
+  selectedItemsSubCategory.length > 0))
                               ? '#F3FAF3'
                               : '#AAB2B8',
                         }}
