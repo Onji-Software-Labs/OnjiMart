@@ -19,8 +19,7 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-
-const BASE_URL = "http://35.207.199.225:5000";
+import axiosInstance from "@/lib/api/axiosConfig";
 
 // ── API response type ──
 interface RetailerProfile {
@@ -53,6 +52,7 @@ export default function RetailerProfileScreen() {
       // Get jwtToken and phoneNumber from AsyncStorage
       const jwtToken = await AsyncStorage.getItem("jwtToken");
       const phoneNumber = await AsyncStorage.getItem("phoneNumber");
+      const storedId = await AsyncStorage.getItem("userId");
 
       if (!jwtToken) {
         setError("Session expired. Please login again.");
@@ -61,38 +61,24 @@ export default function RetailerProfileScreen() {
       }
 
       // ── Step 1: Call /all to get all retailer businesses ──
-      const allResponse = await fetch(
-        `${BASE_URL}/api/retailer-business/all`,
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${jwtToken}`,
-          },
-        }
-      );
-
-      if (!allResponse.ok) {
-        throw new Error(`Failed to fetch profile (${allResponse.status})`);
+      const allResponse = await axiosInstance.get(`/api/retailer-business/all`,)
+      
+      if (!allResponse) {
+        throw new Error(`Failed to fetch profile`);
       }
 
-      const allData: RetailerProfile[] = await allResponse.json();
+      const allData: RetailerProfile[] = await allResponse.data;
       console.log("✅ All retailer businesses:", JSON.stringify(allData, null, 2));
       console.log("🔍 Matching against phoneNumber:", phoneNumber);
 
-      // ── Step 2: Find profile matching logged in user's phone number ──
+      // ── Step 2: Find profile matching userId──
       const myProfile = allData.find(
-        (b) =>
-          b.contactNumber === phoneNumber ||
-          b.contactNumber === phoneNumber?.replace("+91", "") ||
-          "+91" + b.contactNumber === phoneNumber
+       (b) => String(b.retailerId) === String(storedId)
       );
 
       if (myProfile) {
-        // ── Step 3: Save correct businessId and set profile ──
-        await AsyncStorage.setItem("businessId", myProfile.retailerId);
-        console.log("✅ Correct businessId found and saved:", myProfile.retailerId);
-        setProfile(myProfile);
+        // ── Step 3:set profile ──
+          setProfile(myProfile);
       } else {
         console.warn("⚠️ No matching profile found.");
         console.warn("⚠️ phoneNumber in storage:", phoneNumber);

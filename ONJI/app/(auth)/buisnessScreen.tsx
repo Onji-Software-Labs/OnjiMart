@@ -121,31 +121,6 @@ const BuisnessScreen = () => {
       const values = formRef.current?.values;
 
       if (!values) return;
-    const handleSubmit = () => {
-        setalertBoxVisibility(!alertBoxVisibility);
-    };
-    const handleEdit = () => {
-        router.back();
-        setalertBoxVisibility(!alertBoxVisibility);
-    };
-    const handleApiCall = () => {
-        console.log(formRef.current?.values);
-        if (paramState.radioState === "Retailer") {
-    router.replace("/(retailer)/(tabs)/home");
-} else if (paramState.radioState === "Supplier") {
-    router.replace("/(supplier)/(tabs)/dashboard");
-}
-        //if (paramState.radioState === "Supplier") {
-          //  router.replace("/(retailer)/(tabs)/home");
-        //} else if (paramState.radioState === "Retailer") {
-          //  router.replace("/(supplier)/(tabs)/dashboard");
-        //}
-    };
-    const [isCategoryVisible, setIsCategoryVisible] = useState(false);
-    const [selectedItemsCategory, setSelectedItemsCategory] = useState<
-        string[]
-    >([]);
-
       console.log('Form Values:', values);
 
       const retailerId = await storage.getItem('userId');
@@ -170,11 +145,10 @@ const BuisnessScreen = () => {
       const response = await createRetailerBusiness(payload);
 
       console.log('Retailer Created:', response);
-
       // Navigate after success
-      if (paramState.radioState === 'Supplier') {
+      if (paramState.radioState === 'Retailer') {
         router.replace('/(retailer)/(tabs)/home');
-      } else if (paramState.radioState === 'Retailer') {
+      } else if (paramState.radioState === 'Supplier') {
         router.replace('/(supplier)/(tabs)/dashboard');
       }
     } catch (error: any) {
