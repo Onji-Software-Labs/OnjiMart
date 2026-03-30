@@ -5,6 +5,8 @@ import axios from 'axios';
 
 const axiosInstance = axios.create({
   //baseURL: 'http://35.207.244.30:5000',
+  //baseURL: 'http://35.207.199.225:5000',
+  //baseURL: 'http://35.207.242.189:5000',
   baseURL: 'http://35.207.199.225:5000',
   headers: {
     'Content-Type': 'application/json',
@@ -30,3 +32,4 @@ axiosInstance.interceptors.request.use(
 );
 
 export default axiosInstance;
+

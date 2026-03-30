@@ -15,6 +15,12 @@ export default function HomeScreen() {
         <Link href="/(auth)/BusinessDetailsScreen" style={styles.link}>
           <ThemedText type="defaultSemiBold">Go to Business details page</ThemedText>
         </Link>
+
+        {/* Test Link - Remove after testing */}
+        <Link href="/(supplier)/orderSupplierScreen" style={styles.link}>
+          <ThemedText type="defaultSemiBold">Go to Order Supplier Screen</ThemedText>
+        </Link>
+
       </ThemedView>
     </ThemedView>
   );
