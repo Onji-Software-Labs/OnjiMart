@@ -150,7 +150,7 @@ export default function RetailerProfileScreen() {
       {/* Profile Card — API Data */}
       <View style={styles.profileCard}>
         <Image
-          source={require("../../../assets/images/3d_avatar_1.png")}
+          source={require("@/assets/images/3d_avatar_1.png")}
           style={styles.avatar}
         />
         <View style={styles.profileInfo}>

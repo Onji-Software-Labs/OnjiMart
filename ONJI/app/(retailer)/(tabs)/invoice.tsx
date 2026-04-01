@@ -1,4 +1,9 @@
-import { View, Text } from "react-native";
-export default function InvoiceScreen() {
-  return <View style={{flex:1,justifyContent:"center",alignItems:"center"}}><Text>Invoice Screen</Text></View>;
+import { Text, View } from 'react-native';
+
+export default function Cart() {
+  return (
+    <View className="flex-1 items-center justify-center bg-white">
+      <Text className="text-lg font-semibold">Invoice screen</Text>
+    </View>
+  );
 }
