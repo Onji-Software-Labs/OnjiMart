@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemedText } from '@/components/ui/ThemedText';
 import axiosInstance from '@/lib/api/axiosConfig';
 import { storage } from '@/lib/storage';
@@ -45,7 +46,6 @@ export default function OTPVerification() {
       setResendDisabled(false);
     }
   }, [countdown, resendDisabled]);
-
   // useEffect to get the deviceId
   useEffect(() => {
     const fetchDeviceId = async () => {
@@ -53,6 +53,7 @@ export default function OTPVerification() {
       setDeviceId(id);
       console.log('Device ID for OTP verification:', deviceId);
     };
+
     fetchDeviceId();
   }, []);
 
@@ -117,7 +118,7 @@ export default function OTPVerification() {
     console.log('Sending OTP payload:', payload);
 
     try {
-      const response = await axiosInstance.post('/api/auth/send-otp', payload,);
+      const response = await axiosInstance.post('/api/auth/send-otp', payload);
       console.log('Full OTP Send Response:', JSON.stringify(response.data, null, 2));
 
       // ✅ DEV ONLY: orderId is OTP
@@ -206,7 +207,7 @@ export default function OTPVerification() {
     console.log('Using OTP Session ID:', verificationSessionId);
 
     try {
-      const response = await axiosInstance.post('/api/auth/login', payload,);
+      const response = await axiosInstance.post('/api/auth/login', payload);
       console.log('OTP verification response:', response.data);
 
       if (response.data.status === 'FAILED' || !response.data.jwtToken) {
@@ -217,6 +218,9 @@ export default function OTPVerification() {
       } else {
         setIsError(false);
         setErrorMessage('');
+
+        // Save JWT token so axios interceptor can attach it to future requests
+        await AsyncStorage.setItem('token', response.data.jwtToken);
 
         // Clear stored session ID on success
         await storage.removeItem('otpSessionId');
