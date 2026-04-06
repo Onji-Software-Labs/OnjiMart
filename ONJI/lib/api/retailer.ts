@@ -8,7 +8,6 @@ export interface CreateRetailerPayload {
   city: string;
   pincode: string;
   contactNumber?: string;
-  categoryIds: string[];
 }
 
 export const createRetailerBusiness = async (payload: CreateRetailerPayload) => {
@@ -16,3 +15,4 @@ export const createRetailerBusiness = async (payload: CreateRetailerPayload) => 
 
   return response.data;
 };
+

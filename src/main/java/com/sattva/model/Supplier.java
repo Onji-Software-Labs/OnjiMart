@@ -5,8 +5,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 import jakarta.persistence.*;
 import lombok.*;
@@ -20,39 +19,42 @@ import java.util.Set;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
+@Builder
 public class Supplier implements Serializable {
 
     @Serial
     private static final long serialVersionUID = 1L;
 
     @Id
-    private String id;  // This will be same as the user's ID
+    private String id;
 
     @Column
     private Double rating;
 
     @OneToOne
     @MapsId
-    @JoinColumn(name = "id") // foreign key to 'users.id'
+    @JoinColumn(name = "id")
     private User user;
 
     @OneToMany(mappedBy = "supplier", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<SupplierBusiness> businesses;
-
-
-    @ManyToMany
-    @JoinTable(
-        name = "supplier_categories",
-        joinColumns = @JoinColumn(name = "supplier_id"),
-        inverseJoinColumns = @JoinColumn(name = "category_id")
-    )
-    private Set<Category> categories;
+    @Builder.Default
+    private List<SupplierBusiness> businesses = new ArrayList<>();  // ← initialized
 
     @ManyToMany
     @JoinTable(
-        name = "supplier_subcategories",
-        joinColumns = @JoinColumn(name = "supplier_id"),
-        inverseJoinColumns = @JoinColumn(name = "subcategory_id")
+            name = "supplier_categories",
+            joinColumns = @JoinColumn(name = "supplier_id"),
+            inverseJoinColumns = @JoinColumn(name = "category_id")
     )
-    private Set<SubCategory> subCategories;
+    @Builder.Default
+    private Set<Category> categories = new HashSet<>();  // ← initialized
+
+    @ManyToMany
+    @JoinTable(
+            name = "supplier_subcategories",
+            joinColumns = @JoinColumn(name = "supplier_id"),
+            inverseJoinColumns = @JoinColumn(name = "subcategory_id")
+    )
+    @Builder.Default
+    private Set<SubCategory> subCategories = new HashSet<>();  // ← initialized
 }

@@ -40,7 +40,7 @@ export default function RetailerHomeScreen() {
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.greenCircleButton}
-                onPress={() => router.push("/(retailer)/(tabs)/profile")}
+                onPress={() => router.push("/(retailer)/profile")}
               >
                 <Ionicons name="person-outline" size={22} color="#2E7D32" />
               </TouchableOpacity>

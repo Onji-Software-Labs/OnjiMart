@@ -1,5 +1,6 @@
 import FormikTextInput from '@/components/auth/FormikTextInput';
-import { createRetailerBusiness } from '@/lib/api/retailer';
+import { createRetailerBusiness} from '@/lib/api/retailer';
+import { createSupplierBusiness, getCategories, getSubCategories } from '@/lib/api/supplier';
 import { storage } from '@/lib/storage';
 import AntDesign from '@expo/vector-icons/AntDesign';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -38,21 +39,21 @@ const formSchema = Yup.object().shape({
   city: Yup.string().required(),
   pinCode: Yup.string().required().min(6).max(6),
 });
+// Remove these:
+// const CategoryOptions = ['Vegetable', 'Fruits', 'Premium', 'Seasonal'];
+// const subCategoryOptions = ['Leafy', 'Root', ...]
 
-const CategoryOptions = ['Vegetable', 'Fruits', 'Premium', 'Seasonal'];
-const subCategoryOptions = [
-  'Leafy',
-  'Root',
-  'Berries & small fruits',
-  'Tropical fruits',
-  'Summer',
-  'Monsoon',
-  'Winter',
-  'Exotic',
-  'Organic farm fresh',
-];
+
 
 const BuisnessScreen = () => {
+  const [isCategoryVisible, setIsCategoryVisible] = useState(false);
+  const [selectedItemsCategory, setSelectedItemsCategory] = useState<string[]>([]);
+
+  const [isSubCategoryVisible, setIsSubCategoryVisible] = useState(false);
+  const [selectedItemsSubCategory, setSelectedItemsSubCategory] = useState<string[]>([]);
+  const [alertBoxVisibility, setalertBoxVisibility] = useState(false);
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
+  const [selectedSubCategoryIds, setSelectedSubCategoryIds] = useState<string[]>([]);
   const formRef = useRef<FormikProps<formValues>>(null);
   // const params = useLocalSearchParams<{
   //     name: string;
@@ -130,63 +131,127 @@ const BuisnessScreen = () => {
         return;
       }
 
-      const payload = {
+      const Retailer = {
         retailerId: retailerId,
         name: values.buisnessName,
         address: values.buisnessAddress,
         city: values.city,
         pincode: values.pinCode,
         contactNumber: values.buisnessPhoneNumber,
-        categoryIds: values.category,
       };
 
-      console.log('Sending payload:', payload);
-
-      const response = await createRetailerBusiness(payload);
-
-      console.log('Retailer Created:', response);
+      const Supplier = {
+        supplierId: retailerId,
+        name: values.buisnessName,
+        address: values.buisnessAddress,
+        city: values.city,
+        pincode: values.pinCode,
+        contactNumber: values.buisnessPhoneNumber,
+        categoryIds: selectedCategoryIds,       
+        subCategoryIds: selectedSubCategoryIds, 
+      };
       // Navigate after success
       if (paramState.radioState === 'Retailer') {
+      console.log('Sending payload:', Retailer);
+      const response = await createRetailerBusiness(Retailer);
+      console.log('Retailer Created:', response);
         router.replace('/(retailer)/(tabs)/home');
       } else if (paramState.radioState === 'Supplier') {
+        console.log('Sending payload:', Supplier);
+        const response = await createSupplierBusiness(Supplier);
+        console.log('Supplier Created:', response);
         router.replace('/(supplier)/(tabs)/dashboard');
       }
     } catch (error: any) {
       console.log('Retailer creation failed:', error.response?.data || error.message);
     }
   };
-  const [isCategoryVisible, setIsCategoryVisible] = useState(false);
-  const [selectedItemsCategory, setSelectedItemsCategory] = useState<string[]>([]);
 
-  const [isSubCategoryVisible, setIsSubCategoryVisible] = useState(false);
-  const [selectedItemsSubCategory, setSelectedItemsSubCategory] = useState<string[]>([]);
-  const [alertBoxVisibility, setalertBoxVisibility] = useState(false);
+
+// Add these:
+interface SubCategory {
+  id: string;
+  name: string;
+  categoryId: string;
+}
+
+interface Category {
+  id: string;
+  name: string;
+  subCategories: SubCategory[];  
+
+}
+
+const [categories, setCategories] = useState<Category[]>([]);
+const [allSubCategories, setAllSubCategories] = useState<SubCategory[]>([]);
+
+  // Subcategories filtered by selected categories
+const filteredSubCategories = allSubCategories.filter((sub) =>
+  selectedItemsCategory.map((name) => 
+    categories.find((c) => c.name === name)?.id
+  ).includes(sub.categoryId)
+);
+
+useEffect(() => {
+  const fetchData = async () => {
+    const [cats, subs] = await Promise.all([
+      getCategories(),
+      getSubCategories(),
+    ]);
+    setCategories(cats);
+    setAllSubCategories(subs);
+  };
+  fetchData();
+}, []);
 
   const toggleDropdownCategory = () => setIsCategoryVisible(!isCategoryVisible);
   const toggleDropdownSubCategory = () => setIsSubCategoryVisible(!isSubCategoryVisible);
 
-  const toggleItemCategory = (item: string) => {
-    setSelectedItemsCategory((prev) =>
-      prev.includes(item) ? prev.filter((i) => i !== item) : [...prev, item],
-    );
-  };
+const toggleItemCategory = (categoryName: string) => {
+  const updatedCategories = selectedItemsCategory.includes(categoryName)
+    ? selectedItemsCategory.filter((i) => i !== categoryName)
+    : [...selectedItemsCategory, categoryName];
 
-  const toggleItemSubCategory = (item: string) => {
-    setSelectedItemsSubCategory((prev) =>
-      prev.includes(item) ? prev.filter((i) => i !== item) : [...prev, item],
-    );
-  };
+  setSelectedItemsCategory(updatedCategories);
+
+  // Valid subcategory names from still-selected categories
+  const validSubNames = categories
+    .filter((cat) => updatedCategories.includes(cat.name))
+    .flatMap((cat) => cat.subCategories.map((sub) => sub.name)); // ← nested, no allSubCategories
+
+  // Remove subcategories that no longer belong
+  setSelectedItemsSubCategory((prev) =>
+    prev.filter((subName) => validSubNames.includes(subName))
+  );
+};
+const toggleItemSubCategory = (subCategoryName: string) => {
+  setSelectedItemsSubCategory((prev) =>
+    prev.includes(subCategoryName)
+      ? prev.filter((i) => i !== subCategoryName) // deselect
+      : [...prev, subCategoryName]                // select
+  );
+};
   const insets = useSafeAreaInsets();
-  const confirmSelectionCategory = () => {
-    toggleDropdownCategory();
-    // Do something with selectedItems
-  };
 
-  const confirmSelectionSubCategory = () => {
-    toggleDropdownSubCategory();
-    // Do something with selectedItems
-  };
+const confirmSelectionCategory = () => {
+  // Always replace with exactly what's currently selected
+  const categoryIds = categories
+    .filter((cat) => selectedItemsCategory.includes(cat.name))
+    .map((cat) => cat.id);
 
+  setSelectedCategoryIds(categoryIds); // ← full replace, not addAll
+  toggleDropdownCategory();
+};
+
+const confirmSelectionSubCategory = () => {
+  const subCategoryIds = categories
+    .flatMap((cat) => cat.subCategories)
+    .filter((sub) => selectedItemsSubCategory.includes(sub.name))
+    .map((sub) => sub.id);
+
+  setSelectedSubCategoryIds(subCategoryIds); // ← full replace, not addAll
+  toggleDropdownSubCategory();
+};
   return (
     <View className="bg-surface-page flex-1">
       <View className="mx-4 flex-1 bg-surface-page" style={{ paddingBottom: insets.bottom }}>
@@ -392,32 +457,26 @@ const BuisnessScreen = () => {
                           className="flex-1 bg-black/40 justify-center px-4"
                         >
                           <View className="bg-surface-pressed rounded-xl p-4">
-                            <FlatList
-                              data={CategoryOptions}
-                              keyExtractor={(item) => item}
-                              renderItem={({ item }) => (
-                                <View className="flex-row items-center justify-between py-2">
-                                  <View className="flex-row items-center">
-                                    {item === 'Vegetable' ? (
-                                      <Image
-                                        source={require('../../assets/images/Vector.jpg')}
-                                      ></Image>
-                                    ) : (
-                                      <Image
-                                        source={require('../../assets/images/apple.jpg')}
-                                      ></Image>
-                                    )}
-                                    <Text className="px-2 text-base text-text-body">{item}</Text>
-                                  </View>
-                                  <Checkbox
-                                    status={
-                                      selectedItemsCategory.includes(item) ? 'checked' : 'unchecked'
-                                    }
-                                    onPress={() => toggleItemCategory(item)}
-                                  />
-                                </View>
-                              )}
-                            />
+<FlatList
+  data={categories}                        // ← was CategoryOptions
+  keyExtractor={(item) => item.id}         // ← was item (string)
+  renderItem={({ item }) => (
+    <View className="flex-row items-center justify-between py-2">
+      <View className="flex-row items-center">
+        {item.name === 'Vegetable' ? (
+          <Image source={require('../../assets/images/Vector.jpg')} />
+        ) : (
+          <Image source={require('../../assets/images/apple.jpg')} />
+        )}
+        <Text className="px-2 text-base text-text-body">{item.name}</Text>
+      </View>
+      <Checkbox
+        status={selectedItemsCategory.includes(item.name) ? 'checked' : 'unchecked'}
+        onPress={() => toggleItemCategory(item.name)}
+      />
+    </View>
+  )}
+/>
 
                             {/* Confirm Button */}
                             <TouchableOpacity
@@ -476,34 +535,31 @@ const BuisnessScreen = () => {
                           className="flex-1 bg-black/40 justify-center px-4"
                         >
                           <View className="bg-surface-pressed rounded-xl p-4">
-                            <FlatList
-                              data={subCategoryOptions}
-                              keyExtractor={(item) => item}
-                              renderItem={({ item }) => (
-                                <View className="flex-row items-center justify-between py-2">
-                                  <View className="flex-row items-center">
-                                    {item === 'Leafy' ? (
-                                      <Image
-                                        source={require('../../assets/images/Vector.jpg')}
-                                      ></Image>
-                                    ) : (
-                                      <Image
-                                        source={require('../../assets/images/apple.jpg')}
-                                      ></Image>
-                                    )}
-                                    <Text className="text-base px-2 text-text-body">{item}</Text>
-                                  </View>
-                                  <Checkbox
-                                    status={
-                                      selectedItemsSubCategory.includes(item)
-                                        ? 'checked'
-                                        : 'unchecked'
-                                    }
-                                    onPress={() => toggleItemSubCategory(item)}
-                                  />
-                                </View>
-                              )}
-                            />
+<FlatList
+  data={filteredSubCategories}              // ← was subCategoryOptions
+  keyExtractor={(item) => item.id}          // ← was item (string)
+  ListEmptyComponent={
+    <Text className="text-center text-text-disabled py-4">
+      Select a category first
+    </Text>
+  }
+  renderItem={({ item }) => (
+    <View className="flex-row items-center justify-between py-2">
+      <View className="flex-row items-center">
+        {item.name === 'Leafy' ? (
+          <Image source={require('../../assets/images/Vector.jpg')} />
+        ) : (
+          <Image source={require('../../assets/images/apple.jpg')} />
+        )}
+        <Text className="text-base px-2 text-text-body">{item.name}</Text>
+      </View>
+      <Checkbox
+        status={selectedItemsSubCategory.includes(item.name) ? 'checked' : 'unchecked'}
+        onPress={() => toggleItemSubCategory(item.name)}
+      />
+    </View>
+  )}
+/>
 
                             {/* Confirm Button */}
                             <TouchableOpacity
