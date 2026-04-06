@@ -3,9 +3,9 @@ import { View, Text, Image, TouchableOpacity, Dimensions } from 'react-native';
 import { AntDesign, FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
 
 const CARD_MARGIN = 8;
-const SCROLL_PADDING = 24; // 12px padding on each side of ScrollView 
+const SCROLL_PADDING = 24;
 
-export default function FavouriteCard({ data, onConnect, connected, style }: any) {
+export default function FavouriteCard({ data, onConnect, onOrder, connected, style }: any) { // ✅ added onOrder
   const [screenData, setScreenData] = useState(Dimensions.get('window'));
 
   useEffect(() => {
@@ -17,7 +17,6 @@ export default function FavouriteCard({ data, onConnect, connected, style }: any
     return () => subscription?.remove();
   }, []);
 
-  // Calculate card width dynamically based on current screen width
   const cardWidth = (screenData.width - SCROLL_PADDING - CARD_MARGIN) / 2;
 
   return (
@@ -49,16 +48,16 @@ export default function FavouriteCard({ data, onConnect, connected, style }: any
           <Text style={{ marginLeft: 2, fontSize: 14, color: '#444' }}>({data.reviews})</Text>
         </View>
       </View>
-      {/* Active order / last active row with box icon */}
       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
         <MaterialCommunityIcons name="cube-outline" size={18} color={data.activeOrder ? '#2563eb' : '#9CA3AF'} style={{ marginRight: 6 }} />
         <Text style={{ fontSize: 14, color: data.activeOrder ? '#2563eb' : '#9CA3AF', fontWeight: data.activeOrder ? '500' : '400' }}>{data.lastActive}</Text>
       </View>
 
-      {/* Order and Connect buttons */}
       <View style={{ flexDirection: 'row', justifyContent: 'flex-start', marginTop: 8 }}>
         {data.showOrder && (
-          <TouchableOpacity style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: 'white', paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: '#10B981' }}>
+          <TouchableOpacity
+            onPress={onOrder} // ✅ added onPress
+            style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: 'white', paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: '#10B981' }}>
             <Text style={{ textAlign: 'center', color: '#10B981', fontWeight: '500', fontSize: 16, marginRight: 8 }}>Order</Text>
             <AntDesign name="arrowright" size={18} color="#10B981" />
           </TouchableOpacity>

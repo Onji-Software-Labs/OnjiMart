@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemedText } from '@/components/ui/ThemedText';
 import axiosInstance from '@/lib/api/axiosConfig';
 import { storage } from '@/lib/storage';
@@ -45,7 +46,6 @@ export default function OTPVerification() {
       setResendDisabled(false);
     }
   }, [countdown, resendDisabled]);
-
   // useEffect to get the deviceId
   useEffect(() => {
     const fetchDeviceId = async () => {
@@ -53,6 +53,7 @@ export default function OTPVerification() {
       setDeviceId(id);
       console.log('Device ID for OTP verification:', deviceId);
     };
+
     fetchDeviceId();
   }, []);
 
@@ -222,6 +223,9 @@ export default function OTPVerification() {
       } else {
         setIsError(false);
         setErrorMessage('');
+
+        // Save JWT token so axios interceptor can attach it to future requests
+        await AsyncStorage.setItem('token', response.data.jwtToken);
 
         // Clear stored session ID on success
         await storage.removeItem('otpSessionId');

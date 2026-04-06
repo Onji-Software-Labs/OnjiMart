@@ -2,7 +2,7 @@
 // Retailer API client placeholder
 import axiosInstance from '@/lib/api/axiosConfig';
 
-export interface CreateRetailerPayload {
+export interface BusinessSupplier {
   supplierId: string;
   name: string;
   address: string;
@@ -12,7 +12,7 @@ export interface CreateRetailerPayload {
   categoryIds: string[];
   subCategoryIds: string[];
 }
-export const createSupplierBusiness = async (payload: CreateRetailerPayload) => {
+export const createSupplierBusiness = async (payload: BusinessSupplier) => {
   const response = await axiosInstance.post('/api/supplier-business/create-full', payload);
 
   return response.data;
@@ -26,4 +26,13 @@ export const getCategories = async () => {
 export const getSubCategories = async () => {
   const response = await axiosInstance.get('/api/subcategories'); // adjust endpoint
   return response.data; // shape you shared above
+};
+
+/**
+ * Fetches all suppliers not yet associated with the current retailer.
+ * JWT token is injected automatically by the axiosInstance interceptor.
+ */
+export const getAllSuppliers = async (): Promise<BusinessSupplier[]> => {
+  const response = await axiosInstance.get<BusinessSupplier[]>('/api/supplier-business/all');
+  return response.data;
 };
