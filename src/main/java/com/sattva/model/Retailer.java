@@ -7,6 +7,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 
+import java.util.ArrayList;
 import java.util.List;
 
 
@@ -23,6 +24,7 @@ import java.util.Set;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
+@Builder
 public class Retailer implements Serializable {
 
     @Serial
@@ -39,8 +41,9 @@ public class Retailer implements Serializable {
     @OneToMany(mappedBy = "retailer", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Shop> shops;
 
+    @Builder.Default
     @OneToMany(mappedBy = "retailer", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<RetailerBusiness> retailerBusinesses;
+    private List<RetailerBusiness> retailerBusinesses = new ArrayList<>();
 
     @ManyToMany
     @JoinTable(

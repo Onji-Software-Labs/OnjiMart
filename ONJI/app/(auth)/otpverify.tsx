@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemedText } from '@/components/ui/ThemedText';
 import axiosInstance from '@/lib/api/axiosConfig';
 import { storage } from '@/lib/storage';
+import { getDeviceId } from '@/lib/utils';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
@@ -17,7 +18,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { getDeviceId } from '@/lib/utils';
 
 const { width, height } = Dimensions.get('window');
 
@@ -120,7 +120,12 @@ export default function OTPVerification() {
     try {
       const response = await axiosInstance.post('/api/auth/send-otp', payload);
       console.log('Full OTP Send Response:', JSON.stringify(response.data, null, 2));
+      const userId = response.data?.userId;
 
+      if (userId) {
+        await storage.setItem('userId', userId);
+        console.log('Stored User ID:', userId);
+      }
       // ✅ DEV ONLY: orderId is OTP
       if (__DEV__ && response.data?.orderId) {
         const orderOtp = String(response.data.orderId);
@@ -225,6 +230,14 @@ export default function OTPVerification() {
         // Clear stored session ID on success
         await storage.removeItem('otpSessionId');
 
+        const token = response.data.jwtToken;
+
+        await storage.setItem('token', token);
+
+        // DO NOT overwrite userId here
+        const existingUserId = await storage.getItem('userId');
+
+        console.log('User ID kept from OTP step:', existingUserId);
         // ── ADDED: Save jwtToken, refreshToken, phoneNumber and businessId ──
         if (response.data.jwtToken) {
           await storage.setItem('jwtToken', response.data.jwtToken);

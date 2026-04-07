@@ -4,13 +4,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, MaterialCommunityIcons, FontAwesome5, AntDesign } from '@expo/vector-icons';
 import FavouriteModal from '../../../components/supplier/FavouriteModal';
 import NewSupplierCard, { INewSupplier } from '../../../components/supplier/NewSupplierCard';
-import { getAllSuppliers, ISupplierResponse } from '../../../lib/api/supplier';
+import { getAllSuppliers, BusinessSupplier } from '../../../lib/api/supplier';
 
 // Maps backend ISupplierResponse → INewSupplier used by the card component
-const mapSupplier = (s: ISupplierResponse): INewSupplier => ({
+const mapSupplier = (s: BusinessSupplier): INewSupplier => ({
   id: s.supplierId,
   name: s.name,
-  description: s.contactNumber,
+  description: s.contactNumber || '',
   location: `${s.city}${s.pincode ? ', ' + s.pincode : ''}`,
   rating: 0,
   reviews: 0,

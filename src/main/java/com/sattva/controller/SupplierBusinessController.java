@@ -1,5 +1,6 @@
 package com.sattva.controller;
 
+import com.sattva.dto.SupplierBusinessResponseDTO;
 import lombok.RequiredArgsConstructor;
 
 import java.util.List;
@@ -25,10 +26,10 @@ public class SupplierBusinessController {
 
     @PostMapping("/create-full")
     @PreAuthorize("hasRole('ROLE_SUPPLIER')")
-    public ResponseEntity<SupplierDTO> createBusinessWithCategories(
+    public ResponseEntity<SupplierBusinessResponseDTO> createBusinessWithCategories(
             @RequestBody SupplierBusinessRequestDTO dto) {
 
-        SupplierDTO updatedSupplier = supplierService.createBusinessAndAssignCategories(dto);
+        SupplierBusinessResponseDTO updatedSupplier = supplierService.createBusinessAndAssignCategories(dto);
         return new ResponseEntity<>(updatedSupplier, HttpStatus.CREATED);
     }
 

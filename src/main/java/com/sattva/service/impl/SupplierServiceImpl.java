@@ -1,19 +1,10 @@
 package com.sattva.service.impl;
+import com.sattva.dto.*;
+import com.sattva.model.*;
+import com.sattva.repository.*;
 import org.springframework.stereotype.Service;
 
-import com.sattva.dto.CategoryDTO;
-import com.sattva.dto.SubCategoryDTO;
-import com.sattva.dto.SupplierBusinessRequestDTO;
-import com.sattva.dto.SupplierDTO;
 import com.sattva.exception.ResourceNotFoundException;
-import com.sattva.model.Category;
-import com.sattva.model.SubCategory;
-import com.sattva.model.Supplier;
-import com.sattva.model.SupplierBusiness;
-import com.sattva.repository.CategoryRepository;
-import com.sattva.repository.SubCategoryRepository;
-import com.sattva.repository.SupplierBusinessRepository;
-import com.sattva.repository.SupplierRepository;
 import com.sattva.service.SupplierService;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -43,13 +34,25 @@ public class SupplierServiceImpl implements SupplierService {
     @Autowired
         private SupplierBusinessRepository supplierBusinessRepository;
 
+    @Autowired
+    private UserRepository userRepository;
 
     @Override
-        public SupplierDTO createBusinessAndAssignCategories(SupplierBusinessRequestDTO dto) {
-        Supplier supplier = supplierRepository.findById(dto.getSupplierId())
-                .orElseThrow(() -> new ResourceNotFoundException("Supplier not found with id: " + dto.getSupplierId()));
+        public SupplierBusinessResponseDTO createBusinessAndAssignCategories(SupplierBusinessRequestDTO dto) {
+//        Supplier supplier = supplierRepository.findById(dto.getSupplierId())
+//                .orElseThrow(() -> new ResourceNotFoundException("Supplier not found with id: " + dto.getSupplierId()));
+//
+        User user = userRepository.findById(dto.getSupplierId())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        //Save business
+        // 2. Get or create Supplier
+        Supplier supplier = supplierRepository.findById(dto.getSupplierId())
+                .orElseGet(() -> supplierRepository.save(
+                        Supplier.builder()
+                                .user(user)
+                                .build()
+                ));
+        // Save business
         SupplierBusiness business = SupplierBusiness.builder()
                 .id(UUID.randomUUID().toString())
                 .supplier(supplier)
@@ -61,10 +64,11 @@ public class SupplierServiceImpl implements SupplierService {
                 .isActive(true)
                 .build();
 
-        supplier.getBusinesses().add(business); 
+        supplier.getBusinesses().add(business);
 
         //Assign categories
         if (dto.getCategoryIds() != null) {
+                System.out.println(dto.getCategoryIds());
                 Set<Category> categories = dto.getCategoryIds().stream()
                         .map(id -> categoryRepository.findById(id)
                                 .orElseThrow(() -> new ResourceNotFoundException("Category not found: " + id)))
@@ -74,6 +78,7 @@ public class SupplierServiceImpl implements SupplierService {
 
         //Assign subcategories
         if (dto.getSubCategoryIds() != null) {
+            System.out.println(dto.getSubCategoryIds());
                 Set<SubCategory> subCategories = dto.getSubCategoryIds().stream()
                         .map(id -> subCategoryRepository.findById(id)
                                 .orElseThrow(() -> new ResourceNotFoundException("SubCategory not found: " + id)))
@@ -84,8 +89,26 @@ public class SupplierServiceImpl implements SupplierService {
         //Save supplier (which cascades and saves business too)
         Supplier savedSupplier = supplierRepository.save(supplier);
 
-        return modelMapper.map(savedSupplier, SupplierDTO.class);
-        }
+        // Capture final IDs for response
+        Set<String> savedCategoryIds = savedSupplier.getCategories()
+                .stream().map(Category::getId).collect(Collectors.toSet());
+
+        Set<String> savedSubCategoryIds = savedSupplier.getSubCategories()
+                .stream().map(SubCategory::getId).collect(Collectors.toSet());
+
+        // Build and return response
+        return SupplierBusinessResponseDTO.builder()
+                .BusinessName(business.getName())
+                .address(business.getAddress())
+                .city(business.getCity())
+                .pincode(business.getPincode())
+                .contactNumber(business.getContactNumber())
+                .isActive(business.isActive())
+                .supplierId(savedSupplier.getId())
+                .categoryIds(savedCategoryIds)        // ← included in response
+                .subCategoryIds(savedSubCategoryIds)  // ← included in response
+                .build();
+    }
 
         @Override
         public SupplierBusinessRequestDTO getBusinessDetails(String businessId) {
