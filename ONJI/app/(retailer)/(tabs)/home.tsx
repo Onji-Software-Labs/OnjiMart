@@ -2,15 +2,51 @@
 import {
   View, Text, StyleSheet, TouchableOpacity,
   ScrollView, Image, TextInput, ImageBackground,
+  useWindowDimensions,
+  Platform,
+  Alert,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
+import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function RetailerHomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  
+  const { width } = useWindowDimensions();
+  const isWeb = Platform.OS === 'web';
 
+    // dynamic measurements
+  const horizontalPadding = 16;
+  const availableWidth = width - horizontalPadding * 2;
+  const tileSize = Math.min((availableWidth - 24) / 4, 60);
+  
+    // Navigation
+    const handleTilePress = (tileLabel: string) => {
+      try {
+        switch (tileLabel) {
+          case 'My Suppliers':
+            router.push('/inventory');
+            break;
+          case 'Credit':
+            router.push('/invoice');
+            break;
+          case 'Orders':
+            router.push('/cart');
+            break;
+          case 'Saved Items':
+            break;
+          default:
+            console.log(`Navigation not implemented for: ${tileLabel}`);
+            break;
+        }
+      } catch (error) {
+        console.error('Navigation error:', error);
+        Alert.alert('Navigation Error', 'Unable to navigate to the requested screen.');
+      }
+    };
+  
   return (
     <View style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -106,39 +142,86 @@ export default function RetailerHomeScreen() {
           </View>
         </ImageBackground>
 
-        {/* Manage Store */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Manage your store</Text>
-          <View style={styles.storeRow4}>
-            <TouchableOpacity style={styles.storeItem4}>
-              <View style={[styles.storeIconBox, { backgroundColor: "#E8F5E9" }]}>
-                <Ionicons name="document-text-outline" size={24} color="#2E7D32" />
+        {/* MANAGE STORE SECTION */}
+        <View style={{ paddingHorizontal: horizontalPadding, marginBottom: 24 }}>
+          <Text style={{
+            fontSize: isWeb ? 20 : 18,
+            fontWeight: '600',
+            color: '#1F2937',
+            marginBottom: 16
+          }}>
+            Manage your store
+          </Text>
+          <View style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between'
+          }}>
+            {[
+              {
+                label: 'My Suppliers',
+                value: '20',
+                bg: '#DCFCE7',
+                icon: <MaterialCommunityIcons name="account-group" size={isWeb ? 22 : 20} color="#10B981" />
+              },
+              {
+                label: 'Orders',
+                value: '4 active orders',
+                bg: '#E9D5FF',
+                icon: <Feather name="shopping-bag" size={isWeb ? 22 : 20} color="#7C3AED" />
+              },
+              {
+                label: 'Credit',
+                value: '3 active credits',
+                bg: '#FEF3C7',
+                icon: <MaterialCommunityIcons name="credit-card-outline" size={isWeb ? 22 : 20} color="#CA8A04" />
+              },
+              {
+                label: 'Saved Items',
+                value: '',
+                bg: '#FECACA',
+                icon: <MaterialCommunityIcons name="fruit-grapes" size={isWeb ? 22 : 20} color="#E11D48" />
+              },
+            ].map((tile, index) => (
+              <View key={index} style={{ alignItems: 'center', flex: 1 }}>
+                <TouchableOpacity
+                  style={{
+                    width: tileSize,
+                    height: tileSize,
+                    borderRadius: 16,
+                    backgroundColor: tile.bg,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginBottom: 8,
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.1,
+                    shadowRadius: 4,
+                    elevation: 3
+                  }}
+                  activeOpacity={0.7}
+                  onPress={() => handleTilePress(tile.label)}>
+                  {tile.icon}
+                </TouchableOpacity>
+                <Text style={{
+                  fontSize: isWeb ? 11 : 10,
+                  color: '#6B7280',
+                  textAlign: 'center',
+                  marginBottom: 2
+                }}>
+                  {tile.label}
+                </Text>
+                {tile.value ? (
+                  <Text style={{
+                    fontSize: isWeb ? 13 : 12,
+                    fontWeight: '600',
+                    color: '#1F2937',
+                    textAlign: 'center'
+                  }}>
+                    {tile.value}
+                  </Text>
+                ) : null}
               </View>
-              <Text style={styles.storeItemLabel}>My Suppliers</Text>
-              <Text style={styles.storeItemCount}>20</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.storeItem4}>
-              <View style={[styles.storeIconBox, { backgroundColor: "#EDE7F6" }]}>
-                <Ionicons name="cart-outline" size={24} color="#6A1B9A" />
-                <View style={styles.itemBadge} />
-              </View>
-              <Text style={styles.storeItemLabel}>Orders</Text>
-              <Text style={styles.storeItemCount}>4 active orders</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.storeItem4}>
-              <View style={[styles.storeIconBox, { backgroundColor: "#FFF8E1" }]}>
-                <Ionicons name="card-outline" size={24} color="#F57F17" />
-                <View style={styles.itemBadge} />
-              </View>
-              <Text style={styles.storeItemLabel}>Credit</Text>
-              <Text style={styles.storeItemCount}>3 active credits</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.storeItem4}>
-              <View style={[styles.storeIconBox, { backgroundColor: "#FCE4EC" }]}>
-                <Ionicons name="bookmark-outline" size={24} color="#C62828" />
-              </View>
-              <Text style={styles.storeItemLabel}>Saved Items</Text>
-            </TouchableOpacity>
+            ))}
           </View>
         </View>
 

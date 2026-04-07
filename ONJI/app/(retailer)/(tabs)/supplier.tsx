@@ -1,10 +1,26 @@
-import React, { useState } from 'react';
-import { Text, View, TextInput, Pressable, ScrollView, StatusBar, TouchableOpacity } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { Text, View, TextInput, Pressable, ScrollView, StatusBar, TouchableOpacity, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, MaterialCommunityIcons, FontAwesome5, AntDesign } from '@expo/vector-icons';
 import FavouriteModal from '../../../components/supplier/FavouriteModal';
+import NewSupplierCard, { INewSupplier } from '@/components/supplier/NewSupplierCard';
+import { isLoading } from 'expo-font';
+import { BusinessSupplier, getAllSuppliers } from '@/lib/api/supplier';
 
 export default function Dashboard() {
+
+
+  // Maps backend ISupplierResponse → INewSupplier used by the card component
+  const mapSupplier = (s: BusinessSupplier): INewSupplier => ({
+    id: s.supplierId,
+    name: s.name,
+    description: s.contactNumber || '',
+    location: `${s.city}${s.pincode ? ', ' + s.pincode : ''}`,
+    rating: 0,
+    reviews: 0,
+    credit: false,
+  });
+  
   // State
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
@@ -12,11 +28,33 @@ export default function Dashboard() {
   const [isSortModalVisible, setIsSortModalVisible] = useState(false);
   const [selectedSort, setSelectedSort] = useState<string | null>(null);
   const [isFavouriteModalVisible, setIsFavouriteModalVisible] = useState(false);
+  const [connectedIds, setConnectedIds] = useState<string[]>([]);
 
   // Filter state
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [creditProvided, setCreditProvided] = useState<'yes' | 'no' | null>(null);
   const [selectedQuantity, setSelectedQuantity] = useState<string>('');
+  // API data state
+  const [suppliers, setSuppliers] = useState<INewSupplier[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  
+  useEffect(() => {
+    const fetchSuppliers = async () => {
+      try {
+        setIsLoading(true);
+        setFetchError(null);
+        const data = await getAllSuppliers();
+        setSuppliers(data.map(mapSupplier));
+      } catch (err: any) {
+        console.error('Failed to fetch suppliers:', err);
+        setFetchError('Unable to load suppliers. Please try again.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchSuppliers();
+  }, []);
 
   // Constants
   const categories = ['Fruits', 'Vegetable', 'Premium', 'Seasonal'];
@@ -61,6 +99,18 @@ export default function Dashboard() {
 
   const hasActiveFilters = selectedCategories.length > 0 || creditProvided !== null || selectedFilters.length > 0 || selectedQuantity !== '';
 
+  const handleConnect = (id: string) => {
+    setConnectedIds(prev =>
+      prev.includes(id) ? prev.filter(cid => cid !== id) : [...prev, id]
+    );
+  };
+
+  // Filter live supplier list by search query
+  const filteredSuppliers = suppliers.filter(s =>
+    s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    s.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    s.location.toLowerCase().includes(searchQuery.toLowerCase())
+  );
   return (
     <View className="flex-1 bg-white">
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
@@ -143,12 +193,36 @@ export default function Dashboard() {
           <View className="h-px bg-gray-200 mb-4" />
         </View>
       </SafeAreaView>
-      {/* Content Area */}
-      <ScrollView className="flex-1 px-4">
-        <View className="flex-1 items-center justify-center py-20">
-          <Text className="text-gray-400 text-lg">Search results will appear here</Text>
-        </View>
-      </ScrollView>
+      
+  {/* Supplier List */}
+      <FlatList
+        data={filteredSuppliers}
+        keyExtractor={item => item.id}
+        renderItem={({ item }) => (
+          <NewSupplierCard
+            supplier={item}
+            isConnected={connectedIds.includes(item.id)}
+            onConnect={handleConnect}
+          />
+        )}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 120 }}
+        showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          isLoading ? (
+            <View style={{ alignItems: 'center', paddingTop: 60 }}>
+              <Text style={{ color: '#6B7280', fontSize: 15 }}>Loading suppliers…</Text>
+            </View>
+          ) : fetchError ? (
+            <View style={{ alignItems: 'center', paddingTop: 60, paddingHorizontal: 24 }}>
+              <Text style={{ color: '#EF4444', fontSize: 15, textAlign: 'center', marginBottom: 8 }}>{fetchError}</Text>
+            </View>
+          ) : (
+            <View style={{ alignItems: 'center', paddingTop: 60 }}>
+              <Text style={{ color: '#9CA3AF', fontSize: 16 }}>No suppliers found</Text>
+            </View>
+          )
+        }
+      />
 
       {/* Filter Modal */}
       {isFilterModalVisible && !isSortModalVisible && (
