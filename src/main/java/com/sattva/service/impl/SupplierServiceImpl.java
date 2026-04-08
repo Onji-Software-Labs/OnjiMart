@@ -130,6 +130,7 @@ public class SupplierServiceImpl implements SupplierService {
                 .map(business -> {
                         SupplierBusinessRequestDTO dto = modelMapper.map(business, SupplierBusinessRequestDTO.class);
                         populateCategoryDetails(dto, business.getSupplier());
+                        dto.setBusinessId(business.getId());
                         return dto;
                 })
                 .collect(Collectors.toList());
@@ -143,6 +144,7 @@ public class SupplierServiceImpl implements SupplierService {
                 .map(business -> {
                         SupplierBusinessRequestDTO dto = modelMapper.map(business, SupplierBusinessRequestDTO.class);
                         populateCategoryDetails(dto, business.getSupplier());
+
                         return dto;
                 })
                 .collect(Collectors.toList());
