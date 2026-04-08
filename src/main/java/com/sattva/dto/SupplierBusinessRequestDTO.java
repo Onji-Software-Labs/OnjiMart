@@ -13,6 +13,7 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 public class SupplierBusinessRequestDTO {
+    private String businessId;
     private String supplierId;
 
     private String name;
