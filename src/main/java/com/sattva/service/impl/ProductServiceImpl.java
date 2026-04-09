@@ -50,44 +50,66 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     public ProductDTO createProduct(ProductDTO productDTO) {
+
+        // duplicate check using imageUrl
+        if (productRepository.existsByImageUrl(productDTO.getImageUrl())) {
+
+            System.out.println("Duplicate skipped: " + productDTO.getName());
+
+            return productRepository.findByImageUrl(productDTO.getImageUrl())
+                    .map(p -> modelMapper.map(p, ProductDTO.class))
+                    .orElse(null);
+        }
+
         Category category = categoryRepository.findById(productDTO.getCategoryId())
-                .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + productDTO.getCategoryId()));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Category not found with id: " + productDTO.getCategoryId()));
 
         SubCategory subCategory = null;
         if (productDTO.getSubCategoryId() != null) {
             subCategory = subCategoryRepository.findById(productDTO.getSubCategoryId())
-                    .orElseThrow(() -> new ResourceNotFoundException("SubCategory not found with id: " + productDTO.getSubCategoryId()));
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "SubCategory not found with id: " + productDTO.getSubCategoryId()));
         }
 
         Product product = modelMapper.map(productDTO, Product.class);
+
         product.setProductId(UUID.randomUUID().toString());
         product.setCategory(category);
         product.setSubCategory(subCategory);
+        product.setImageUrl(productDTO.getImageUrl());
 
         Product savedProduct = productRepository.save(product);
+
+        System.out.println("Saved: " + savedProduct.getName());
+
         return modelMapper.map(savedProduct, ProductDTO.class);
     }
 
     @Override
     public ProductDTO updateProduct(String productId, ProductDTO productDTO) {
+
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + productId));
 
         Category category = categoryRepository.findById(productDTO.getCategoryId())
-                .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + productDTO.getCategoryId()));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Category not found with id: " + productDTO.getCategoryId()));
 
         SubCategory subCategory = null;
         if (productDTO.getSubCategoryId() != null) {
             subCategory = subCategoryRepository.findById(productDTO.getSubCategoryId())
-                    .orElseThrow(() -> new ResourceNotFoundException("SubCategory not found with id: " + productDTO.getSubCategoryId()));
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "SubCategory not found with id: " + productDTO.getSubCategoryId()));
         }
 
-        modelMapper.map(productDTO, product); // Update product fields with productDTO values
+        modelMapper.map(productDTO, product);
 
         product.setCategory(category);
         product.setSubCategory(subCategory);
 
         Product updatedProduct = productRepository.save(product);
+
         return modelMapper.map(updatedProduct, ProductDTO.class);
     }
 
@@ -98,6 +120,7 @@ public class ProductServiceImpl implements ProductService {
         }
         productRepository.deleteById(productId);
     }
+
     @Override
     public List<ProductDTO> getProductsBySubcategoryId(String subCategoryId) {
         List<Product> products = productRepository.findBySubCategory_Id(subCategoryId);
@@ -106,4 +129,3 @@ public class ProductServiceImpl implements ProductService {
                 .collect(Collectors.toList());
     }
 }
-
