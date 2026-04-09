@@ -20,6 +20,7 @@ public class ProductDTO {
     private QuantityType quantityType; // COUNT or WEIGHT
     private String unitValue; // e.g., kg, grams, units
     private double minOrderQuantity; // Minimum order quantity for the product
+    private String imageUrl; //
     private String categoryId;
     private String subCategoryId;
 }

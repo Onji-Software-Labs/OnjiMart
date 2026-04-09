@@ -167,6 +167,7 @@ public class CartServiceImpl implements CartService {
         return modelMapper.map(cart, CartDTO.class);
     }
 
+
     // Helper method to convert CartItem entity to CartItemDTO
     private CartItemDTO convertToCartItemDTO(CartItem cartItem) {
         return modelMapper.map(cartItem, CartItemDTO.class);

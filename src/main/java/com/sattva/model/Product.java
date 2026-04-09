@@ -42,6 +42,8 @@ public class Product {
 
     private double minOrderQuantity; // Minimum order quantity (e.g., 0.5 kg for loose items)
 
+    private String imageUrl; // URL of product image
+
     @ManyToOne
     @JoinColumn(name = "category_id", nullable = false)
     private Category category;

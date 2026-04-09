@@ -12,5 +12,6 @@ import lombok.NoArgsConstructor;
 public class CartDTO {
 	  private String id;           // Cart ID
 	    private String shopId;       // Shop ID that the cart belongs to
+		
 	    private List<CartItemDTO> items;
 }
