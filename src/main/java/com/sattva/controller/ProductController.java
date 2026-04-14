@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.sattva.dto.ProductDTO;
@@ -60,4 +61,16 @@ public class ProductController {
         List<ProductDTO> products = productService.getProductsBySubcategoryId(subCategoryId);
         return ResponseEntity.ok(products);
     }
+    //
+    @PostMapping("/map-by-category")
+    public ResponseEntity<?> mapByCategory(
+            @RequestParam String categoryId,
+            @RequestParam String supplierId) {
+
+        productService.mapProductsByCategory(categoryId, supplierId);
+
+        return ResponseEntity.ok("Products mapped successfully");
+    }
+
+
 }
