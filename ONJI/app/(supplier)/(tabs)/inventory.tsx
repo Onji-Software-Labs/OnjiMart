@@ -26,6 +26,7 @@ export default function Dashboard() {
   const [selectedSort, setSelectedSort] = useState<string | null>(null);
   const [isFavouriteModalVisible, setIsFavouriteModalVisible] = useState(false);
   const [connectedIds, setConnectedIds] = useState<string[]>([]);
+  const [favouriteIds, setFavouriteIds] = useState<string[]>([]);
 
   // API data state
   const [suppliers, setSuppliers] = useState<INewSupplier[]>([]);
@@ -38,7 +39,15 @@ export default function Dashboard() {
         setIsLoading(true);
         setFetchError(null);
         const data = await getAllSuppliers();
-        setSuppliers(data.map(mapSupplier));
+        const mapped = data.map(mapSupplier);
+        // De-duplicate by supplierId — backend sometimes returns the same supplier twice
+        const seen = new Set<string>();
+        const unique = mapped.filter(s => {
+          if (seen.has(s.id)) return false;
+          seen.add(s.id);
+          return true;
+        });
+        setSuppliers(unique);
       } catch (err: any) {
         console.error('Failed to fetch suppliers:', err);
         setFetchError('Unable to load suppliers. Please try again.');
@@ -102,6 +111,14 @@ export default function Dashboard() {
       prev.includes(id) ? prev.filter(cid => cid !== id) : [...prev, id]
     );
   };
+
+  const handleToggleFav = (id: string) => {
+    setFavouriteIds(prev =>
+      prev.includes(id) ? prev.filter(fid => fid !== id) : [...prev, id]
+    );
+  };
+
+  const favouriteSuppliers = suppliers.filter(s => favouriteIds.includes(s.id));
 
   // Filter live supplier list by search query
   const filteredSuppliers = suppliers.filter(s =>
@@ -201,7 +218,9 @@ export default function Dashboard() {
           <NewSupplierCard
             supplier={item}
             isConnected={connectedIds.includes(item.id)}
+            isFavourite={favouriteIds.includes(item.id)}
             onConnect={handleConnect}
+            onToggleFavourite={handleToggleFav}
           />
         )}
         contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 120 }}
@@ -358,6 +377,7 @@ export default function Dashboard() {
       <FavouriteModal
         visible={isFavouriteModalVisible}
         onClose={() => setIsFavouriteModalVisible(false)}
+        favourites={favouriteSuppliers}
       />
     </View>
   );
