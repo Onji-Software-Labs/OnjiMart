@@ -4,7 +4,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, MaterialCommunityIcons, FontAwesome5, AntDesign } from '@expo/vector-icons';
 import FavouriteModal from '../../../components/supplier/FavouriteModal';
 import NewSupplierCard, { INewSupplier } from '../../../components/supplier/NewSupplierCard';
-import { getAllSuppliers, BusinessSupplier } from '../../../lib/api/supplier';
+import { getAllSuppliers, getMySuppliers, BusinessSupplier } from '../../../lib/api/supplier';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Maps backend ISupplierResponse → INewSupplier used by the card component
 const mapSupplier = (s: BusinessSupplier): INewSupplier => ({
@@ -17,7 +18,73 @@ const mapSupplier = (s: BusinessSupplier): INewSupplier => ({
   credit: false,
 });
 
+
+// New component specifically for "My Suppliers" UI
+const MySupplierCard = ({ supplier }: { supplier: INewSupplier }) => {
+  const [isFavorite, setIsFavorite] = useState(false);
+
+  return (
+    <View className="bg-white rounded-2xl p-4 mb-4 border border-gray-100 shadow-sm">
+      <View className="flex-row justify-between">
+        <View className="flex-row flex-1">
+          {/* Avatar Placeholder */}
+          <View className="w-14 h-14 rounded-full bg-blue-100 mr-3 overflow-hidden items-center justify-center">
+            {/* You can replace this with an actual Image component when you have avatar URLs */}
+            <FontAwesome5 name="user-alt" size={24} color="#9CA3AF" />
+          </View>
+          
+          {/* Info */}
+          <View className="flex-1">
+            <Text className="text-base font-bold text-gray-800">{supplier.name}</Text>
+            <Text className="text-sm text-gray-500">{supplier.description || 'Random kaka'}</Text>
+            <Text className="text-xs text-gray-400 mt-0.5">{supplier.location || '3 kms away, Udupi'}</Text>
+            
+            <View className="flex-row items-center mt-1">
+              <AntDesign name="star" size={12} color="#10B981" />
+              <Text className="text-xs text-green-500 ml-1 font-medium">4.5(6)</Text>
+              <Text className="text-xs ml-2">🥔 🍏</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Heart Icon */}
+        <TouchableOpacity onPress={() => setIsFavorite(!isFavorite)} className="p-1">
+          {isFavorite ? (
+            <AntDesign name="heart" size={20} color="#EF4444" />
+          ) : (
+            <AntDesign name="hearto" size={20} color="#9CA3AF" />
+          )}
+        </TouchableOpacity>
+      </View>
+
+      {/* Bottom Actions */}
+      <View className="flex-row justify-between items-center mt-4">
+        <View className="flex-row items-center">
+          <Feather name="box" size={14} color="#9CA3AF" />
+          <Text className="text-xs text-gray-400 ml-1.5">3 days ago</Text>
+        </View>
+
+        <View className="flex-row items-center">
+          <TouchableOpacity className="mr-5">
+            <Feather name="phone" size={18} color="#6B7280" />
+          </TouchableOpacity>
+          
+          <TouchableOpacity className="flex-row items-center bg-green-50 px-4 py-2 rounded-lg border border-green-100">
+            <Text className="text-green-600 font-medium mr-2">Order</Text>
+            <AntDesign name="arrowright" size={16} color="#10B981" />
+          </TouchableOpacity>
+        </View>
+      </View>
+    </View>
+  );
+};
+
 export default function Dashboard() {
+  // Navigation State for the top tabs
+  const [activeTab, setActiveTab] = useState<'find' | 'my'>('find');
+//My Suppliers
+  const [mySuppliers, setMySuppliers] = useState<INewSupplier[]>([]);
+
   // State
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
@@ -33,12 +100,23 @@ export default function Dashboard() {
   const [fetchError, setFetchError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchSuppliers = async () => {
+    const fetchData = async () => {
       try {
         setIsLoading(true);
         setFetchError(null);
-        const data = await getAllSuppliers();
-        setSuppliers(data.map(mapSupplier));
+        
+        // Fetch ALL suppliers for the "Find new suppliers" tab
+        const allData = await getAllSuppliers();
+        setSuppliers(allData.map(mapSupplier));
+
+        // Fetch ONLY connected suppliers for the "My Suppliers" tab
+        // TODO: Replace this hardcoded ID with the logged-in user's ID
+        // const currentRetailerId = await AsyncStorage.getItem('shopId');
+        const retailerId = "f53140c4-5aa5-4e92-9964-a529e0d72cb7"; 
+        
+        const myData = await getMySuppliers(retailerId);
+        setMySuppliers(myData.map(mapSupplier));
+
       } catch (err: any) {
         console.error('Failed to fetch suppliers:', err);
         setFetchError('Unable to load suppliers. Please try again.');
@@ -46,7 +124,8 @@ export default function Dashboard() {
         setIsLoading(false);
       }
     };
-    fetchSuppliers();
+    
+    fetchData();
   }, []);
 
   // Filter state
@@ -103,29 +182,45 @@ export default function Dashboard() {
     );
   };
 
-  // Filter live supplier list by search query
-  const filteredSuppliers = suppliers.filter(s =>
-    s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    s.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    s.location.toLowerCase().includes(searchQuery.toLowerCase())
+ // Decide which list to search based on the active tab
+  const activeList = activeTab === 'find' ? suppliers : mySuppliers;
+
+  // Filter the chosen list by search query
+  const filteredSuppliers = activeList.filter(s =>
+    s.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    s.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    s.location?.toLowerCase().includes(searchQuery.toLowerCase())
   );
+  
 
   return (
     <View className="flex-1 bg-white">
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
       <SafeAreaView className="bg-white">
         <View className="px-4 pt-2">
-          {/* Top Tabs */}
-          <View className="bg-gray-200 rounded-lg p-1 mb-4">
+          
+          {/* Top Tabs (Updated to switch states) */}
+          <View className="bg-gray-100 rounded-lg p-1 mb-4">
             <View className="flex-row">
-              <Pressable className="flex-1 py-3 px-4 bg-white rounded-md shadow-sm">
-                <Text className="text-center text-green-600 font-medium">Find new suppliers</Text>
+              <Pressable 
+                className={`flex-1 py-2.5 px-4 rounded-md ${activeTab === 'find' ? 'bg-white shadow-sm' : ''}`}
+                onPress={() => setActiveTab('find')}
+              >
+                <Text className={`text-center font-medium ${activeTab === 'find' ? 'text-green-600' : 'text-gray-500'}`}>
+                  Find new suppliers
+                </Text>
               </Pressable>
-              <Pressable className="flex-1 py-3 px-4">
-                <Text className="text-center text-gray-600 font-medium">My Suppliers</Text>
+              <Pressable 
+                className={`flex-1 py-2.5 px-4 rounded-md ${activeTab === 'my' ? 'bg-white shadow-sm' : ''}`}
+                onPress={() => setActiveTab('my')}
+              >
+                <Text className={`text-center font-medium ${activeTab === 'my' ? 'text-green-600' : 'text-gray-500'}`}>
+                  My Suppliers
+                </Text>
               </Pressable>
             </View>
           </View>
+
           {/* Search & Actions */}
           <View className="flex-row items-center justify-between mb-4">
             <View className="relative flex-1 mr-4">
@@ -168,6 +263,7 @@ export default function Dashboard() {
             </View>
           </View>
           <View className="h-px bg-gray-200 mb-4" />
+          
           {/* Filter Chips */}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4">
             <View className="flex-row space-x-2">
@@ -193,17 +289,23 @@ export default function Dashboard() {
         </View>
       </SafeAreaView>
 
-      {/* Supplier List */}
+      {/* Supplier List (Updated to switch cards based on tab) */}
       <FlatList
         data={filteredSuppliers}
-        keyExtractor={item => item.id}
-        renderItem={({ item }) => (
-          <NewSupplierCard
-            supplier={item}
-            isConnected={connectedIds.includes(item.id)}
-            onConnect={handleConnect}
-          />
-        )}
+        keyExtractor={(item, index) => `${item.id}-${index}`}
+        renderItem={({ item }) => {
+          if (activeTab === 'find') {
+            return (
+              <NewSupplierCard
+                supplier={item}
+                isConnected={connectedIds.includes(item.id)}
+                onConnect={handleConnect}
+              />
+            );
+          } else {
+            return <MySupplierCard supplier={item} />;
+          }
+        }}
         contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 120 }}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={

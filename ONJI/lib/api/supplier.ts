@@ -11,12 +11,17 @@ export interface BusinessSupplier {
   contactNumber?: string;
   categoryIds: string[];
   subCategoryIds: string[];
+  userId?: string;
+  fullName?: string;
+  businessName?: string;
+  rating?: number;
 }
+
 export const createSupplierBusiness = async (payload: BusinessSupplier) => {
   const response = await axiosInstance.post('/api/supplier-business/create-full', payload);
-
   return response.data;
 };
+
 // api.ts
 export const getCategories = async () => {
   const response = await axiosInstance.get('/api/categories');
@@ -35,4 +40,16 @@ export const getSubCategories = async () => {
 export const getAllSuppliers = async (): Promise<BusinessSupplier[]> => {
   const response = await axiosInstance.get<BusinessSupplier[]>('/api/supplier-business/all');
   return response.data;
+};
+
+export const getMySuppliers = async (retailerId: string) => {
+  try {
+    const response = await axiosInstance.get(`/retailers/${retailerId}/suppliers`);
+    
+    // Return the 'content' array because this specific endpoint returns paginated data!
+    return response.data.content; 
+  } catch (error: any) {
+    console.error("Failed to fetch my suppliers:", error.response?.data || error.message);
+    throw error;
+  }
 };
