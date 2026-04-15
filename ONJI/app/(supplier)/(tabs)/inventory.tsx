@@ -9,6 +9,7 @@ import { getAllSuppliers, BusinessSupplier } from '../../../lib/api/supplier';
 // Maps backend ISupplierResponse → INewSupplier used by the card component
 const mapSupplier = (s: BusinessSupplier): INewSupplier => ({
   id: s.supplierId,
+  businessId: s.businessId, 
   name: s.name,
   description: s.contactNumber || '',
   location: `${s.city}${s.pincode ? ', ' + s.pincode : ''}`,

@@ -17,6 +17,7 @@ import {
 
 export interface INewSupplier {
   id: string;
+  businessId: string;
   name: string;
   description: string;
   location: string;
@@ -34,6 +35,11 @@ interface Props {
 
 const NewSupplierCard: React.FC<Props> = ({ supplier, isConnected, onConnect }) => {
   const [isFavorite, setIsFavorite] = useState(false);
+
+    console.log("Supplier object:", supplier);
+
+
+
 
   // Heart animation refs
   const heartScale = useRef(new Animated.Value(1)).current;
@@ -68,11 +74,11 @@ const NewSupplierCard: React.FC<Props> = ({ supplier, isConnected, onConnect }) 
       Animated.timing(connectScale, { toValue: 1, duration: 100, easing: Easing.linear, useNativeDriver: true }),
       Animated.timing(connectBgColor, { toValue: 0, duration: 100, easing: Easing.linear, useNativeDriver: false }),
     ]).start();
-    onConnect(supplier.id);
+    
   };
 
   const handleCancelPress = () => {
-    onConnect(supplier.id);
+    
   };
 
   const rotateHeart = heartRotation.interpolate({
@@ -127,7 +133,7 @@ const NewSupplierCard: React.FC<Props> = ({ supplier, isConnected, onConnect }) 
           <Text style={styles.reviewCount}> ({supplier.reviews})</Text>
           {supplier.credit && (
             <View style={styles.creditBadge}>
-              <MaterialCommunityIcons name="credit-card-outline" size={12} color="#047857" />
+            <MaterialCommunityIcons name="credit-card-outline" size={12} color="#047857" />
               <Text style={styles.creditText}>Credit</Text>
             </View>
           )}
@@ -141,12 +147,21 @@ const NewSupplierCard: React.FC<Props> = ({ supplier, isConnected, onConnect }) 
           <AntDesign name="close" size={14} color="#6B7280" />
         </TouchableOpacity>
       ) : (
-        <TouchableOpacity
-          onPressIn={handleConnectPressIn}
-          onPressOut={handleConnectPressOut}
-          style={styles.connectButtonWrapper}
-          activeOpacity={1}
-        >
+          <TouchableOpacity
+            onPress={() =>
+              router.push({
+                pathname: "/connectScreen",
+                params: { 
+                    supplierId: supplier.id,
+                    businessId: supplier.businessId,
+                  }
+              })
+            }
+            onPressIn={handleConnectPressIn}
+            onPressOut={handleConnectPressOut}
+            style={styles.connectButtonWrapper}
+            activeOpacity={1}
+          >
           <Animated.View
             style={[
               styles.connectButton,
