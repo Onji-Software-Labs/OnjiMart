@@ -4,7 +4,7 @@ import {
   MaterialCommunityIcons,
 } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React, { useRef, useState } from 'react';
+import React, { useRef } from 'react';
 import {
   Animated,
   Easing,
@@ -30,17 +30,12 @@ export interface INewSupplier {
 interface Props {
   supplier: INewSupplier;
   isConnected: boolean;
+  isFavourite: boolean;
   onConnect: (id: string) => void;
+  onToggleFavourite: (id: string) => void;
 }
 
-const NewSupplierCard: React.FC<Props> = ({ supplier, isConnected, onConnect }) => {
-  const [isFavorite, setIsFavorite] = useState(false);
-
-    console.log("Supplier object:", supplier);
-
-
-
-
+const NewSupplierCard: React.FC<Props> = ({ supplier, isConnected, isFavourite, onConnect, onToggleFavourite }) => {
   // Heart animation refs
   const heartScale = useRef(new Animated.Value(1)).current;
   const heartRotation = useRef(new Animated.Value(0)).current;
@@ -50,7 +45,7 @@ const NewSupplierCard: React.FC<Props> = ({ supplier, isConnected, onConnect }) 
   const connectBgColor = useRef(new Animated.Value(0)).current;
 
   const toggleFavorite = () => {
-    setIsFavorite(prev => !prev);
+    onToggleFavourite(supplier.id);
     heartScale.setValue(1);
     heartRotation.setValue(0);
     Animated.parallel([
@@ -97,9 +92,9 @@ const NewSupplierCard: React.FC<Props> = ({ supplier, isConnected, onConnect }) 
       <TouchableOpacity onPress={toggleFavorite} style={styles.favoriteButton} activeOpacity={0.7}>
         <Animated.View style={{ transform: [{ scale: heartScale }, { rotate: rotateHeart }] }}>
           <AntDesign
-            name={isFavorite ? 'heart' : 'hearto'}
+            name={isFavourite ? 'heart' : 'hearto'}
             size={22}
-            color={isFavorite ? '#EF4444' : '#9CA3AF'}
+            color={isFavourite ? '#EF4444' : '#9CA3AF'}
           />
         </Animated.View>
       </TouchableOpacity>

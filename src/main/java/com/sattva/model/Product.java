@@ -51,4 +51,8 @@ public class Product {
     @ManyToOne
     @JoinColumn(name = "subcategory_id", nullable = true)
     private SubCategory subCategory;
+
+    @ManyToOne
+    @JoinColumn(name = "supplier_id")
+    private Supplier supplier;
 }
