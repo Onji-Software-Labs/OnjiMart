@@ -11,4 +11,7 @@ public interface ProductService {
     ProductDTO updateProduct(String productId, ProductDTO productDTO);
     void deleteProduct(String productId);
     List<ProductDTO> getProductsBySubcategoryId(String subCategoryId);
+
+    //Map all products of a category to a supplier
+    void mapProductsByCategory(String categoryId, String supplierId);
 }

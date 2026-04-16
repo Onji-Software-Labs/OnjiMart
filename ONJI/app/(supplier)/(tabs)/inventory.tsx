@@ -18,7 +18,6 @@ const mapSupplier = (s: BusinessSupplier): INewSupplier => ({
   credit: false,
 });
 
-
 // New component specifically for "My Suppliers" UI
 const MySupplierCard = ({ supplier }: { supplier: INewSupplier }) => {
   const [isFavorite, setIsFavorite] = useState(false);
@@ -82,7 +81,7 @@ const MySupplierCard = ({ supplier }: { supplier: INewSupplier }) => {
 export default function Dashboard() {
   // Navigation State for the top tabs
   const [activeTab, setActiveTab] = useState<'find' | 'my'>('find');
-//My Suppliers
+  //My Suppliers
   const [mySuppliers, setMySuppliers] = useState<INewSupplier[]>([]);
 
   // State
@@ -93,6 +92,7 @@ export default function Dashboard() {
   const [selectedSort, setSelectedSort] = useState<string | null>(null);
   const [isFavouriteModalVisible, setIsFavouriteModalVisible] = useState(false);
   const [connectedIds, setConnectedIds] = useState<string[]>([]);
+  const [favouriteIds, setFavouriteIds] = useState<string[]>([]);
 
   // API data state
   const [suppliers, setSuppliers] = useState<INewSupplier[]>([]);
@@ -106,8 +106,17 @@ export default function Dashboard() {
         setFetchError(null);
         
         // Fetch ALL suppliers for the "Find new suppliers" tab
-        const allData = await getAllSuppliers();
-        setSuppliers(allData.map(mapSupplier));
+        const data = await getAllSuppliers();
+        const mapped = data.map(mapSupplier);
+        
+        // De-duplicate by supplierId — backend sometimes returns the same supplier twice
+        const seen = new Set<string>();
+        const unique = mapped.filter(s => {
+          if (seen.has(s.id)) return false;
+          seen.add(s.id);
+          return true;
+        });
+        setSuppliers(unique);
 
         // Fetch ONLY connected suppliers for the "My Suppliers" tab
         // TODO: Replace this hardcoded ID with the logged-in user's ID
@@ -182,7 +191,15 @@ export default function Dashboard() {
     );
   };
 
- // Decide which list to search based on the active tab
+  const handleToggleFav = (id: string) => {
+    setFavouriteIds(prev =>
+      prev.includes(id) ? prev.filter(fid => fid !== id) : [...prev, id]
+    );
+  };
+
+  const favouriteSuppliers = suppliers.filter(s => favouriteIds.includes(s.id));
+
+  // Decide which list to search based on the active tab
   const activeList = activeTab === 'find' ? suppliers : mySuppliers;
 
   // Filter the chosen list by search query
@@ -192,7 +209,6 @@ export default function Dashboard() {
     s.location?.toLowerCase().includes(searchQuery.toLowerCase())
   );
   
-
   return (
     <View className="flex-1 bg-white">
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
@@ -299,7 +315,9 @@ export default function Dashboard() {
               <NewSupplierCard
                 supplier={item}
                 isConnected={connectedIds.includes(item.id)}
+                isFavourite={favouriteIds.includes(item.id)}
                 onConnect={handleConnect}
+                onToggleFavourite={handleToggleFav}
               />
             );
           } else {
@@ -460,6 +478,7 @@ export default function Dashboard() {
       <FavouriteModal
         visible={isFavouriteModalVisible}
         onClose={() => setIsFavouriteModalVisible(false)}
+        favourites={favouriteSuppliers}
       />
     </View>
   );

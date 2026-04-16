@@ -16,7 +16,9 @@ import com.sattva.model.SubCategory;
 import com.sattva.repository.CategoryRepository;
 import com.sattva.repository.ProductRepository;
 import com.sattva.repository.SubCategoryRepository;
+import com.sattva.repository.SupplierRepository;
 import com.sattva.service.ProductService;
+import com.sattva.model.Supplier;
 
 @Service
 public class ProductServiceImpl implements ProductService {
@@ -32,6 +34,9 @@ public class ProductServiceImpl implements ProductService {
 
     @Autowired
     private ModelMapper modelMapper;
+
+    @Autowired
+    private SupplierRepository supplierRepository; 
 
     @Override
     public List<ProductDTO> getAllProducts() {
@@ -127,5 +132,32 @@ public class ProductServiceImpl implements ProductService {
         return products.stream()
                 .map(product -> modelMapper.map(product, ProductDTO.class))
                 .collect(Collectors.toList());
+    }
+
+    //MAP PRODUCTS BY CATEGORY
+    @Override
+    public void mapProductsByCategory(String categoryId, String supplierId) {
+
+        // Fetch supplier
+        Supplier supplier = supplierRepository.findById(supplierId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Supplier not found with id: " + supplierId));
+
+        //Fetch all products of given category
+        List<Product> products = productRepository.findByCategory_Id(categoryId);
+
+        //If no products found → error
+        if (products.isEmpty()) {
+            throw new ResourceNotFoundException(
+                    "No products found for category id: " + categoryId);
+        }
+
+        //Assign supplier to each product
+        products.forEach(product -> product.setSupplier(supplier));
+
+        //Save all updated products
+        productRepository.saveAll(products);
+
+        System.out.println("All products mapped to supplier successfully");
     }
 }
