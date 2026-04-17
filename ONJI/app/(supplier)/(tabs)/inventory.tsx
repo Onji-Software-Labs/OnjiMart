@@ -121,6 +121,17 @@ export default function Dashboard() {
         // Fetch ONLY connected suppliers for the "My Suppliers" tab
         // TODO: Replace this hardcoded ID with the logged-in user's ID
         // const currentRetailerId = await AsyncStorage.getItem('shopId');
+        /**
+          const retailerId = await AsyncStorage.getItem('shopId');
+        if (retailerId) {
+        // If we successfully got the ID from storage, fetch their suppliers
+          const myData = await getMySuppliers(retailerId);
+          setMySuppliers(myData.map(mapSupplier));
+          } else {
+          // Handle the case where the ID is missing (e.g., user is logged out)
+          console.log("No shopId found in local storage.");
+          }
+         */
         const retailerId = "f53140c4-5aa5-4e92-9964-a529e0d72cb7"; 
         
         const myData = await getMySuppliers(retailerId);
