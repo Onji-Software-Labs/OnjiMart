@@ -111,7 +111,7 @@ export default function OTPVerification() {
       phoneNumber: normalizedPhoneNumber,
       email: 'example@email.com',
       userType: 'USER',
-      userOnboardingStatus: true,
+      //userOnboardingStatus: true,
       supplier: false,
     };
 
@@ -120,6 +120,18 @@ export default function OTPVerification() {
     try {
       const response = await axiosInstance.post('/api/auth/send-otp', payload);
       console.log('Full OTP Send Response:', JSON.stringify(response.data, null, 2));
+
+      const onboardingStatus = response.data?.userOnboardingStatus;
+
+      if (onboardingStatus !== undefined) {
+        await storage.setItem(
+          "userOnboardingStatus",
+          String(onboardingStatus)
+        );
+        console.log("✅ onboarding status saved:", onboardingStatus);
+      }
+
+
       const userId = response.data?.userId;
 
       if (userId) {
@@ -269,7 +281,16 @@ export default function OTPVerification() {
         // ── END ADDED ──
 
         setDevOtp(null);
-        router.replace('/(auth)/personalProfile');
+
+        const onboardingStatus = response.data?.userOnboardingStatus;
+
+        console.log("User onboarding status from login:", onboardingStatus);
+
+        if (onboardingStatus === true) {
+          router.replace('/(supplier)/(tabs)/dashboard');
+        } else {
+          router.replace('/(auth)/personalProfile');
+        }
       }
     } catch (error: any) {
       console.error('OTP verification error:', error.response?.data || error.message);
