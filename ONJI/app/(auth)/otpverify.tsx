@@ -281,10 +281,16 @@ export default function OTPVerification() {
         // ── END ADDED ──
 
         setDevOtp(null);
-
-        const onboardingStatus = response.data?.userOnboardingStatus;
+        let onboardingStatus = response.data?.userOnboardingStatus;
 
         console.log("User onboarding status from login:", onboardingStatus);
+
+        // fallback: if login API doesn't return it, use stored value from send-otp
+        if (onboardingStatus === undefined) {
+          const storedStatus = await storage.getItem("userOnboardingStatus");
+          onboardingStatus = storedStatus === "true";
+          console.log("Using stored onboarding status:", onboardingStatus);
+        }
 
         if (onboardingStatus === true) {
           router.replace('/(supplier)/(tabs)/dashboard');
