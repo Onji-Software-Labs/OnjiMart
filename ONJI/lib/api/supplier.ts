@@ -4,6 +4,7 @@ import axiosInstance from '@/lib/api/axiosConfig';
 
 export interface BusinessSupplier {
   supplierId: string;
+  businessId: string;
   name: string;
   address: string;
   city: string;
