@@ -13,7 +13,7 @@ import java.util.List;
 @AllArgsConstructor
 public class RetailerBusinessRequestDTO {
     private String retailerId;
-
+    private String BusinessId;
     private String name;
     private String address;
     private String city;
