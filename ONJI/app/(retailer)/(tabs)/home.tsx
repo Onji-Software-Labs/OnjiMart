@@ -27,7 +27,7 @@ export default function RetailerHomeScreen() {
       try {
         switch (tileLabel) {
           case 'My Suppliers':
-            router.push('/inventory');
+            router.push('/supplier');
             break;
           case 'Credit':
             router.push('/invoice');
@@ -49,7 +49,10 @@ export default function RetailerHomeScreen() {
   
   return (
     <View style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 100 }} 
+      >
 
         {/* Header */}
         <View style={[styles.headerWrapper, { paddingTop: insets.top + 8 }]}>
