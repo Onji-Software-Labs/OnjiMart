@@ -1,26 +1,104 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Text, View, TextInput, Pressable, ScrollView, StatusBar, TouchableOpacity, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, MaterialCommunityIcons, FontAwesome5, AntDesign } from '@expo/vector-icons';
+import { useFocusEffect, useRouter } from 'expo-router';
 import FavouriteModal from '../../../components/supplier/FavouriteModal';
-import NewSupplierCard, { INewSupplier } from '@/components/supplier/NewSupplierCard';
-import { isLoading } from 'expo-font';
-import { BusinessSupplier, getAllSuppliers } from '@/lib/api/supplier';
+import NewSupplierCard, { INewSupplier } from '../../../components/supplier/NewSupplierCard';
+import { getAllSuppliers, getMySuppliers, BusinessSupplier } from '../../../lib/api/supplier';
+import { storage } from '../../../lib/storage';
+
+// Maps backend ISupplierResponse → INewSupplier used by the card component
+const mapSupplier = (s: BusinessSupplier): INewSupplier => ({
+  id: s.supplierId,
+  businessId: s.businessId, 
+  name: s.name,
+  description: s.contactNumber || '',
+  location: `${s.city}${s.pincode ? ', ' + s.pincode : ''}`,
+  rating: 0,
+  reviews: 0,
+  credit: false,
+});
+
+// New component specifically for "My Suppliers" UI
+const MySupplierCard = ({ supplier }: { supplier: INewSupplier }) => {
+  const [isFavorite, setIsFavorite] = useState(false);
+  const router = useRouter();
+
+  return (
+    <View className="bg-white rounded-2xl p-4 mb-4 border border-gray-100 shadow-sm">
+      <View className="flex-row justify-between">
+        <View className="flex-row flex-1">
+          {/* Avatar Placeholder */}
+          <View className="w-14 h-14 rounded-full bg-blue-100 mr-3 overflow-hidden items-center justify-center">
+            {/* You can replace this with an actual Image component when you have avatar URLs */}
+            <FontAwesome5 name="user-alt" size={24} color="#9CA3AF" />
+          </View>
+          
+          {/* Info */}
+          <View className="flex-1">
+            <Text className="text-base font-bold text-gray-800">{supplier.name}</Text>
+            <Text className="text-sm text-gray-500">{supplier.description || 'Random kaka'}</Text>
+            <Text className="text-xs text-gray-400 mt-0.5">{supplier.location || '3 kms away, Udupi'}</Text>
+            
+            <View className="flex-row items-center mt-1">
+              <AntDesign name="star" size={12} color="#10B981" />
+              <Text className="text-xs text-green-500 ml-1 font-medium">4.5(6)</Text>
+              <Text className="text-xs ml-2">🥔 🍏</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Heart Icon */}
+        <TouchableOpacity onPress={() => setIsFavorite(!isFavorite)} className="p-1">
+          {isFavorite ? (
+            <AntDesign name="heart" size={20} color="#EF4444" />
+          ) : (
+            <AntDesign name="hearto" size={20} color="#9CA3AF" />
+          )}
+        </TouchableOpacity>
+      </View>
+
+      {/* Bottom Actions */}
+      <View className="flex-row justify-between items-center mt-4">
+        <View className="flex-row items-center">
+          <Feather name="box" size={14} color="#9CA3AF" />
+          <Text className="text-xs text-gray-400 ml-1.5">3 days ago</Text>
+        </View>
+
+        <View className="flex-row items-center">
+          <TouchableOpacity className="mr-5">
+            <Feather name="phone" size={18} color="#6B7280" />
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            className="flex-row items-center bg-green-50 px-4 py-2 rounded-lg border border-green-100"
+            onPress={() => {
+              router.push({
+                pathname: "/(retailer)/orderSupplierScreen",
+                params: {
+                  supplierId: supplier.id,
+                  businessId: supplier.businessId,
+                  supplierName: supplier.name
+                }
+              })
+            }}
+          >
+            <Text className="text-green-600 font-medium mr-2">Order</Text>
+            <AntDesign name="arrowright" size={16} color="#10B981" />
+          </TouchableOpacity>
+        </View>
+      </View>
+    </View>
+  );
+};
 
 export default function Dashboard() {
+  // Navigation State for the top tabs
+  const [activeTab, setActiveTab] = useState<'find' | 'my'>('find');
+  //My Suppliers
+  const [mySuppliers, setMySuppliers] = useState<INewSupplier[]>([]);
 
-
-  // Maps backend ISupplierResponse → INewSupplier used by the card component
-  const mapSupplier = (s: BusinessSupplier): INewSupplier => ({
-    id: s.supplierId,
-    name: s.name,
-    description: s.contactNumber || '',
-    location: `${s.city}${s.pincode ? ', ' + s.pincode : ''}`,
-    rating: 0,
-    reviews: 0,
-    credit: false,
-  });
-  
   // State
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
@@ -29,32 +107,59 @@ export default function Dashboard() {
   const [selectedSort, setSelectedSort] = useState<string | null>(null);
   const [isFavouriteModalVisible, setIsFavouriteModalVisible] = useState(false);
   const [connectedIds, setConnectedIds] = useState<string[]>([]);
+  const [favouriteIds, setFavouriteIds] = useState<string[]>([]);
+
+  // API data state
+  const [suppliers, setSuppliers] = useState<INewSupplier[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+
+  const fetchData = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setFetchError(null);
+
+      // Fetch ALL suppliers for the "Find new suppliers" tab
+      const data = await getAllSuppliers();
+      const mapped = data.map(mapSupplier);
+
+      // De-duplicate by supplierId — backend sometimes returns the same supplier twice
+      const seen = new Set<string>();
+      const unique = mapped.filter(s => {
+        if (seen.has(s.id)) return false;
+        seen.add(s.id);
+        return true;
+      });
+      setSuppliers(unique);
+
+      // Load the logged-in retailer's suppliers from storage.
+      const retailerId = await storage.getItem('userId');
+      if (retailerId) {
+        const myData = await getMySuppliers(retailerId);
+        setMySuppliers(myData.map(mapSupplier));
+      } else {
+        console.log('No userId found in local storage.');
+        setMySuppliers([]);
+      }
+    } catch (err: any) {
+      console.error('Failed to fetch suppliers:', err);
+      setFetchError('Unable to load suppliers. Please try again.');
+      setMySuppliers([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchData();
+    }, [fetchData])
+  );
 
   // Filter state
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [creditProvided, setCreditProvided] = useState<'yes' | 'no' | null>(null);
   const [selectedQuantity, setSelectedQuantity] = useState<string>('');
-  // API data state
-  const [suppliers, setSuppliers] = useState<INewSupplier[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [fetchError, setFetchError] = useState<string | null>(null);
-  
-  useEffect(() => {
-    const fetchSuppliers = async () => {
-      try {
-        setIsLoading(true);
-        setFetchError(null);
-        const data = await getAllSuppliers();
-        setSuppliers(data.map(mapSupplier));
-      } catch (err: any) {
-        console.error('Failed to fetch suppliers:', err);
-        setFetchError('Unable to load suppliers. Please try again.');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchSuppliers();
-  }, []);
 
   // Constants
   const categories = ['Fruits', 'Vegetable', 'Premium', 'Seasonal'];
@@ -105,28 +210,52 @@ export default function Dashboard() {
     );
   };
 
-  // Filter live supplier list by search query
-  const filteredSuppliers = suppliers.filter(s =>
-    s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    s.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    s.location.toLowerCase().includes(searchQuery.toLowerCase())
+  const handleToggleFav = (id: string) => {
+    setFavouriteIds(prev =>
+      prev.includes(id) ? prev.filter(fid => fid !== id) : [...prev, id]
+    );
+  };
+
+  const favouriteSuppliers = suppliers.filter(s => favouriteIds.includes(s.id));
+
+  // Decide which list to search based on the active tab
+  const activeList = activeTab === 'find' ? suppliers : mySuppliers;
+
+  // Filter the chosen list by search query
+  const filteredSuppliers = activeList.filter(s =>
+    s.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    s.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    s.location?.toLowerCase().includes(searchQuery.toLowerCase())
   );
+  
   return (
     <View className="flex-1 bg-white">
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
       <SafeAreaView className="bg-white">
         <View className="px-4 pt-2">
-          {/* Top Tabs */}
-          <View className="bg-gray-200 rounded-lg p-1 mb-4">
+          
+          {/* Top Tabs (Updated to switch states) */}
+          <View className="bg-gray-100 rounded-lg p-1 mb-4">
             <View className="flex-row">
-              <Pressable className="flex-1 py-3 px-4 bg-white rounded-md shadow-sm">
-                <Text className="text-center text-green-600 font-medium">Find new suppliers</Text>
+              <Pressable 
+                className={`flex-1 py-2.5 px-4 rounded-md ${activeTab === 'find' ? 'bg-white shadow-sm' : ''}`}
+                onPress={() => setActiveTab('find')}
+              >
+                <Text className={`text-center font-medium ${activeTab === 'find' ? 'text-green-600' : 'text-gray-500'}`}>
+                  Find new suppliers
+                </Text>
               </Pressable>
-              <Pressable className="flex-1 py-3 px-4">
-                <Text className="text-center text-gray-600 font-medium">My Suppliers</Text>
+              <Pressable 
+                className={`flex-1 py-2.5 px-4 rounded-md ${activeTab === 'my' ? 'bg-white shadow-sm' : ''}`}
+                onPress={() => setActiveTab('my')}
+              >
+                <Text className={`text-center font-medium ${activeTab === 'my' ? 'text-green-600' : 'text-gray-500'}`}>
+                  My Suppliers
+                </Text>
               </Pressable>
             </View>
           </View>
+
           {/* Search & Actions */}
           <View className="flex-row items-center justify-between mb-4">
             <View className="relative flex-1 mr-4">
@@ -142,7 +271,7 @@ export default function Dashboard() {
               </Pressable>
             </View>
             <View className="flex-row items-center space-x-6">
-              <Pressable 
+              <Pressable
                 className={`items-center p-2 rounded-lg ${isFilterModalVisible || hasActiveFilters ? 'border-2 border-green-500 bg-green-50' : ''}`}
                 onPress={() => {
                   setIsFilterModalVisible(true);
@@ -152,7 +281,7 @@ export default function Dashboard() {
                 <Feather name="filter" size={20} color={isFilterModalVisible || hasActiveFilters ? "#10B981" : "#6B7280"} />
                 <Text className={`text-xs mt-1 ${isFilterModalVisible || hasActiveFilters ? 'text-green-600 font-medium' : 'text-gray-500'}`}>Filter</Text>
               </Pressable>
-              <Pressable 
+              <Pressable
                 className={`items-center p-2 rounded-lg ${isSortModalVisible || selectedSort ? 'border-2 border-green-500 bg-green-50' : ''}`}
                 onPress={() => {
                   setIsSortModalVisible(true);
@@ -169,6 +298,7 @@ export default function Dashboard() {
             </View>
           </View>
           <View className="h-px bg-gray-200 mb-4" />
+          
           {/* Filter Chips */}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4">
             <View className="flex-row space-x-2">
@@ -193,18 +323,26 @@ export default function Dashboard() {
           <View className="h-px bg-gray-200 mb-4" />
         </View>
       </SafeAreaView>
-      
-  {/* Supplier List */}
+
+      {/* Supplier List (Updated to switch cards based on tab) */}
       <FlatList
         data={filteredSuppliers}
-       keyExtractor={(item, index) => item.id ? `${item.id}-${index}` : String(index)}
-        renderItem={({ item }) => (
-          <NewSupplierCard
-            supplier={item}
-            isConnected={connectedIds.includes(item.id)}
-            onConnect={handleConnect}
-          />
-        )}
+        keyExtractor={(item, index) => `${item.id}-${index}`}
+        renderItem={({ item }) => {
+          if (activeTab === 'find') {
+            return (
+              <NewSupplierCard
+                supplier={item}
+                isConnected={connectedIds.includes(item.id)}
+                isFavourite={favouriteIds.includes(item.id)}
+                onConnect={handleConnect}
+                onToggleFavourite={handleToggleFav}
+              />
+            );
+          } else {
+            return <MySupplierCard supplier={item} />;
+          }
+        }}
         contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 120 }}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
@@ -280,7 +418,7 @@ export default function Dashboard() {
                 ))}
               </View>
             </View>
-            {/* Supplier Ratings Section - Multi-select Chips */}
+            {/* Supplier Ratings Section */}
             <View className="mb-6">
               <Text className="text-base font-medium text-gray-800 mb-4">Supplier Ratings</Text>
               <View className="flex-row flex-wrap">
@@ -359,6 +497,7 @@ export default function Dashboard() {
       <FavouriteModal
         visible={isFavouriteModalVisible}
         onClose={() => setIsFavouriteModalVisible(false)}
+        favourites={favouriteSuppliers}
       />
     </View>
   );

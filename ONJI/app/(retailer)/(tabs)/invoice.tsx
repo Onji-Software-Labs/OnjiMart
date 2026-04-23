@@ -161,7 +161,6 @@ export default function Invoice() {
 }
 
 // Invoice Card Component
-// Invoice Card Component
 function InvoiceCard({ item }: any) {
   // 1. Add local state to manage expand/collapse
   const [isExpanded, setIsExpanded] = useState(item.expanded || false);
