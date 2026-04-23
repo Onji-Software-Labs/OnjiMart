@@ -15,4 +15,5 @@ import com.sattva.model.Supplier;
 public interface SupplierRepository extends JpaRepository<Supplier, String> {
     Page<Supplier> findAll(Pageable pageable);
     List<Supplier> findDistinctByCategories_IdIn(List<String> categoryIds);
+    List<Supplier> findByIdIn(List<String> ids);
 }
