@@ -292,8 +292,23 @@ export default function OTPVerification() {
           console.log("Using stored onboarding status:", onboardingStatus);
         }
 
+       let userType = response.data?.userType;
+
+        if (!userType) {
+          const storedType = await storage.getItem('userType');
+          userType = storedType;
+        }
+
+        console.log('userType:', userType);
+
         if (onboardingStatus === true) {
-          router.replace('/(supplier)/(tabs)/dashboard');
+          if (userType === 'Supplier') {
+            router.replace('/(supplier)/(tabs)/dashboard');
+          } else if (userType === 'Retailer') {
+            router.replace('/(retailer)/(tabs)/home');
+          } else {
+            router.replace('/(auth)/personalProfile');
+          }
         } else {
           router.replace('/(auth)/personalProfile');
         }

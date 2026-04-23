@@ -150,6 +150,9 @@ const BuisnessScreen = () => {
         categoryIds: selectedCategoryIds,       
         subCategoryIds: selectedSubCategoryIds, 
       };
+
+      await storage.setItem('userType', paramState.radioState); 
+
       // Navigate after success
       if (paramState.radioState === 'Retailer') {
       console.log('Sending payload:', Retailer);
