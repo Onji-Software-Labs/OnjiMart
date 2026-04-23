@@ -49,7 +49,7 @@ function runExtraction() {
             unitValue: "kg",
             minOrderQuantity: 1,
             imageUrl: img.src,
-            categoryId: "f257c4f6-06af-410c-a9e8-0eb3785fad9a",
+            categoryId: "   ",
             subCategoryId: getSubCategoryId(name)
         });
     });
