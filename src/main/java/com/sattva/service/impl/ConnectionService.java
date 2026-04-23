@@ -6,6 +6,7 @@ import com.sattva.model.Connection;
 import com.sattva.repository.ConnectionRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import java.util.List;
 
 import java.util.Optional;
 
@@ -60,6 +61,10 @@ public class ConnectionService {
                     }
                     return conn;
                 });
+    }
+    // Fetch all pending connection requests for a supplier (used for notifications)
+    public List<Connection> getPendingRequests(String supplierId) {
+        return repo.findBySupplierIdAndStatus(supplierId, ConnectionStatus.PENDING);
     }
 
 }

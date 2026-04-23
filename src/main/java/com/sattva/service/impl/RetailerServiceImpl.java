@@ -1,22 +1,19 @@
 package com.sattva.service.impl;
+
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 import com.sattva.dto.*;
+import com.sattva.enums.ConnectionStatus;
 import com.sattva.model.*;
 import com.sattva.repository.*;
+
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
-//import com.netflix.discovery.converters.Auto;
-import com.sattva.dto.SupplierDTO;
-import com.sattva.dto.SupplierFilterRequest;
 import com.sattva.exception.ResourceNotFoundException;
 import com.sattva.service.RetailerService;
 
@@ -41,32 +38,64 @@ public class RetailerServiceImpl implements RetailerService {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private ConnectionRepository connectionRepository;
+
+    // 🔥 FIXED METHOD
     @Override
     public PaginatedResponseDTO<SupplierListDTO> getSuppliersForRetailer(String retailerId, int page, int size) {
+
         Retailer retailer = retailerRepository.findById(retailerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Retailer not found with id: " + retailerId));
 
-        Pageable pageable = PageRequest.of(page, size);
-        Page<Supplier> supplierPage = supplierRepository.findAll(pageable);
+        List<Connection> connections = connectionRepository
+                .findByRetailerIdAndStatus(retailerId, ConnectionStatus.ACCEPTED);
+
+        List<String> supplierIds = connections.stream()
+                .map(Connection::getSupplierId)
+                .distinct()
+                .collect(Collectors.toList());
+
+        if (supplierIds.isEmpty()) {
+            PaginatedResponseDTO<SupplierListDTO> response = new PaginatedResponseDTO<>();
+            response.setContent(List.of());
+            response.setPage(page);
+            response.setSize(size);
+            response.setTotalElements(0);
+            response.setTotalPages(0);
+            response.setLast(true);
+            return response;
+        }
+
+        List<Supplier> suppliers = supplierRepository.findByIdIn(supplierIds);
+
+        List<SupplierListDTO> dtoList = suppliers.stream()
+                .map(this::convertToListDTO)
+                .collect(Collectors.toList());
+
+        int start = Math.min(page * size, dtoList.size());
+        int end = Math.min(start + size, dtoList.size());
+
+        List<SupplierListDTO> paginatedList = dtoList.subList(start, end);
 
         PaginatedResponseDTO<SupplierListDTO> response = new PaginatedResponseDTO<>();
-        response.setContent(
-                supplierPage.getContent().stream()
-                        .map(this::convertToListDTO)
-                        .collect(Collectors.toList())
-        );
-
+        response.setContent(paginatedList);
         response.setPage(page);
         response.setSize(size);
-        response.setTotalElements(supplierPage.getTotalElements());
-        response.setTotalPages(supplierPage.getTotalPages());
-        response.setLast(supplierPage.isLast());
+        response.setTotalElements(dtoList.size());
+        response.setTotalPages((int) Math.ceil((double) dtoList.size() / size));
+        response.setLast(end >= dtoList.size());
+
         return response;
     }
 
+    // ✅ SINGLE METHOD (duplicate removed)
     private SupplierListDTO convertToListDTO(Supplier supplier) {
+
         String businessNames = supplier.getBusinesses().stream()
                 .map(SupplierBusiness::getName)
+                .filter(name -> name != null && !name.isEmpty())
+                .distinct()
                 .collect(Collectors.joining(", "));
 
         String cities = supplier.getBusinesses().stream()
@@ -77,19 +106,19 @@ public class RetailerServiceImpl implements RetailerService {
 
         return new SupplierListDTO(
                 supplier.getId(),
-                supplier.getUser().getFullName(),
+                supplier.getUser() != null ? supplier.getUser().getFullName() : null,
                 businessNames,
                 cities,
                 supplier.getRating()
         );
     }
-    
+
     @Override
     public List<SupplierDTO> filterSuppliers(String retailerId, SupplierFilterRequest request) {
+
         Retailer retailer = retailerRepository.findById(retailerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Retailer not found"));
 
-        // Get all pincodes from retailer's shops
         List<String> retailerPincodes = retailer.getShops().stream()
                 .map(Shop::getPincode)
                 .collect(Collectors.toList());
@@ -100,7 +129,6 @@ public class RetailerServiceImpl implements RetailerService {
 
         List<Supplier> suppliers;
 
-        // Filter suppliers by category
         if (categoryNames != null && !categoryNames.isEmpty()) {
             List<String> categoryIds = categoryRepository.findByNameIn(categoryNames)
                     .stream()
@@ -114,7 +142,6 @@ public class RetailerServiceImpl implements RetailerService {
 
         suppliers = suppliers.stream()
                 .filter(supplier -> {
-                    // Get all business pincodes for this supplier
                     List<String> supplierPincodes = supplier.getBusinesses().stream()
                             .map(SupplierBusiness::getPincode)
                             .collect(Collectors.toList());
@@ -127,7 +154,6 @@ public class RetailerServiceImpl implements RetailerService {
                     return true;
                 })
                 .filter(supplier -> {
-                    //Filter by rating
                     if (ratingFilter != null) {
                         return supplier.getRating() != null && supplier.getRating() >= ratingFilter;
                     }
@@ -140,21 +166,20 @@ public class RetailerServiceImpl implements RetailerService {
                 .collect(Collectors.toList());
     }
 
-
     private SupplierDTO convertToDTO(Supplier supplier) {
         SupplierDTO dto = new SupplierDTO();
         dto.setId(supplier.getId());
         dto.setFullName(supplier.getUser().getFullName());
         dto.setEmail(supplier.getUser().getEmail());
         dto.setRating(supplier.getRating());
-        //dto.setPincode(supplier.getUser().getPincode());
+
         String supplierPincodes = supplier.getBusinesses().stream()
                 .filter(SupplierBusiness::isActive)
                 .map(SupplierBusiness::getPincode)
                 .distinct()
                 .collect(Collectors.joining(", "));
-        dto.setPincode(supplierPincodes);
 
+        dto.setPincode(supplierPincodes);
 
         dto.setCategoryIds(
                 supplier.getCategories()
@@ -162,6 +187,7 @@ public class RetailerServiceImpl implements RetailerService {
                         .map(Category::getId)
                         .collect(Collectors.toList())
         );
+
         return dto;
     }
 
@@ -171,18 +197,11 @@ public class RetailerServiceImpl implements RetailerService {
         User user = userRepository.findById(dto.getRetailerId())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        // 2. Get or create retailer
         Retailer retailer = retailerRepository.findById(dto.getRetailerId())
                 .orElseGet(() -> retailerRepository.save(
-                        Retailer.builder()
-                                .user(user)
-                                .build()
-
+                        Retailer.builder().user(user).build()
                 ));
 
-        System.out.println("THe new retailer created successfully with ID : "+ retailer);
-
-        new RetailerBusiness();
         RetailerBusiness business = RetailerBusiness.builder()
                 .id(UUID.randomUUID().toString())
                 .retailer(retailer)
@@ -195,15 +214,6 @@ public class RetailerServiceImpl implements RetailerService {
                 .build();
 
         retailer.getRetailerBusinesses().add(business);
-        System.out.println("THe new Business retailer created successfully with ID : "+ business);
-
-//        if (dto.getCategoryIds() != null) {
-//            Set<Category> categories = dto.getCategoryIds().stream()
-//                    .map(id -> categoryRepository.findById(id)
-//                            .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + id)))
-//                    .collect(Collectors.toSet());
-//            retailer.getCategories().addAll(categories);
-//        }
 
         Retailer savedRetailer = retailerRepository.save(retailer);
         return modelMapper.map(savedRetailer, RetailerDTO.class);
@@ -212,39 +222,36 @@ public class RetailerServiceImpl implements RetailerService {
     @Override
     public RetailerBusinessRequestDTO getBusinessDetails(String businessId) {
         RetailerBusiness business = retailerBusinessRepository.findById(businessId)
-                .orElseThrow(() -> new ResourceNotFoundException("Business not found with id: " + businessId));
+                .orElseThrow(() -> new ResourceNotFoundException("Business not found"));
         RetailerBusinessRequestDTO dto = modelMapper.map(business, RetailerBusinessRequestDTO.class);
         populateCategoryDetails(dto, business.getRetailer());
         return dto;
-
     }
 
     @Override
     public List<RetailerBusinessRequestDTO> getAllBusinesses() {
         return retailerBusinessRepository.findAll().stream()
-                .map(business -> {
-                    RetailerBusinessRequestDTO dto = modelMapper.map(business, RetailerBusinessRequestDTO.class);
-                    populateCategoryDetails(dto, business.getRetailer());
+                .map(b -> {
+                    RetailerBusinessRequestDTO dto = modelMapper.map(b, RetailerBusinessRequestDTO.class);
+                    populateCategoryDetails(dto, b.getRetailer());
                     return dto;
-                })
-                .collect(Collectors.toList());
+                }).collect(Collectors.toList());
     }
 
     @Override
     public List<RetailerBusinessRequestDTO> getBusinessesByPincode(String pincode) {
         return retailerBusinessRepository.findByPincode(pincode).stream()
-                .map(business -> {
-                    RetailerBusinessRequestDTO dto = modelMapper.map(business, RetailerBusinessRequestDTO.class);
-                    populateCategoryDetails(dto, business.getRetailer());
+                .map(b -> {
+                    RetailerBusinessRequestDTO dto = modelMapper.map(b, RetailerBusinessRequestDTO.class);
+                    populateCategoryDetails(dto, b.getRetailer());
                     return dto;
-                })
-                .collect(Collectors.toList());
+                }).collect(Collectors.toList());
     }
 
     @Override
     public RetailerDTO updateBusinessAndCategories(String businessId, RetailerBusinessRequestDTO dto) {
         RetailerBusiness business = retailerBusinessRepository.findById(businessId)
-                .orElseThrow(() -> new ResourceNotFoundException("Business not found with id: " + businessId));
+                .orElseThrow(() -> new ResourceNotFoundException("Business not found"));
 
         business.setName(dto.getName());
         business.setCity(dto.getCity());
@@ -254,13 +261,15 @@ public class RetailerServiceImpl implements RetailerService {
 
         Retailer retailer = business.getRetailer();
         updateRetalierCategories(retailer, dto.getCategoryIds());
+
         return modelMapper.map(retailerRepository.save(retailer), RetailerDTO.class);
     }
 
     @Override
     public void deleteBusinessAndCategories(String businessId) {
         RetailerBusiness business = retailerBusinessRepository.findById(businessId)
-                .orElseThrow(() -> new ResourceNotFoundException("Business not found with id: " + businessId));
+                .orElseThrow(() -> new ResourceNotFoundException("Business not found"));
+
         Retailer retailer = business.getRetailer();
         retailer.getRetailerBusinesses().remove(business);
         retailerBusinessRepository.delete(business);
@@ -268,21 +277,21 @@ public class RetailerServiceImpl implements RetailerService {
         if (retailer.getRetailerBusinesses().isEmpty()) {
             retailer.getCategories().clear();
         }
+
         retailerRepository.save(retailer);
     }
 
     private void updateRetalierCategories(Retailer retailer, List<String> categoryIds) {
         Set<Category> categories = categoryIds.stream()
                 .map(id -> categoryRepository.findById(id)
-                        .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + id)))
+                        .orElseThrow(() -> new ResourceNotFoundException("Category not found")))
                 .collect(Collectors.toSet());
         retailer.setCategories(categories);
     }
 
     private void populateCategoryDetails(RetailerBusinessRequestDTO dto, Retailer retailer) {
         dto.setCategoryIds(
-                retailer.getCategories()
-                        .stream()
+                retailer.getCategories().stream()
                         .map(Category::getId)
                         .collect(Collectors.toList())
         );

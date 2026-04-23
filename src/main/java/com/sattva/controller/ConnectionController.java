@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Optional;
 //Added newly
 @CrossOrigin
@@ -45,5 +46,11 @@ public class ConnectionController {
        return service.rejectConnection(retailerId, supplierId)
                .map(ResponseEntity::ok)
                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    // Fetch all pending connection requests for a supplier (notifications)
+    @GetMapping("/supplier/{supplierId}/requests")
+        public ResponseEntity<List<Connection>> getPendingRequests(@PathVariable String supplierId) {
+            return ResponseEntity.ok(service.getPendingRequests(supplierId));
     }
 }

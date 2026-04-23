@@ -197,7 +197,7 @@ export default function Dashboard() {
   {/* Supplier List */}
       <FlatList
         data={filteredSuppliers}
-        keyExtractor={item => item.id}
+       keyExtractor={(item, index) => item.id ? `${item.id}-${index}` : String(index)}
         renderItem={({ item }) => (
           <NewSupplierCard
             supplier={item}

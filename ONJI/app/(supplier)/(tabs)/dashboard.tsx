@@ -530,7 +530,9 @@ export default function Dashboard() {
 
           {/* Icons */}
           <View style={{ flexDirection: 'row', marginLeft: 12, zIndex: 3 }}>
-            <TouchableOpacity style={{
+            <TouchableOpacity 
+            onPress={() => router.push('/notifications'as any )}
+            style={{
               width: isWeb ? 44 : 40,
               height: isWeb ? 44 : 40,
               borderRadius: isWeb ? 22 : 20,
