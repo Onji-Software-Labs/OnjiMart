@@ -7,10 +7,12 @@ import {
   ScrollView, 
   SafeAreaView, 
   StatusBar,
-  Platform 
+  Platform ,
+  Alert
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons, Feather } from '@expo/vector-icons'; 
+import axiosInstance from '../../lib/api/axiosConfig';
 
 // Mock data to map through
 const requests = [
@@ -33,7 +35,46 @@ export default function NotificationsScreen() {
   const handleConfirm = (id: number) => {
     setConfirmedRequests((prev) => [...prev, id]);
   };
+ /* const handleDelete = async (request: any) => {
+    try {
+      const payload = {
+        id: request.id,
+        retailerId: "string", 
+        supplierId: "string", 
+        status: "PENDING",
+        createdAt: new Date().toISOString() 
+      };
 
+      // 1. Changed to axiosInstance and removed the domain
+      await axiosInstance.post('/api/connections/reject', payload);
+      
+      setRequestsList((prev) => prev.filter(r => r.id !== request.id));
+    } catch (error) {
+      console.error("Delete API failed:", error);
+      Alert.alert("Error", "Failed to delete the request.");
+    }
+  };
+
+  const handleConfirm = async (request: any) => {
+    try {
+      const payload = {
+        id: request.id,
+        retailerId: "string", 
+        supplierId: "string", 
+        status: "PENDING",
+        createdAt: new Date().toISOString()
+      };
+
+      // 2. Changed to axiosInstance and removed the domain
+      await axiosInstance.post('/api/connections/accept', payload);
+      
+      setConfirmedRequests((prev) => [...prev, request.id]);
+    } catch (error) {
+      console.error("Confirm API failed:", error);
+      Alert.alert("Error", "Failed to confirm the request.");
+    }
+  };
+*/
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#FFFFFF' }}> 
       <StatusBar barStyle="dark-content" />

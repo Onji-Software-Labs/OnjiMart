@@ -3,44 +3,129 @@ import { Text, View, TextInput, Pressable, ScrollView, StatusBar, TouchableOpaci
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, MaterialCommunityIcons, FontAwesome5, AntDesign } from '@expo/vector-icons';
 import FavouriteModal from '../../../components/supplier/FavouriteModal';
-import NewSupplierCard, { INewSupplier } from '../../../components/supplier/NewSupplierCard';
+
 import { getAllSuppliers, getMySuppliers, BusinessSupplier } from '../../../lib/api/supplier';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Maps backend ISupplierResponse → INewSupplier used by the card component
-const mapSupplier = (s: BusinessSupplier): INewSupplier => ({
-  id: s.supplierId,
-  businessId: s.businessId, 
-  name: s.name,
-  description: s.contactNumber || '',
-  location: `${s.city}${s.pincode ? ', ' + s.pincode : ''}`,
-  rating: 0,
-  reviews: 0,
-  credit: false,
-});
+export interface INewSupplier {
+  id: string;
+  businessId: string;
+  name: string;
+  description: string;
+  location: string;
+  rating: number;
+  reviews: number;
+  credit: boolean;
+}
 
-// New component specifically for "My Suppliers" UI
+// Static mock data for "Find new Vendors" tab
+const MOCK_ALL_VENDORS: INewSupplier[] = [
+  { id: '1', businessId: 'b1', name: 'Sunway trading', description: 'Random kaka', location: '3 kms away, Udupi', rating: 4.5, reviews: 6, credit: false },
+  { id: '2', businessId: 'b2', name: 'Sunway trading', description: 'Random kaka', location: '3 kms away, Udupi', rating: 4.5, reviews: 6, credit: false },
+  { id: '3', businessId: 'b3', name: 'Sunway trading', description: 'Random kaka', location: '3 kms away, Udupi', rating: 4.5, reviews: 6, credit: true },
+  { id: '4', businessId: 'b4', name: 'Sunway trading', description: 'Random kaka', location: '3 kms away, Udupi', rating: 4.5, reviews: 6, credit: false },
+  { id: '5', businessId: 'b5', name: 'Sunway trading', description: 'Random kaka', location: '3 kms away, Udupi', rating: 4.5, reviews: 6, credit: false },
+  { id: '6', businessId: 'b6', name: 'Sunway trading', description: 'Random kaka', location: '3 kms away, Udupi', rating: 4.5, reviews: 6, credit: true },
+  { id: '7', businessId: 'b7', name: 'Sunway trading', description: 'Random kaka', location: '3 kms away, Udupi', rating: 4.5, reviews: 6, credit: false },
+  { id: '8', businessId: 'b8', name: 'Sunway trading', description: 'Random kaka', location: '3 kms away, Udupi', rating: 4.5, reviews: 6, credit: false },
+];
+
+// Static mock data for "My Vendors" tab
+const MOCK_MY_VENDORS: INewSupplier[] = [
+  { id: 'm1', businessId: 'b1', name: 'Sunway trading', description: 'Random kaka', location: '3 kms away, Udupi', rating: 4.5, reviews: 6, credit: false },
+  { id: 'm2', businessId: 'b2', name: 'Sunway trading', description: 'Random kaka', location: '3 kms away, Udupi', rating: 4.5, reviews: 6, credit: false },
+  { id: 'm3', businessId: 'b3', name: 'Sunway trading', description: 'Random kaka', location: '3 kms away, Udupi', rating: 4.5, reviews: 6, credit: false },
+  { id: 'm4', businessId: 'b4', name: 'Sunway trading', description: 'Random kaka', location: '3 kms away, Udupi', rating: 4.5, reviews: 6, credit: false },
+  { id: 'm5', businessId: 'b5', name: 'Sunway trading', description: 'Random kaka', location: '3 kms away, Udupi', rating: 4.5, reviews: 6, credit: false },
+  { id: 'm6', businessId: 'b6', name: 'Sunway trading', description: 'Random kaka', location: '3 kms away, Udupi', rating: 4.5, reviews: 6, credit: false },
+];
+
+// Inline card for "Find new Vendors" tab — Connect / Cancel toggle, no navigation
+const FindVendorCard = ({
+  supplier,
+  isConnected,
+  isFavourite,
+  onConnect,
+  onToggleFavourite,
+}: {
+  supplier: INewSupplier;
+  isConnected: boolean;
+  isFavourite: boolean;
+  onConnect: (id: string) => void;
+  onToggleFavourite: (id: string) => void;
+}) => (
+  <View className="bg-white rounded-2xl p-3 mb-3 border border-gray-100 shadow-sm">
+    <View className="flex-row justify-between items-start">
+      <View className="flex-row flex-1">
+        {/* Avatar */}
+        <View className="w-12 h-12 rounded-full bg-orange-100 mr-3 overflow-hidden items-center justify-center">
+          <FontAwesome5 name="user-alt" size={20} color="#9CA3AF" />
+        </View>
+ 
+        {/* Info */}
+        <View className="flex-1">
+          <Text className="text-sm font-bold text-gray-800">{supplier.name}</Text>
+          <Text className="text-xs text-gray-500">{supplier.description || 'Random kaka'}</Text>
+          <Text className="text-xs text-gray-400 mt-0.5">{supplier.location || '3 kms away, Udupi'}</Text>
+          <View className="flex-row items-center mt-1">
+            <AntDesign name="star" size={11} color="#10B981" />
+            <Text className="text-xs text-green-500 ml-1 font-medium">4.5(6)</Text>
+            <Text className="text-xs ml-2">🥔 🍏</Text>
+          </View>
+        </View>
+      </View>
+ 
+      {/* Heart */}
+      <TouchableOpacity onPress={() => onToggleFavourite(supplier.id)} className="p-1">
+        <AntDesign name={isFavourite ? 'heart' : 'hearto'} size={18} color={isFavourite ? '#EF4444' : '#9CA3AF'} />
+      </TouchableOpacity>
+    </View>
+ 
+    {/* Connect / Cancel button */}
+    <View className="items-end mt-3">
+      <TouchableOpacity
+        onPress={() => onConnect(supplier.id)}
+        className={`flex-row items-center px-3 py-1.5 rounded-lg border ${
+          isConnected ? 'border-gray-300 bg-white' : 'border-gray-300 bg-white'
+        }`}
+      >
+        {isConnected ? (
+          <>
+            <Text className="text-gray-500 text-xs font-medium mr-1">Cancel</Text>
+            <AntDesign name="close" size={13} color="#6B7280" />
+          </>
+        ) : (
+          <>
+            <Text className="text-gray-700 text-xs font-medium mr-1">Connect</Text>
+            <MaterialCommunityIcons name="account-plus" size={14} color="#10B981" />
+          </>
+        )}
+      </TouchableOpacity>
+    </View>
+  </View>
+);
+ 
+// New component specifically for "My Vendors" UI
 const MySupplierCard = ({ supplier }: { supplier: INewSupplier }) => {
   const [isFavorite, setIsFavorite] = useState(false);
 
   return (
-    <View className="bg-white rounded-2xl p-4 mb-4 border border-gray-100 shadow-sm">
-      <View className="flex-row justify-between">
+    <View className="bg-white rounded-2xl p-3 mb-3 border border-gray-100 shadow-sm">
+      <View className="flex-row justify-between items-start">
         <View className="flex-row flex-1">
           {/* Avatar Placeholder */}
-          <View className="w-14 h-14 rounded-full bg-blue-100 mr-3 overflow-hidden items-center justify-center">
-            {/* You can replace this with an actual Image component when you have avatar URLs */}
-            <FontAwesome5 name="user-alt" size={24} color="#9CA3AF" />
+          <View className="w-12 h-12 rounded-full bg-orange-100 mr-3 overflow-hidden items-center justify-center">
+            <FontAwesome5 name="user-alt" size={20} color="#9CA3AF" />
           </View>
           
           {/* Info */}
           <View className="flex-1">
-            <Text className="text-base font-bold text-gray-800">{supplier.name}</Text>
-            <Text className="text-sm text-gray-500">{supplier.description || 'Random kaka'}</Text>
+            <Text className="text-sm font-bold text-gray-800">{supplier.name}</Text>
+            <Text className="text-xs text-gray-500">{supplier.description || 'Random kaka'}</Text>
             <Text className="text-xs text-gray-400 mt-0.5">{supplier.location || '3 kms away, Udupi'}</Text>
             
             <View className="flex-row items-center mt-1">
-              <AntDesign name="star" size={12} color="#10B981" />
+              <AntDesign name="star" size={11} color="#10B981" />
               <Text className="text-xs text-green-500 ml-1 font-medium">4.5(6)</Text>
               <Text className="text-xs ml-2">🥔 🍏</Text>
             </View>
@@ -50,28 +135,28 @@ const MySupplierCard = ({ supplier }: { supplier: INewSupplier }) => {
         {/* Heart Icon */}
         <TouchableOpacity onPress={() => setIsFavorite(!isFavorite)} className="p-1">
           {isFavorite ? (
-            <AntDesign name="heart" size={20} color="#EF4444" />
+            <AntDesign name="heart" size={18} color="#EF4444" />
           ) : (
-            <AntDesign name="hearto" size={20} color="#9CA3AF" />
+            <AntDesign name="hearto" size={18} color="#9CA3AF" />
           )}
         </TouchableOpacity>
       </View>
 
       {/* Bottom Actions */}
-      <View className="flex-row justify-between items-center mt-4">
+      <View className="flex-row justify-between items-center mt-3">
         <View className="flex-row items-center">
-          <Feather name="box" size={14} color="#9CA3AF" />
-          <Text className="text-xs text-gray-400 ml-1.5">3 days ago</Text>
+          <Feather name="clock" size={12} color="#9CA3AF" />
+          <Text className="text-xs text-gray-400 ml-1">3 days ago</Text>
         </View>
 
         <View className="flex-row items-center">
-          <TouchableOpacity className="mr-5">
-            <Feather name="phone" size={18} color="#6B7280" />
+          <TouchableOpacity className="mr-4">
+            <Feather name="phone" size={16} color="#6B7280" />
           </TouchableOpacity>
           
-          <TouchableOpacity className="flex-row items-center bg-green-50 px-4 py-2 rounded-lg border border-green-100">
-            <Text className="text-green-600 font-medium mr-2">Order</Text>
-            <AntDesign name="arrowright" size={16} color="#10B981" />
+          <TouchableOpacity className="flex-row items-center bg-green-500 px-3 py-1.5 rounded-lg">
+            <Text className="text-white font-medium text-xs mr-1">Connected</Text>
+            <AntDesign name="arrowright" size={13} color="white" />
           </TouchableOpacity>
         </View>
       </View>
@@ -82,8 +167,6 @@ const MySupplierCard = ({ supplier }: { supplier: INewSupplier }) => {
 export default function Dashboard() {
   // Navigation State for the top tabs
   const [activeTab, setActiveTab] = useState<'find' | 'my'>('find');
-  //My Suppliers
-  const [mySuppliers, setMySuppliers] = useState<INewSupplier[]>([]);
 
   // State
   const [searchQuery, setSearchQuery] = useState('');
@@ -94,60 +177,6 @@ export default function Dashboard() {
   const [isFavouriteModalVisible, setIsFavouriteModalVisible] = useState(false);
   const [connectedIds, setConnectedIds] = useState<string[]>([]);
   const [favouriteIds, setFavouriteIds] = useState<string[]>([]);
-
-  // API data state
-  const [suppliers, setSuppliers] = useState<INewSupplier[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [fetchError, setFetchError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setIsLoading(true);
-        setFetchError(null);
-        
-        // Fetch ALL suppliers for the "Find new suppliers" tab
-        const data = await getAllSuppliers();
-        const mapped = data.map(mapSupplier);
-        
-        // De-duplicate by supplierId — backend sometimes returns the same supplier twice
-        const seen = new Set<string>();
-        const unique = mapped.filter(s => {
-          if (seen.has(s.id)) return false;
-          seen.add(s.id);
-          return true;
-        });
-        setSuppliers(unique);
-
-        // Fetch ONLY connected suppliers for the "My Suppliers" tab
-        // TODO: Replace this hardcoded ID with the logged-in user's ID
-        // const currentRetailerId = await AsyncStorage.getItem('shopId');
-        /**
-          const retailerId = await AsyncStorage.getItem('shopId');
-        if (retailerId) {
-        // If we successfully got the ID from storage, fetch their suppliers
-          const myData = await getMySuppliers(retailerId);
-          setMySuppliers(myData.map(mapSupplier));
-          } else {
-          // Handle the case where the ID is missing (e.g., user is logged out)
-          console.log("No shopId found in local storage.");
-          }
-         */
-        const retailerId = "f53140c4-5aa5-4e92-9964-a529e0d72cb7"; 
-        
-        const myData = await getMySuppliers(retailerId);
-        setMySuppliers(myData.map(mapSupplier));
-
-      } catch (err: any) {
-        console.error('Failed to fetch suppliers:', err);
-        setFetchError('Unable to load suppliers. Please try again.');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    fetchData();
-  }, []);
 
   // Filter state
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
@@ -209,10 +238,10 @@ export default function Dashboard() {
     );
   };
 
-  const favouriteSuppliers = suppliers.filter(s => favouriteIds.includes(s.id));
+  const favouriteSuppliers = MOCK_ALL_VENDORS.filter(s => favouriteIds.includes(s.id));
 
-  // Decide which list to search based on the active tab
-  const activeList = activeTab === 'find' ? suppliers : mySuppliers;
+  // Decide which list to show based on the active tab
+  const activeList = activeTab === 'find' ? MOCK_ALL_VENDORS : MOCK_MY_VENDORS;
 
   // Filter the chosen list by search query
   const filteredSuppliers = activeList.filter(s =>
@@ -235,7 +264,7 @@ export default function Dashboard() {
                 onPress={() => setActiveTab('find')}
               >
                 <Text className={`text-center font-medium ${activeTab === 'find' ? 'text-green-600' : 'text-gray-500'}`}>
-                  Find new suppliers
+                  Find new Vendors
                 </Text>
               </Pressable>
               <Pressable 
@@ -243,7 +272,7 @@ export default function Dashboard() {
                 onPress={() => setActiveTab('my')}
               >
                 <Text className={`text-center font-medium ${activeTab === 'my' ? 'text-green-600' : 'text-gray-500'}`}>
-                  My Suppliers
+                  My Vendors
                 </Text>
               </Pressable>
             </View>
@@ -317,41 +346,29 @@ export default function Dashboard() {
         </View>
       </SafeAreaView>
 
-      {/* Supplier List (Updated to switch cards based on tab) */}
+      {/* Vendor List */}
       <FlatList
         data={filteredSuppliers}
         keyExtractor={(item, index) => `${item.id}-${index}`}
-        renderItem={({ item }) => {
-          if (activeTab === 'find') {
-            return (
-              <NewSupplierCard
-                supplier={item}
-                isConnected={connectedIds.includes(item.id)}
-                isFavourite={favouriteIds.includes(item.id)}
-                onConnect={handleConnect}
-                onToggleFavourite={handleToggleFav}
-              />
-            );
-          } else {
-            return <MySupplierCard supplier={item} />;
-          }
-        }}
+        renderItem={({ item }) =>
+          activeTab === 'find' ? (
+            <FindVendorCard
+              supplier={item}
+              isConnected={connectedIds.includes(item.id)}
+              isFavourite={favouriteIds.includes(item.id)}
+              onConnect={handleConnect}
+              onToggleFavourite={handleToggleFav}
+            />
+          ) : (
+            <MySupplierCard supplier={item} />
+          )
+        }
         contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 120 }}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
-          isLoading ? (
-            <View style={{ alignItems: 'center', paddingTop: 60 }}>
-              <Text style={{ color: '#6B7280', fontSize: 15 }}>Loading suppliers…</Text>
-            </View>
-          ) : fetchError ? (
-            <View style={{ alignItems: 'center', paddingTop: 60, paddingHorizontal: 24 }}>
-              <Text style={{ color: '#EF4444', fontSize: 15, textAlign: 'center', marginBottom: 8 }}>{fetchError}</Text>
-            </View>
-          ) : (
-            <View style={{ alignItems: 'center', paddingTop: 60 }}>
-              <Text style={{ color: '#9CA3AF', fontSize: 16 }}>No suppliers found</Text>
-            </View>
-          )
+          <View style={{ alignItems: 'center', paddingTop: 60 }}>
+            <Text style={{ color: '#9CA3AF', fontSize: 16 }}>No vendors found</Text>
+          </View>
         }
       />
 
