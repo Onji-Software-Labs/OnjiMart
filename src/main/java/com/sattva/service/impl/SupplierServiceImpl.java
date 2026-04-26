@@ -1,5 +1,6 @@
 package com.sattva.service.impl;
 import com.sattva.dto.*;
+import com.sattva.enums.UserType;
 import com.sattva.model.*;
 import com.sattva.repository.*;
 import org.springframework.stereotype.Service;
@@ -15,6 +16,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import com.sattva.service.UserService;
 
 @Service
 public class SupplierServiceImpl implements SupplierService {
@@ -37,6 +39,9 @@ public class SupplierServiceImpl implements SupplierService {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private UserService userService;
+
     @Override
         public SupplierBusinessResponseDTO createBusinessAndAssignCategories(SupplierBusinessRequestDTO dto) {
 //        Supplier supplier = supplierRepository.findById(dto.getSupplierId())
@@ -52,6 +57,38 @@ public class SupplierServiceImpl implements SupplierService {
                                 .user(user)
                                 .build()
                 ));
+
+        // Récupère le userType depuis le DTO
+        user.setUserType(UserType.valueOf(dto.getUserType().toUpperCase()));
+        userRepository.save(user);
+        System.out.println("User Type is :" + user.getUserType());
+
+        //  ADD HERE (IMPORTANT)
+        if (supplier.getBusinesses() != null && !supplier.getBusinesses().isEmpty()) {
+
+            SupplierBusiness existingBusiness = supplier.getBusinesses().get(0);
+
+
+            return SupplierBusinessResponseDTO.builder()
+                    .BusinessName(existingBusiness.getName())
+                    .address(existingBusiness.getAddress())
+                    .city(existingBusiness.getCity())
+                    .pincode(existingBusiness.getPincode())
+                    .contactNumber(existingBusiness.getContactNumber())
+                    .isActive(existingBusiness.isActive())
+                    .supplierId(supplier.getId())
+                    .categoryIds(
+                            supplier.getCategories().stream()
+                                    .map(Category::getId)
+                                    .collect(Collectors.toSet())
+                    )
+                    .subCategoryIds(
+                            supplier.getSubCategories().stream()
+                                    .map(SubCategory::getId)
+                                    .collect(Collectors.toSet())
+                    )
+                    .build();
+        }
         // Save business
         SupplierBusiness business = SupplierBusiness.builder()
                 .id(UUID.randomUUID().toString())
@@ -88,6 +125,13 @@ public class SupplierServiceImpl implements SupplierService {
 
         //Save supplier (which cascades and saves business too)
         Supplier savedSupplier = supplierRepository.save(supplier);
+
+        // Mettre à jour l'onboarding directement sur l'objet déjà chargé
+        if (!user.isUserOnboardingStatus()) {
+            user.setUserOnboardingStatus(true);
+            userRepository.save(user);
+            System.out.println("-------------------"+ user.isUserOnboardingStatus());
+        }
 
         // Capture final IDs for response
         Set<String> savedCategoryIds = savedSupplier.getCategories()

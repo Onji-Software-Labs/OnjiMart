@@ -74,7 +74,6 @@ public class Invoice {
     protected void onCreate() {
         this.dateEntered = LocalDateTime.now();
         this.dateModified = LocalDateTime.now();
-        this.status = InvoiceStatus.PENDING;
         this.modifiedUserId = SecurityUtil.getCurrentUserId(); // Set the current user ID
     }
 

@@ -111,7 +111,7 @@ export default function OTPVerification() {
       phoneNumber: normalizedPhoneNumber,
       email: 'example@email.com',
       userType: 'USER',
-      userOnboardingStatus: true,
+      //userOnboardingStatus: true,
       supplier: false,
     };
 
@@ -120,6 +120,25 @@ export default function OTPVerification() {
     try {
       const response = await axiosInstance.post('/api/auth/send-otp', payload);
       console.log('Full OTP Send Response:', JSON.stringify(response.data, null, 2));
+
+      const onboardingStatus = response.data?.userOnboardingStatus;
+      const userType = response.data?.userType;
+
+      if (onboardingStatus !== undefined) {
+        await storage.setItem(
+          "userOnboardingStatus",
+          String(onboardingStatus)
+        );
+        console.log("✅ onboarding status saved:", onboardingStatus);
+      }
+   if (userType !== undefined) {
+        await storage.setItem(
+          "userType",
+          String(userType)
+        );
+        console.log("✅ user type saved:", userType);
+      }
+
       const userId = response.data?.userId;
 
       if (userId) {
@@ -269,7 +288,37 @@ export default function OTPVerification() {
         // ── END ADDED ──
 
         setDevOtp(null);
-        router.replace('/(auth)/personalProfile');
+        let onboardingStatus = response.data?.userOnboardingStatus;
+
+        console.log("User onboarding status from login:", onboardingStatus);
+
+        // fallback: if login API doesn't return it, use stored value from send-otp
+        if (onboardingStatus === undefined) {
+          const storedStatus = await storage.getItem("userOnboardingStatus");
+          onboardingStatus = storedStatus === "true";
+          console.log("Using stored onboarding status:", onboardingStatus);
+        }
+
+       let userType = response.data?.userType;
+
+        if (!userType) {
+          const storedType = await storage.getItem('userType');
+          userType = storedType;
+        }
+
+        console.log('userType:', userType);
+
+        if (onboardingStatus === true) {
+          if (userType === 'SUPPLIER') {
+            router.replace('/(supplier)/(tabs)/dashboard');
+          } else if (userType === 'RETAILER') {
+            router.replace('/(retailer)/(tabs)/home');
+          } else {
+            router.replace('/(auth)/personalProfile');
+          }
+        } else {
+          router.replace('/(auth)/personalProfile');
+        }
       }
     } catch (error: any) {
       console.error('OTP verification error:', error.response?.data || error.message);
