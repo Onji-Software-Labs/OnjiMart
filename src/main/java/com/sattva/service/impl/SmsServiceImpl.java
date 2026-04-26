@@ -9,6 +9,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.sattva.dto.*;
+import com.sattva.enums.UserType;
 import org.springframework.stereotype.Service;
 
 import com.amazonaws.waiters.WaiterParameters;
@@ -70,7 +71,7 @@ public class SmsServiceImpl implements SmsService {
     private final String clientSecret = "xf5ft4qzajj5ddie9zchzyk1vznqm6g2";
     
     @Override
-    public OTPLessResponse sendOtp(CreateUserDTO userDto, boolean userExists, String userId, String userName, String fullName, boolean userOnboardingStatus) {
+    public OTPLessResponse sendOtp(CreateUserDTO userDto, boolean userExists, String userId, String userName, String fullName, boolean userOnboardingStatus, UserType userType) {
         String phoneNumber = userDto.getPhoneNumber();
         String otp = generateOtp(); // implement this method to generate a 6-digit OTP
         otpMap.put(phoneNumber, Integer.valueOf(otp));
@@ -99,12 +100,12 @@ public class SmsServiceImpl implements SmsService {
             ResponseEntity<String> response = restTemplate.postForEntity(url, entity, String.class);
             System.out.println("response: " + response);
             if (response.getStatusCode().is2xxSuccessful()) {
-                return new OTPLessResponse(OtpStatus.DELIVERED, "OTP sent via WhatsApp", userExists, otp, userId, userName, fullName, userOnboardingStatus);
+                return new OTPLessResponse(OtpStatus.DELIVERED, "OTP sent via WhatsApp", userExists, otp, userId, userName, fullName, userOnboardingStatus,userType);
             } else {
-                return new OTPLessResponse(OtpStatus.FAILED, "Failed to send OTP via WhatsApp", userExists, otp, userId, userName, fullName, userOnboardingStatus);
+                return new OTPLessResponse(OtpStatus.FAILED, "Failed to send OTP via WhatsApp", userExists, otp, userId, userName, fullName, userOnboardingStatus,userType);
             }
         } catch (Exception e) {
-            return new OTPLessResponse(OtpStatus.FAILED, "Error: " + e.getMessage(), userExists, otp, userId, userName, fullName, userOnboardingStatus);
+            return new OTPLessResponse(OtpStatus.FAILED, "Error: " + e.getMessage(), userExists, otp, userId, userName, fullName, userOnboardingStatus,userType);
         }
     }
 

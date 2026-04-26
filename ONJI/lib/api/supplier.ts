@@ -1,10 +1,10 @@
 // Supplier API client placeholder
 // Retailer API client placeholder
+import { UserType } from '@/lib/types';
 import axiosInstance from '@/lib/api/axiosConfig';
 
 export interface BusinessSupplier {
   supplierId: string;
-  businessId: string;
   name: string;
   address: string;
   city: string;
@@ -16,6 +16,8 @@ export interface BusinessSupplier {
   fullName?: string;
   businessName?: string;
   rating?: number;
+  userType: string;
+
 }
 
 export const createSupplierBusiness = async (payload: BusinessSupplier) => {
