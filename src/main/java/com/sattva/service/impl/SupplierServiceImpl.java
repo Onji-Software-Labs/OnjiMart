@@ -1,5 +1,6 @@
 package com.sattva.service.impl;
 import com.sattva.dto.*;
+import com.sattva.enums.UserType;
 import com.sattva.model.*;
 import com.sattva.repository.*;
 import org.springframework.stereotype.Service;
@@ -56,6 +57,12 @@ public class SupplierServiceImpl implements SupplierService {
                                 .user(user)
                                 .build()
                 ));
+
+        // Récupère le userType depuis le DTO
+        user.setUserType(UserType.valueOf(dto.getUserType().toUpperCase()));
+        userRepository.save(user);
+        System.out.println("User Type is :" + user.getUserType());
+
         //  ADD HERE (IMPORTANT)
         if (supplier.getBusinesses() != null && !supplier.getBusinesses().isEmpty()) {
 
@@ -119,8 +126,12 @@ public class SupplierServiceImpl implements SupplierService {
         //Save supplier (which cascades and saves business too)
         Supplier savedSupplier = supplierRepository.save(supplier);
 
-        //  clean and correct
-        userService.updateOnboardingStatus(supplier.getUser().getId());
+        // Mettre à jour l'onboarding directement sur l'objet déjà chargé
+        if (!user.isUserOnboardingStatus()) {
+            user.setUserOnboardingStatus(true);
+            userRepository.save(user);
+            System.out.println("-------------------"+ user.isUserOnboardingStatus());
+        }
 
         // Capture final IDs for response
         Set<String> savedCategoryIds = savedSupplier.getCategories()

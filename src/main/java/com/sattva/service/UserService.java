@@ -14,8 +14,6 @@ public interface UserService {
 
     UserDTO updateUser(String userId, UserDTO userDTO);
 
-    void updateOnboardingStatus(String userId);
-
     void deleteUser(String userId);
     
     public boolean logoutUser(String deviceId,String userId);

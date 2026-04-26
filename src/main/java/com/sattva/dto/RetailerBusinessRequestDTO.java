@@ -1,5 +1,6 @@
 package com.sattva.dto;
 
+import com.sattva.enums.UserType;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -21,5 +22,6 @@ public class RetailerBusinessRequestDTO {
     private String contactNumber;
 
     private List<String> categoryIds;
+    private String userType;
 
 }

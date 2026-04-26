@@ -5,6 +5,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import com.sattva.dto.*;
+import com.sattva.enums.UserType;
 import com.sattva.model.*;
 import com.sattva.repository.*;
 import org.modelmapper.ModelMapper;
@@ -186,6 +187,10 @@ public class RetailerServiceImpl implements RetailerService {
                 ));
 
         System.out.println("THe new retailer created successfully with ID : "+ retailer);
+        // Récupère le userType depuis le DTO
+        user.setUserType(UserType.valueOf(dto.getUserType().toUpperCase()));
+        userRepository.save(user);
+        System.out.println("User Type is :" + user.getUserType());
 
         // ✅ ADD THIS BLOCK HERE
         if (retailer.getRetailerBusinesses() != null && !retailer.getRetailerBusinesses().isEmpty()) {
@@ -227,8 +232,12 @@ public class RetailerServiceImpl implements RetailerService {
 //        }
 
         Retailer savedRetailer = retailerRepository.save(retailer);
-        //  clean and correct
-        userService.updateOnboardingStatus(retailer.getUser().getId());
+        // Mettre à jour l'onboarding directement sur l'objet déjà chargé
+        if (!user.isUserOnboardingStatus()) {
+            user.setUserOnboardingStatus(true);
+            userRepository.save(user);
+            System.out.println("-------------------"+ user.isUserOnboardingStatus());
+        }
         return modelMapper.map(savedRetailer, RetailerDTO.class);
     }
 

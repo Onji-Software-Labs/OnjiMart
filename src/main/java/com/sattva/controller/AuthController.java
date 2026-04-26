@@ -6,6 +6,7 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
+import com.sattva.enums.UserType;
 import com.sattva.repository.RefreshTokenRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -69,12 +70,14 @@ public class AuthController {
         String userName = null;
         String fullName = null;
         boolean userOnboardingStatus = false;
+        UserType userType =null;
 
         if (existUser) {
             User existingUser = existing.get();
             userId = existingUser.getId();
             fullName = existingUser.getFullName();
             userOnboardingStatus = existingUser.isUserOnboardingStatus();
+            userType=existingUser.getUserType();
         } else {
             // Create new user if not exists
             CreateUserDTO createUserDto = this.userService.createUser(userDto);
@@ -82,7 +85,7 @@ public class AuthController {
         }
 
         // Call smsService to send OTP
-        return smsService.sendOtp(userDto, existUser, userId, userName, fullName, userOnboardingStatus);
+        return smsService.sendOtp(userDto, existUser, userId, userName, fullName, userOnboardingStatus,userType);
     }
 
     @PostMapping("/login")

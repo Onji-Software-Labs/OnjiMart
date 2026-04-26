@@ -122,6 +122,7 @@ export default function OTPVerification() {
       console.log('Full OTP Send Response:', JSON.stringify(response.data, null, 2));
 
       const onboardingStatus = response.data?.userOnboardingStatus;
+      const userType = response.data?.userType;
 
       if (onboardingStatus !== undefined) {
         await storage.setItem(
@@ -130,7 +131,13 @@ export default function OTPVerification() {
         );
         console.log("✅ onboarding status saved:", onboardingStatus);
       }
-
+   if (userType !== undefined) {
+        await storage.setItem(
+          "userType",
+          String(userType)
+        );
+        console.log("✅ user type saved:", userType);
+      }
 
       const userId = response.data?.userId;
 
@@ -302,9 +309,9 @@ export default function OTPVerification() {
         console.log('userType:', userType);
 
         if (onboardingStatus === true) {
-          if (userType === 'Supplier') {
+          if (userType === 'SUPPLIER') {
             router.replace('/(supplier)/(tabs)/dashboard');
-          } else if (userType === 'Retailer') {
+          } else if (userType === 'RETAILER') {
             router.replace('/(retailer)/(tabs)/home');
           } else {
             router.replace('/(auth)/personalProfile');

@@ -138,6 +138,7 @@ const BuisnessScreen = () => {
         city: values.city,
         pincode: values.pinCode,
         contactNumber: values.buisnessPhoneNumber,
+        userType: paramState.radioState,
       };
 
       const Supplier = {
@@ -149,6 +150,7 @@ const BuisnessScreen = () => {
         contactNumber: values.buisnessPhoneNumber,
         categoryIds: selectedCategoryIds,       
         subCategoryIds: selectedSubCategoryIds, 
+        userType: paramState.radioState,
       };
 
       await storage.setItem('userType', paramState.radioState); 
