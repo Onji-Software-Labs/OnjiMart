@@ -38,7 +38,7 @@ export default function SupplierTabs() {
       <Tabs.Screen
         name="cart"
         options={{
-          title: 'Cart',
+          title: 'Orders',
           tabBarIcon: ({ color }) => <Feather name="shopping-cart" size={24} color={color} />,
         }}
       />
