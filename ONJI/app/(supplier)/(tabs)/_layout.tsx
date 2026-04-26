@@ -1,14 +1,14 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
 import { Pressable, Text, View } from 'react-native';
-import { Feather, MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
+import { Feather, MaterialIcons, FontAwesome5, Octicons } from '@expo/vector-icons';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 
 export default function SupplierTabs() {
   return (
     <Tabs
       initialRouteName="dashboard"
-      screenOptions={{ 
+      screenOptions={{
         headerShown: false,
         tabBarHideOnKeyboard: true,
       }}
@@ -18,36 +18,35 @@ export default function SupplierTabs() {
         name="dashboard"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color }) => (
-            <Feather name="home" size={24} color={color} />
-          ),
+          tabBarIcon: ({ color }) => <Octicons name="home" size={24} color={color} />,
         }}
       />
       <Tabs.Screen
-        name="inventory"
+        name="Vendor"
         options={{
-          title: 'Supplier',
-          tabBarIcon: ({ color }) => (
-            <MaterialIcons name="person-pin" size={24} color={color} />
-          ),
+          title: 'Vendor',
+          tabBarIcon: ({ color }) => <MaterialIcons name="assignment" size={24} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="store"
+        options={{
+          title: 'Store',
+          tabBarIcon: ({ color }) => <MaterialIcons name="storefront" size={24} color={color} />,
         }}
       />
       <Tabs.Screen
         name="cart"
         options={{
-          title: 'Cart',
-          tabBarIcon: ({ color }) => (
-            <Feather name="shopping-cart" size={24} color={color} />
-          ),
+          title: 'Orders',
+          tabBarIcon: ({ color }) => <Feather name="shopping-cart" size={24} color={color} />,
         }}
       />
       <Tabs.Screen
         name="invoice"
         options={{
           title: 'Invoice',
-          tabBarIcon: ({ color }) => (
-            <FontAwesome5 name="file-invoice" size={22} color={color} />
-          ),
+          tabBarIcon: ({ color }) => <MaterialIcons name="receipt-long" size={24} color={color} />,
         }}
       />
     </Tabs>
@@ -56,7 +55,18 @@ export default function SupplierTabs() {
 
 function SupplierTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   return (
-    <View className="flex-row bg-white border-t border-gray-200">
+    <View style={{
+      flexDirection: 'row',
+      backgroundColor: 'white',
+      borderTopWidth: 1,
+      borderTopColor: '#F3F4F6',
+      // This padding ensures it looks right on both iOS and Android
+      paddingBottom: 25, 
+      paddingTop: 10,
+      // These ensure no black shadows or borders appear
+      elevation: 0,
+      shadowOpacity: 0,
+    }}>
       {state.routes.map((route, index) => {
         const isFocused = state.index === index;
         const { options } = descriptors[route.key];
@@ -73,27 +83,37 @@ function SupplierTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
         };
 
         return (
-          <Pressable 
-            key={route.key} 
-            onPress={onPress} 
-            className={`flex-1 items-center justify-center py-3 ${
-              isFocused ? 'bg-[#2E7D32]' : 'bg-white'
-            }`}
+          <Pressable
+            key={route.key}
+            onPress={onPress}
+            // Remove all className here to ensure no hidden borders
+            style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
           >
-            {/* Icon Container */}
-            <View className="mb-1">
-              {options.tabBarIcon?.({ 
-                color: isFocused ? '#FFFFFF' : '#6B7280',
-                focused: isFocused, 
-                size: 24 
+            {/* The Pill Background */}
+            <View 
+              style={{ 
+                backgroundColor: isFocused ? '#E8F5E9' : 'transparent',
+                paddingHorizontal: 20,
+                paddingVertical: 4,
+                borderRadius: 20,
+                marginBottom: 4,
+                // Ensure no border is inherited
+                borderWidth: 0,
+              }}
+            >
+              {options.tabBarIcon?.({
+                color: isFocused ? '#2E7D32' : '#9CA3AF',
+                focused: isFocused,
+                size: 24
               })}
             </View>
-            
-            {/* Label */}
+
             <Text 
-              className={`text-xs font-medium ${
-                isFocused ? 'text-white' : 'text-gray-600'
-              }`}
+              style={{ 
+                fontSize: 10, 
+                fontWeight: isFocused ? '600' : '400',
+                color: isFocused ? '#111827' : '#9CA3AF' 
+              }}
             >
               {options.title}
             </Text>

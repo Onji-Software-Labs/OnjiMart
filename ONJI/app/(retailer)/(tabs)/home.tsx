@@ -73,7 +73,9 @@ export default function RetailerHomeScreen() {
               <Text style={styles.storeAddress}>udupi, ambagilu 56101</Text>
             </View>
             <View style={styles.headerRight}>
-              <TouchableOpacity style={styles.greenCircleButton}>
+              <TouchableOpacity style={styles.greenCircleButton}
+                onPress={() => router.push("/(retailer)/notifications")}
+              > 
                 <Ionicons name="notifications-outline" size={22} color="#2E7D32" />
                 <View style={styles.notifDot} />
               </TouchableOpacity>
