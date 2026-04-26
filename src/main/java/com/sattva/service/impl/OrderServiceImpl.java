@@ -182,13 +182,13 @@ public class OrderServiceImpl implements OrderService {
 
         // Step 6: Update the order item with the fulfilled quantity, unit price, and total price
         if (fulfilledQuantity != null) {
-            orderItem.setRequestedQuantity(fulfilledQuantity);
+            orderItem.setFulfilledQuantity(fulfilledQuantity);
         } else {
-            orderItem.setRequestedQuantity(orderItem.getRequestedQuantity()); // Use existing quantity if not provided
+            orderItem.setFulfilledQuantity(orderItem.getRequestedQuantity());
         }
 
         orderItem.setUnitPrice(unitPrice);
-        orderItem.setTotalPrice(unitPrice * orderItem.getRequestedQuantity());
+        orderItem.setTotalPrice(unitPrice * orderItem.getFulfilledQuantity());
 
         // Step 7: Mark the item as fulfilled and not editable
         orderItem.setFulfilled(true);

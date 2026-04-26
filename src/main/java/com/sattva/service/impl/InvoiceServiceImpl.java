@@ -15,10 +15,8 @@ import com.sattva.model.Invoice;
 import com.sattva.model.InvoiceOrderItem;
 import com.sattva.model.Order;
 import com.sattva.model.OrderItem;
-import com.sattva.model.Supplier;
 import com.sattva.repository.InvoiceRepository;
 import com.sattva.repository.OrderRepository;
-import com.sattva.repository.SupplierRepository;
 import com.sattva.service.InvoiceService;
 import com.sattva.util.SecurityUtil;
 
@@ -31,9 +29,6 @@ public class InvoiceServiceImpl implements InvoiceService {
     private OrderRepository orderRepository;
 
     @Autowired
-    private SupplierRepository supplierRepository;
-
-    @Autowired
     private InvoiceRepository invoiceRepository;
 
     @Autowired
@@ -42,49 +37,72 @@ public class InvoiceServiceImpl implements InvoiceService {
     @Transactional
     @Override
     public InvoiceDTO generateInvoice(String supplierId, String orderId, Double deliveryCharge) {
-        Supplier supplier = supplierRepository.findById(supplierId)
-                .orElseThrow(() -> new ResourceNotFoundException("Supplier not found with ID: " + supplierId));
+
+        // Fetch order
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Order not found with ID: " + orderId));
 
+        // Create invoice
         Invoice invoice = new Invoice();
-        invoice.setSupplier(supplier);
+        invoice.setSupplier(order.getSupplier()); // ✅ use order
         invoice.setRetailer(order.getRetailer());
         invoice.setShop(order.getShop());
         invoice.setInvoiceDate(LocalDateTime.now());
 
-        final double[] grandTotal = {0.0}; // Use an array to hold the grand total
-
+        // Create invoice items (ONLY fulfilled items)
         List<InvoiceOrderItem> invoiceOrderItems = order.getItems().stream()
                 .filter(OrderItem::isFulfilled)
                 .map(orderItem -> {
-                    InvoiceOrderItem invoiceOrderItem = new InvoiceOrderItem();
-                    invoiceOrderItem.setOrderItem(orderItem);
-                    invoiceOrderItem.setUnitPrice(orderItem.getUnitPrice());
-                    invoiceOrderItem.setQuantity(orderItem.getFulfilledQuantity());
-                    invoiceOrderItem.setTotalPrice(orderItem.getUnitPrice() * orderItem.getFulfilledQuantity());
-                    invoiceOrderItem.setInvoice(invoice);
-
-                    // Add each item's total price to the grand total
-                    grandTotal[0] += invoiceOrderItem.getTotalPrice();
-                    return invoiceOrderItem;
+                    InvoiceOrderItem item = new InvoiceOrderItem();
+                    item.setOrderItem(orderItem);
+                    item.setUnitPrice(orderItem.getUnitPrice());
+                    item.setQuantity(orderItem.getFulfilledQuantity());
+                    item.setTotalPrice(orderItem.getUnitPrice() * orderItem.getFulfilledQuantity());
+                    item.setInvoice(invoice);
+                    return item;
                 })
                 .collect(Collectors.toList());
- 
-     // Set the invoice items and delivery charge
-        invoice.setInvoiceOrderItems(invoiceOrderItems);
-        if (deliveryCharge != null) {
-            invoice.setDeliveryCharge(deliveryCharge);
-            grandTotal[0] += deliveryCharge; // Add delivery charge to the grand total
+
+        // Edge case: no fulfilled items
+        if (invoiceOrderItems.isEmpty()) {
+            throw new IllegalStateException("No fulfilled items found for this order");
         }
 
-        // Set the grand total to the invoice
-        invoice.setGrandTotal(grandTotal[0]);
-        invoice.setStatus(InvoiceStatus.GENERATED);
-        invoice.setModifiedUserId(SecurityUtil.getCurrentUserId()); // Set the current user ID
+        // Calculate total
+        double total = invoiceOrderItems.stream()
+                .mapToDouble(InvoiceOrderItem::getTotalPrice)
+                .sum();
 
+        // Add delivery charge if present
+        if (deliveryCharge != null) {
+            invoice.setDeliveryCharge(deliveryCharge);
+            total += deliveryCharge;
+        }
+
+        // Set final values
+        invoice.setInvoiceOrderItems(invoiceOrderItems);
+        invoice.setGrandTotal(total);
+        invoice.setStatus(InvoiceStatus.GENERATED);
+        invoice.setModifiedUserId(SecurityUtil.getCurrentUserId());
+
+        // Save
         invoiceRepository.save(invoice);
-        return modelMapper.map(invoice, InvoiceDTO.class);
+
+        InvoiceDTO dto = modelMapper.map(invoice, InvoiceDTO.class);
+        dto.setTotalPrice(invoice.getGrandTotal()); // ✅ fix mapping
+
+            for (int i = 0; i < dto.getInvoiceOrderItems().size(); i++) {
+            InvoiceOrderItem invoiceItem = invoiceOrderItems.get(i);
+            OrderItem orderItem = invoiceItem.getOrderItem();
+
+            if (orderItem != null && orderItem.getProduct() != null) {
+                dto.getInvoiceOrderItems().get(i)
+                    .setProductId(orderItem.getProduct().getProductId()); // ⚠️ change if needed
+                dto.getInvoiceOrderItems().get(i)
+                    .setProductName(orderItem.getProduct().getName());
+            }
+        }
+        return dto;
     }
 
     @Override
@@ -100,5 +118,14 @@ public class InvoiceServiceImpl implements InvoiceService {
         Invoice invoice = invoiceRepository.findById(invoiceId)
                 .orElseThrow(() -> new ResourceNotFoundException("Invoice not found with ID: " + invoiceId));
         return modelMapper.map(invoice, InvoiceDTO.class);
+    }
+
+    @Override
+    public List<InvoiceDTO> getInvoicesForRetailer(String retailerId) {
+        List<Invoice> invoices = invoiceRepository.findByRetailer_Id(retailerId);
+
+        return invoices.stream()
+                .map(invoice -> modelMapper.map(invoice, InvoiceDTO.class))
+                .collect(Collectors.toList());
     }
 }

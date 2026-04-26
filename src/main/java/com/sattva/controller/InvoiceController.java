@@ -46,4 +46,11 @@ public class InvoiceController {
         InvoiceDTO invoice = invoiceService.viewInvoice(invoiceId);
         return ResponseEntity.ok(invoice);
     }
+
+    // Fetch all invoices for a given retailer
+    @GetMapping("/retailer/{retailerId}")
+    public ResponseEntity<List<InvoiceDTO>> getInvoicesForRetailer(@PathVariable String retailerId) {
+        List<InvoiceDTO> invoices = invoiceService.getInvoicesForRetailer(retailerId);
+        return ResponseEntity.ok(invoices);
+    }
 }
