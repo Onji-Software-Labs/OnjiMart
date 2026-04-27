@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, Image, TouchableOpacity, Dimensions } from 'react-native';
 import { AntDesign, FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 
 const CARD_MARGIN = 8;
 const SCROLL_PADDING = 24;
@@ -65,11 +66,19 @@ export default function FavouriteCard({ data, onConnect, onOrder, connected, sty
 
         {data.showConnect && (
           <TouchableOpacity
-            style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: '#10B981', backgroundColor: connected ? '#10B981' : 'white', marginLeft: data.showOrder ? 8 : 0 }}
-            onPress={onConnect}
+            style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: '#10B981', backgroundColor: 'white', marginLeft: data.showOrder ? 8 : 0 }}
+            onPress={() =>
+              router.push({
+                pathname: '/connectScreen',
+                params: {
+                  supplierId: data.supplierId,
+                  businessId: data.businessId,
+                },
+              })
+            }
           >
-            <FontAwesome5 name="user-plus" size={16} color={connected ? 'white' : '#10B981'} style={{ marginRight: 8 }} />
-            <Text style={{ textAlign: 'center', fontWeight: '500', fontSize: 16, color: connected ? 'white' : '#10B981' }}>Connect</Text>
+            <FontAwesome5 name="user-plus" size={16} color="#10B981" style={{ marginRight: 8 }} />
+            <Text style={{ textAlign: 'center', fontWeight: '500', fontSize: 16, color: '#10B981' }}>Connect</Text>
           </TouchableOpacity>
         )}
       </View>

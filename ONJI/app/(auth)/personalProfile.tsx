@@ -1,6 +1,7 @@
 import RadioInput from "@/components/auth/RadioInput";
+import { storage } from "@/lib/storage";
 import { Formik } from "formik";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
     Dimensions,
     Image,
@@ -33,6 +34,21 @@ const formSchema = yup.object().shape({
 
 const PersonalProfile = () => {
     const [radioState, setRadioState] = useState("Supplier");
+    const [savedPhone, setSavedPhone] = useState('');
+
+    // Read the phone number saved during OTP verification
+    useEffect(() => {
+        const loadPhone = async () => {
+            const stored = await storage.getItem('phoneNumber');
+            if (stored) {
+                // Strip +91 prefix — the input shows "+91" as a label already
+                const digits = stored.startsWith('+91') ? stored.slice(3) : stored;
+                setSavedPhone(digits);
+            }
+        };
+        loadPhone();
+    }, []);
+
     const handlePress = ({ label }: { label: string }) => {
         setRadioState(label);
     };
@@ -109,8 +125,9 @@ const PersonalProfile = () => {
                                 <Formik
                                     initialValues={{
                                         fullName: "",
-                                        phoneNumber: "",
+                                        phoneNumber: savedPhone,
                                     }}
+                                    enableReinitialize   // picks up savedPhone once it loads
                                     onSubmit={(values) => handleSubmit(values)}
                                     validateOnChange
                                     validateOnMount

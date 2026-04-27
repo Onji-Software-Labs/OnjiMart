@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Feather, MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
+import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import {
   FlatList,
@@ -10,8 +10,6 @@ import {
   View,
 } from 'react-native';
 import { getCartByShopId, ICartDTO } from '../../../lib/api/cart';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -19,12 +17,10 @@ interface CartItem {
   itemId: string;
   name: string;
   emoji: string;
-  quantity: number; 
 }
 
-
 interface SupplierCart {
-  supplierId: string;   
+  supplierId: string;   // maps to CartDTO.id (cartId)
   supplierName: string;
   location: string;
   totalItems: number;
@@ -38,8 +34,6 @@ const MAX_VISIBLE_ITEMS = 10;
 
 /** Default emoji for items that don't have a known mapping */
 const DEFAULT_EMOJI = '📦';
-
-
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -57,12 +51,13 @@ const mapCartDTOToSupplierCart = (cart: ICartDTO, index: number): SupplierCart =
   totalItems: cart.items.length,                              // distinct product types
   totalQty: cart.items.reduce((sum, item) => sum + (item.quantity || 0), 0),
   // Expand each item into N emoji boxes (capped at 10) based on quantity
- items: cart.items.map((item,itemIndex) => ({
-  itemId: `${item.id}-${itemIndex}`,
-  name: item.productName,
-  emoji: DEFAULT_EMOJI,
-  quantity: item.quantity || 0,
-})),
+  items: cart.items.flatMap((item) =>
+    Array.from({ length: Math.min(item.quantity || 0, 10) }, (_, i) => ({
+      itemId: `${item.id}-${i}`,
+      name: item.productName,
+      emoji: DEFAULT_EMOJI,
+    }))
+  ),
 });
 
 // ─── SupplierCartCard Component ───────────────────────────────────────────────
@@ -73,18 +68,12 @@ interface SupplierCartCardProps {
 }
 
 const SupplierCartCard: React.FC<SupplierCartCardProps> = ({ cart, onRemove }) => {
-  const router = useRouter();
   const visibleItems = cart.items.slice(0, MAX_VISIBLE_ITEMS);
   const overflowCount = cart.items.length - MAX_VISIBLE_ITEMS;
 
   const handleCheckout = () => {
-  router.push({
-  pathname: '/(supplier)/checkout',
-  params: {
-    cart: JSON.stringify(cart),
-  },
-});
-};
+    console.log(`Checkout for supplier cart: ${cart.supplierName}`);
+  };
 
   return (
     <View
@@ -146,7 +135,8 @@ const SupplierCartCard: React.FC<SupplierCartCardProps> = ({ cart, onRemove }) =
             justifyContent: 'center',
           }}
         >
-          <Feather name="x" size={16} color="#EF4444" />
+          <Feather name="x" siz
+            e={16} color="#EF4444" />
         </TouchableOpacity>
       </View>
 
@@ -156,9 +146,9 @@ const SupplierCartCard: React.FC<SupplierCartCardProps> = ({ cart, onRemove }) =
           <Text style={{ fontSize: 13, color: '#9CA3AF', paddingBottom: 8 }}>No items in this cart.</Text>
         ) : (
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-            {visibleItems.map((item, index) => (
+            {visibleItems.map((item) => (
               <View
-                key={`${item.itemId}-${index}`}
+                key={item.itemId}
                 style={{
                   width: 48,
                   height: 48,
@@ -279,14 +269,11 @@ const EmptyCart: React.FC = () => (
 // ─── Main Cart Screen ─────────────────────────────────────────────────────────
 
 export default function Cart() {
-  const router = useRouter();
-  const { success } = useLocalSearchParams();
   const [carts, setCarts] = useState<SupplierCart[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (success !== 'true') {
     const fetchCart = async () => {
       try {
         setIsLoading(true);
@@ -294,10 +281,9 @@ export default function Cart() {
 
         // TODO: replace with actual shopId from user session / shop profile
         // const shopId = await AsyncStorage.getItem('shopId') ?? 'temp-shop-id';
-        const shopId = "71cd4dcc-1fac-405e-99be-4f1018999389";
+        const shopId = "1cc1cf0f-4b63-46e6-9986-d99a7b916c0b";
 
         const data = await getCartByShopId(shopId);
-        console.log("Cart API Response:", JSON.stringify(data, null, 2));
         setCarts(data.map(mapCartDTOToSupplierCart));
 
       } catch (err: any) {
@@ -309,8 +295,7 @@ export default function Cart() {
     };
 
     fetchCart();
-  }}, [success]);
-  
+  }, []);
 
   const handleRemoveSupplier = (supplierId: string) => {
     // Local removal only — DELETE API integration is out of scope for this task
@@ -320,27 +305,6 @@ export default function Cart() {
   // ── Render ────────────────────────────────────────────────────────────────
 
   const renderBody = () => {
-    if (success === 'true') {
-      return (
-        <View style={{ flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 24 }}>
-          <View style={{ width: 90, height: 90, borderRadius: 45, backgroundColor: "#6AA84F", justifyContent: "center", alignItems: "center", marginBottom: 20 }}>
-            <Ionicons name="checkmark" size={50} color="#fff" />
-          </View>
-          <Text style={{ fontSize: 18, fontWeight: "700", color: "#2E7D32", textAlign: "center", marginBottom: 10 }}>
-            Your order request has been{"\n"}sent to Sunways trading.
-          </Text>
-          <Text style={{ fontSize: 13, color: "#555", textAlign: "center", marginBottom: 25, lineHeight: 20 }}>
-            You will be notified once it is approved. You can also{"\n"}track it in the Orders section
-          </Text>
-          <TouchableOpacity
-            onPress={() => router.setParams({ success: "" })}
-            style={{ backgroundColor: "#5A7F41", paddingVertical: 16, paddingHorizontal: 40, borderRadius: 14, minWidth: 250, alignItems: "center" }}
-          >
-            <Text style={{ color: "#fff", fontWeight: "700", fontSize: 16 }}>Go back to Cart</Text>
-          </TouchableOpacity>
-        </View>
-      );
-    }
     if (isLoading) {
       return (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
@@ -365,7 +329,7 @@ export default function Cart() {
     return (
       <FlatList
         data={carts}
-       keyExtractor={(item, index) => `${item.supplierId}-${index}`}
+        keyExtractor={(item) => item.supplierId}
         renderItem={({ item }) => (
           <SupplierCartCard cart={item} onRemove={handleRemoveSupplier} />
         )}
@@ -384,7 +348,6 @@ export default function Cart() {
       <StatusBar barStyle="dark-content" backgroundColor="#F9FAFB" />
 
       {/* ── Header ── */}
-      {success !== 'true' && (
       <View
         style={{
           paddingHorizontal: 20,
@@ -400,8 +363,9 @@ export default function Cart() {
           </Text>
         )}
       </View>
-)}
+
       {renderBody()}
     </SafeAreaView>
   );
 }
+
