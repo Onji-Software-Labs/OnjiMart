@@ -71,6 +71,8 @@ export default function FavouriteModal({ visible, onClose, favourites }: Favouri
                   key={cardKey}
                   data={{
                     id: item.id,
+                    supplierId: item.id,
+                    businessId: item.businessId,
                     name: item.name,
                     person: item.description,
                     distance: item.location,
@@ -78,8 +80,8 @@ export default function FavouriteModal({ visible, onClose, favourites }: Favouri
                     reviews: item.reviews,
                     activeOrder: false,
                     lastActive: '',
-                    showOrder: isNowConnected,
-                    showConnect: !isNowConnected,
+                    showOrder: false,
+                    showConnect: true,
                   }}
                   connected={connectedIds.includes(cardKey)}
                   onConnect={() => handleConnect(cardKey)}
