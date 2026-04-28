@@ -16,6 +16,9 @@ public interface ProductRepository extends JpaRepository<Product, String> {
 
     Optional<Product> findByImageUrl(String imageUrl);
 
-    //Finding all the product based on category
-    List<Product> findByCategory_Id(String categoryId);
+    // Fetch all products that belong to a specific supplier
+    List<Product> findBySupplier_Id(String supplierId);
+
+    // //Finding all the product based on category
+    // List<Product> findByCategory_Id(String categoryId);
 }
