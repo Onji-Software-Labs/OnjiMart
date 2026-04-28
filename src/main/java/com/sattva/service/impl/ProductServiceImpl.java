@@ -134,30 +134,67 @@ public class ProductServiceImpl implements ProductService {
                 .collect(Collectors.toList());
     }
 
-    //MAP PRODUCTS BY CATEGORY
     @Override
-    public void mapProductsByCategory(String categoryId, String supplierId) {
+    public List<ProductDTO> getProductsBySupplier(String supplierId) {
 
-        // Fetch supplier
-        Supplier supplier = supplierRepository.findById(supplierId)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Supplier not found with id: " + supplierId));
+            // Get products mapped to this supplier
+        List<Product> products = productRepository.findBySupplier_Id(supplierId);
 
-        //Fetch all products of given category
-        List<Product> products = productRepository.findByCategory_Id(categoryId);
-
-        //If no products found → error
-        if (products.isEmpty()) {
-            throw new ResourceNotFoundException(
-                    "No products found for category id: " + categoryId);
-        }
-
-        //Assign supplier to each product
-        products.forEach(product -> product.setSupplier(supplier));
-
-        //Save all updated products
-        productRepository.saveAll(products);
-
-        System.out.println("All products mapped to supplier successfully");
+        // Convert Entity → DTO
+        return products.stream()
+            .map(product -> modelMapper.map(product, ProductDTO.class))
+            .collect(Collectors.toList());
+    
     }
+
+    @Override
+public void mapProductsToSupplier(String supplierId, List<String> productIds) {
+
+    // Fetch supplier
+    Supplier supplier = supplierRepository.findById(supplierId)
+            .orElseThrow(() -> new ResourceNotFoundException(
+                    "Supplier not found with id: " + supplierId));
+
+    // Fetch products
+    List<Product> products = productRepository.findAllById(productIds);
+
+    if (products.isEmpty()) {
+        throw new ResourceNotFoundException("No products found for given IDs");
+    }
+
+    // Assign supplier to each product
+    products.forEach(product -> product.setSupplier(supplier));
+
+    // Save updated products
+    productRepository.saveAll(products);
+
+    System.out.println("Products mapped to supplier successfully");
+    }
+
+    //MAP PRODUCTS BY CATEGORY
+    // @Override
+    // public void mapProductsByCategory(String categoryId, String supplierId) {
+
+    //     // Fetch supplier
+    //     Supplier supplier = supplierRepository.findById(supplierId)
+    //             .orElseThrow(() -> new ResourceNotFoundException(
+    //                     "Supplier not found with id: " + supplierId));
+
+    //     //Fetch all products of given category
+    //     List<Product> products = productRepository.findByCategory_Id(categoryId);
+
+    //     //If no products found → error
+    //     if (products.isEmpty()) {
+    //         throw new ResourceNotFoundException(
+    //                 "No products found for category id: " + categoryId);
+    //     }
+
+    //     //Assign supplier to each product
+    //     products.forEach(product -> product.setSupplier(supplier));
+
+    //     //Save all updated products
+    //     productRepository.saveAll(products);
+
+    //     System.out.println("All products mapped to supplier successfully");
+    // }
 }
