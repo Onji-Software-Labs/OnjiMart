@@ -27,7 +27,7 @@ export default function RetailerHomeScreen() {
       try {
         switch (tileLabel) {
           case 'My Suppliers':
-            router.push('/inventory');
+            router.push('/supplier');
             break;
           case 'Credit':
             router.push('/invoice');
@@ -49,7 +49,10 @@ export default function RetailerHomeScreen() {
   
   return (
     <View style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 100 }} 
+      >
 
         {/* Header */}
         <View style={[styles.headerWrapper, { paddingTop: insets.top + 8 }]}>
@@ -70,7 +73,9 @@ export default function RetailerHomeScreen() {
               <Text style={styles.storeAddress}>udupi, ambagilu 56101</Text>
             </View>
             <View style={styles.headerRight}>
-              <TouchableOpacity style={styles.greenCircleButton}>
+              <TouchableOpacity style={styles.greenCircleButton}
+                onPress={() => router.push("/(retailer)/notifications")}
+              > 
                 <Ionicons name="notifications-outline" size={22} color="#2E7D32" />
                 <View style={styles.notifDot} />
               </TouchableOpacity>

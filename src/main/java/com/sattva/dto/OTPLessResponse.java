@@ -2,6 +2,7 @@ package com.sattva.dto;
 
 import com.sattva.enums.OtpStatus;
 
+import com.sattva.enums.UserType;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -18,4 +19,5 @@ public class OTPLessResponse {
 	private String userName;
 	private String fullName;
 	private boolean userOnboardingStatus;
+    private UserType userType;
 }

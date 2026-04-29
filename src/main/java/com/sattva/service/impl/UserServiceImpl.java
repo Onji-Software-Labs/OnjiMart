@@ -152,7 +152,6 @@ public class UserServiceImpl implements UserService {
             .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
         userRepository.delete(user);
     }
-
     // Helper method to map User to UserDTO
     private UserDTO mapToDTO(User user) {
         UserDTO dto = new UserDTO();

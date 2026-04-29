@@ -2,6 +2,7 @@ package com.sattva.dto;
 
 import java.util.List;
 
+import com.sattva.enums.UserType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -24,4 +25,6 @@ public class SupplierBusinessRequestDTO {
 
     private List<String> categoryIds;
     private List<String> subCategoryIds;
+
+    private String  userType;
 }

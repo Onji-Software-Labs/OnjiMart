@@ -1,21 +1,7 @@
-// Retailer layout placeholder
-/**
- * Retailer Layout
- * ----------------
- * This layout wraps all retailer screens.
- * 
- * We are using Stack navigation for Retailer flow.
- * Header is hidden for clean UI.
- */
-
-import { Stack } from "expo-router";
+import { Stack } from 'expo-router';
 
 export default function RetailerLayout() {
-  return (
-    <Stack screenOptions={{ headerShown: false }}>
-      {/* All retailer screens will be nested inside this layout */}
-    </Stack>
-  );
+    return (
+        <Stack screenOptions={{ headerShown: false }} />
+    );
 }
-// Added by Me
-

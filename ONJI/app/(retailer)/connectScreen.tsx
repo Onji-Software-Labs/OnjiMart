@@ -3,7 +3,6 @@ import { FontAwesome, MaterialCommunityIcons } from "@expo/vector-icons";
 import AntDesign from "@expo/vector-icons/AntDesign";
 import Entypo from "@expo/vector-icons/Entypo";
 import EvilIcons from "@expo/vector-icons/EvilIcons";
-import { router } from "expo-router";
 import React, { useRef, useState } from "react";
 import {
   Animated,
@@ -19,7 +18,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useEffect } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axiosInstance from "@/lib/api/axiosConfig";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 
 interface Supplier {
   name: string;
@@ -31,6 +30,7 @@ interface Supplier {
 const windowWidth = Dimensions.get("window").width;
 
 const ConnectScreen = () => {
+  const router = useRouter();
   const { supplierId, businessId } = useLocalSearchParams();
   console.log("SupplierId:", supplierId);
   console.log("BusinessId:", businessId);
@@ -144,7 +144,7 @@ const ConnectScreen = () => {
       toValue: 0.95,
       duration: 100,
       easing: Easing.linear,
-      useNativeDriver: true,
+      useNativeDriver: false,
     }).start();
   };
 
@@ -153,7 +153,7 @@ const ConnectScreen = () => {
       toValue: 1,
       duration: 100,
       easing: Easing.linear,
-      useNativeDriver: true,
+      useNativeDriver: false,
     }).start();
   };
 

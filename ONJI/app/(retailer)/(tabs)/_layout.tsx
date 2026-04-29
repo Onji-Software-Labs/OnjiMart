@@ -18,36 +18,28 @@ export default function RetailerTabs() {
         name="home"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color }) => (
-            <Feather name="home" size={24} color={color} />
-          ),
+          tabBarIcon: ({ color }) => <Feather name="home" size={24} color={color} />,
         }}
       />
       <Tabs.Screen
         name="supplier"
         options={{
           title: 'Supplier',
-          tabBarIcon: ({ color }) => (
-            <MaterialIcons name="person-pin" size={24} color={color} />
-          ),
+          tabBarIcon: ({ color }) => <MaterialIcons name="person-pin" size={24} color={color} />,
         }}
       />
       <Tabs.Screen
         name="cart"
         options={{
           title: 'Cart',
-          tabBarIcon: ({ color }) => (
-            <Feather name="shopping-cart" size={24} color={color} />
-          ),
+          tabBarIcon: ({ color }) => <Feather name="shopping-cart" size={24} color={color} />,
         }}
       />
       <Tabs.Screen
         name="invoice"
         options={{
           title: 'Invoice',
-          tabBarIcon: ({ color }) => (
-            <FontAwesome5 name="file-invoice" size={22} color={color} />
-          ),
+          tabBarIcon: ({ color }) => <FontAwesome5 name="file-invoice" size={22} color={color} />,
         }}
       />
     </Tabs>
@@ -56,7 +48,7 @@ export default function RetailerTabs() {
 
 function RetailerTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   return (
-    <View className="flex-row bg-white border-t border-gray-200">
+    <View className="flex-row bg-white border-t border-gray-200 pb-safe">
       {state.routes.map((route, index) => {
         const isFocused = state.index === index;
         const { options } = descriptors[route.key];
@@ -76,23 +68,21 @@ function RetailerTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
           <Pressable 
             key={route.key} 
             onPress={onPress} 
-            className={`flex-1 items-center justify-center py-3 ${
-              isFocused ? 'bg-[#2E7D32]' : 'bg-white'
-            }`}
+            className="flex-1 items-center justify-center py-2 bg-white"
           >
-            {/* Icon Container */}
-            <View className="mb-1">
+            {/* Pill Container for the Icon */}
+            <View className={`px-5 py-1.5 rounded-full mb-1 ${isFocused ? 'bg-[#E8F5E9]' : 'bg-transparent'}`}>
               {options.tabBarIcon?.({ 
-                color: isFocused ? '#FFFFFF' : '#6B7280',
+                color: isFocused ? '#2E7D32' : '#9CA3AF',
                 focused: isFocused, 
-                size: 24 
+                size: 22 
               })}
             </View>
             
             {/* Label */}
             <Text 
-              className={`text-xs font-medium ${
-                isFocused ? 'text-white' : 'text-gray-600'
+              className={`text-[10px] ${
+                isFocused ? 'text-black font-bold' : 'text-gray-500 font-medium'
               }`}
             >
               {options.title}
