@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Text, View, TextInput, Pressable, ScrollView, StatusBar, TouchableOpacity, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, MaterialCommunityIcons, FontAwesome5, AntDesign } from '@expo/vector-icons';
@@ -39,8 +39,15 @@ const mapMySupplier = (s: any): INewSupplier => ({
 });
 
 // New component specifically for "My Suppliers" UI
-const MySupplierCard = ({ supplier }: { supplier: INewSupplier }) => {
-  const [isFavorite, setIsFavorite] = useState(false);
+const MySupplierCard = ({
+  supplier,
+  isFavourite,
+  onToggleFavourite,
+}: {
+  supplier: INewSupplier;
+  isFavourite: boolean;
+  onToggleFavourite: (id: string) => void;
+}) => {
   const router = useRouter();
 
   return (
@@ -68,13 +75,13 @@ const MySupplierCard = ({ supplier }: { supplier: INewSupplier }) => {
         </View>
 
         {/* Heart Icon */}
-        <TouchableOpacity onPress={() => setIsFavorite(!isFavorite)} className="p-1">
-          {isFavorite ? (
-            <AntDesign name="heart" size={20} color="#EF4444" />
-          ) : (
-            <AntDesign name="hearto" size={20} color="#9CA3AF" />
-          )}
-        </TouchableOpacity>
+        <TouchableOpacity onPress={() => onToggleFavourite(supplier.id)} className="p-1">
+        {isFavourite ? (
+          <AntDesign name="heart" size={20} color="#EF4444" />
+        ) : (
+          <AntDesign name="hearto" size={20} color="#9CA3AF" />
+        )}
+      </TouchableOpacity>
       </View>
 
       {/* Bottom Actions */}
@@ -125,6 +132,17 @@ export default function Dashboard() {
   const [selectedSort, setSelectedSort] = useState<string | null>(null);
   const [isFavouriteModalVisible, setIsFavouriteModalVisible] = useState(false);
   const [favouriteIds, setFavouriteIds] = useState<string[]>([]);
+
+  useEffect(() => {
+  const loadFavs = async () => {
+    const savedFavs = await AsyncStorage.getItem('favouriteIds');
+    if (savedFavs) {
+      setFavouriteIds(JSON.parse(savedFavs));
+    }
+  };
+
+  loadFavs();
+}, []);
 
   // API data state
   const [suppliers, setSuppliers] = useState<INewSupplier[]>([]);
@@ -255,11 +273,14 @@ export default function Dashboard() {
     }
   };
 
-  const handleToggleFav = (id: string) => {
-    setFavouriteIds(prev =>
-      prev.includes(id) ? prev.filter(fid => fid !== id) : [...prev, id]
-    );
-  };
+  const handleToggleFav = async (id: string) => {
+  const newFavs = favouriteIds.includes(id)
+    ? favouriteIds.filter(fid => fid !== id)
+    : [...favouriteIds, id];
+
+  setFavouriteIds(newFavs);
+  await AsyncStorage.setItem('favouriteIds', JSON.stringify(newFavs));
+};
 
   const favouriteSuppliers = suppliers.filter(s => favouriteIds.includes(s.id));
 
@@ -385,7 +406,13 @@ export default function Dashboard() {
               />
             );
           } else {
-            return <MySupplierCard supplier={item} />;
+            return (
+              <MySupplierCard
+                supplier={item}
+                isFavourite={favouriteIds.includes(item.id)}
+                onToggleFavourite={handleToggleFav}
+              />
+            );
           }
         }}
         contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 120 }}
