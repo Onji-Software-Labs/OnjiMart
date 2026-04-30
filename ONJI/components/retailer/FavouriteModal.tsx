@@ -4,34 +4,31 @@ import { AntDesign } from '@expo/vector-icons';
 import FavouriteCard from './FavouriteCard';
 import { useRouter } from 'expo-router';
 import { INewSupplier } from './NewSupplierCard';
+import { ConnectionStatus } from '../../lib/api/connection';
 
 const CARD_MARGIN = 8;
 
 interface FavouriteModalProps {
   visible: boolean;
   onClose: () => void;
-  favourites: INewSupplier[];   // ← only the suppliers the user hearted
+  favourites: INewSupplier[];
+  connectionStatuses: Record<string, ConnectionStatus>;
+  onConnect: (id: string) => void;
 }
 
-export default function FavouriteModal({ visible, onClose, favourites }: FavouriteModalProps) {
+export default function FavouriteModal({
+  visible,
+  onClose,
+  favourites,
+  connectionStatuses,
+  onConnect
+}: FavouriteModalProps) {
   const router = useRouter();
-  const [connectedIds, setConnectedIds] = useState<string[]>([]);
-  const [orderedIds, setOrderedIds] = useState<string[]>([]);
+
 
   if (!visible) return null;
 
-  const handleConnect = (id: string) => {
-    setConnectedIds(prev => {
-      if (prev.includes(id)) return prev.filter(cid => cid !== id);
-      setOrderedIds(o => [...o, id]);
-      return [...prev, id];
-    });
-  };
-
-  const handleOrder = () => {
-    onClose();
-    router.push('/(supplier)/orderSupplierScreen');
-  };
+  
 
   return (
     <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'white', zIndex: 50 }}>
@@ -65,25 +62,12 @@ export default function FavouriteModal({ visible, onClose, favourites }: Favouri
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
             {favourites.map((item) => {
               const cardKey = item.id;
-              const isNowConnected = orderedIds.includes(cardKey);
               return (
                 <FavouriteCard
                   key={cardKey}
-                  data={{
-                    id: item.id,
-                    name: item.name,
-                    person: item.description,
-                    distance: item.location,
-                    rating: item.rating,
-                    reviews: item.reviews,
-                    activeOrder: false,
-                    lastActive: '',
-                    showOrder: isNowConnected,
-                    showConnect: !isNowConnected,
-                  }}
-                  connected={connectedIds.includes(cardKey)}
-                  onConnect={() => handleConnect(cardKey)}
-                  onOrder={handleOrder}
+                  supplier={item}
+                  connectionStatus={connectionStatuses[item.id] ?? 'NONE'}
+                  onConnect={() => onConnect(item.id)}
                   style={{ marginBottom: CARD_MARGIN }}
                 />
               );

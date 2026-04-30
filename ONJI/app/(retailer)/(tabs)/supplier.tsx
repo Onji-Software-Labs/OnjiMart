@@ -3,10 +3,17 @@ import { Text, View, TextInput, Pressable, ScrollView, StatusBar, TouchableOpaci
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, MaterialCommunityIcons, FontAwesome5, AntDesign } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
-import FavouriteModal from '../../../components/supplier/FavouriteModal';
-import NewSupplierCard, { INewSupplier } from '../../../components/supplier/NewSupplierCard';
-import { getAllSuppliers, getMySuppliers, BusinessSupplier } from '../../../lib/api/supplier';
+import FavouriteModal from '../../../components/retailer/FavouriteModal';
+import NewSupplierCard, { INewSupplier } from '../../../components/retailer/NewSupplierCard';
 import { storage } from '../../../lib/storage';
+import { ConnectionStatus, getConnectionStatus } from '../../../lib/api/connection';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import axiosInstance from '../../../lib/api/axiosConfig';
+import { BusinessSupplier } from '../../../lib/api/supplier';
+import { getAllSuppliers, getMySuppliers } from '../../../lib/api/supplier';
+
+// Define the BusinessSupplier interface based on backend response
+
 
 // Maps backend ISupplierResponse → INewSupplier used by the card component
 const mapSupplier = (s: BusinessSupplier): INewSupplier => ({
@@ -16,6 +23,17 @@ const mapSupplier = (s: BusinessSupplier): INewSupplier => ({
   description: s.contactNumber || '',
   location: `${s.city}${s.pincode ? ', ' + s.pincode : ''}`,
   rating: 0,
+  reviews: 0,
+  credit: false,
+});
+
+const mapMySupplier = (s: any): INewSupplier => ({
+  id: s.userId,
+  businessId: s.userId,
+  name: s.businessName || 'Unknown',
+  description: '',
+  location: s.city || '',
+  rating: s.rating || 0,
   reviews: 0,
   credit: false,
 });
@@ -106,7 +124,6 @@ export default function Dashboard() {
   const [isSortModalVisible, setIsSortModalVisible] = useState(false);
   const [selectedSort, setSelectedSort] = useState<string | null>(null);
   const [isFavouriteModalVisible, setIsFavouriteModalVisible] = useState(false);
-  const [connectedIds, setConnectedIds] = useState<string[]>([]);
   const [favouriteIds, setFavouriteIds] = useState<string[]>([]);
 
   // API data state
@@ -114,14 +131,17 @@ export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
+  const [connectionStatuses, setConnectionStatuses] = useState<Record<string, ConnectionStatus>>({});
+
+
   const fetchData = useCallback(async () => {
     try {
       setIsLoading(true);
       setFetchError(null);
 
       // Fetch ALL suppliers for the "Find new suppliers" tab
-      const data = await getAllSuppliers();
-      const mapped = data.map(mapSupplier);
+     const data: BusinessSupplier[] = await getAllSuppliers();
+     const mapped = data.map(mapSupplier);
 
       // De-duplicate by supplierId — backend sometimes returns the same supplier twice
       const seen = new Set<string>();
@@ -132,11 +152,21 @@ export default function Dashboard() {
       });
       setSuppliers(unique);
 
+      const statusEntries = await Promise.all(
+        unique.map(async (s) => {
+          const status = await getConnectionStatus(s.id);
+          return { id: s.id, status };
+        })
+      );
+      const statusMap: Record<string, ConnectionStatus> = {};
+      statusEntries.forEach(({ id, status }) => { statusMap[id] = status; });
+      setConnectionStatuses(statusMap);
+
       // Load the logged-in retailer's suppliers from storage.
       const retailerId = await storage.getItem('userId');
       if (retailerId) {
         const myData = await getMySuppliers(retailerId);
-        setMySuppliers(myData.map(mapSupplier));
+        setMySuppliers(myData.map(mapMySupplier));
       } else {
         console.log('No userId found in local storage.');
         setMySuppliers([]);
@@ -204,10 +234,25 @@ export default function Dashboard() {
 
   const hasActiveFilters = selectedCategories.length > 0 || creditProvided !== null || selectedFilters.length > 0 || selectedQuantity !== '';
 
-  const handleConnect = (id: string) => {
-    setConnectedIds(prev =>
-      prev.includes(id) ? prev.filter(cid => cid !== id) : [...prev, id]
-    );
+  const handleConnect = async (id: string) => {
+    const current = connectionStatuses[id] ?? 'NONE';
+    try {
+      const retailerId = await AsyncStorage.getItem('userId');
+      if (current === 'NONE' || current === 'REJECTED') {
+        await axiosInstance.post('/api/connections/connect', null, {
+          params: { retailerId, supplierId: id },
+        });
+        // ✅ update map immediately so both lists update
+        setConnectionStatuses(prev => ({ ...prev, [id]: 'PENDING' }));
+      } else if (current === 'PENDING') {
+        await axiosInstance.delete('/api/connections/cancel', {
+          params: { retailerId, supplierId: id },
+        });
+        setConnectionStatuses(prev => ({ ...prev, [id]: 'NONE' }));
+      }
+    } catch (err) {
+      console.log('Connection error:', err);
+    }
   };
 
   const handleToggleFav = (id: string) => {
@@ -333,7 +378,7 @@ export default function Dashboard() {
             return (
               <NewSupplierCard
                 supplier={item}
-                isConnected={connectedIds.includes(item.id)}
+                connectionStatus={connectionStatuses[item.id] ?? 'NONE'}
                 isFavourite={favouriteIds.includes(item.id)}
                 onConnect={handleConnect}
                 onToggleFavourite={handleToggleFav}
@@ -498,6 +543,8 @@ export default function Dashboard() {
         visible={isFavouriteModalVisible}
         onClose={() => setIsFavouriteModalVisible(false)}
         favourites={favouriteSuppliers}
+        connectionStatuses={connectionStatuses}
+        onConnect={handleConnect}
       />
     </View>
   );
