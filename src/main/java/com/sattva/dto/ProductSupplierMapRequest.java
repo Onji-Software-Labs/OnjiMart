@@ -1,10 +1,10 @@
-package com.sattva.dto;
+// package com.sattva.dto;
 
-import lombok.Data;
+// import lombok.Data;
 
-@Data
+// @Data
 public class ProductSupplierMapRequest {
 
-    private String productId;
-    private String supplierId;
+//     private String productId;
+//     private String supplierId;
 }

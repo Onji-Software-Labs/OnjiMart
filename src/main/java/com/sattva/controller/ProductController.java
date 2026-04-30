@@ -61,16 +61,37 @@ public class ProductController {
         List<ProductDTO> products = productService.getProductsBySubcategoryId(subCategoryId);
         return ResponseEntity.ok(products);
     }
-    //
-    @PostMapping("/map-by-category")
-    public ResponseEntity<?> mapByCategory(
-            @RequestParam String categoryId,
-            @RequestParam String supplierId) {
 
-        productService.mapProductsByCategory(categoryId, supplierId);
+    // Get all products for a specific supplier
+    @GetMapping("/by-supplier/{supplierId}")
+    public ResponseEntity<List<ProductDTO>> getProductsBySupplier(
+            @PathVariable String supplierId) {
+
+        List<ProductDTO> products = productService.getProductsBySupplier(supplierId);
+
+        return ResponseEntity.ok(products);
+    }
+
+    // Map products to a supplier
+    @PostMapping("/map-products-to-supplier")
+    public ResponseEntity<?> mapProductsToSupplier(
+            @RequestParam String supplierId,
+            @RequestBody List<String> productIds) {
+
+        productService.mapProductsToSupplier(supplierId, productIds);
 
         return ResponseEntity.ok("Products mapped successfully");
     }
+    //
+    // @PostMapping("/map-by-category")
+    // public ResponseEntity<?> mapByCategory(
+    //         @RequestParam String categoryId,
+    //         @RequestParam String supplierId) {
+
+    //     productService.mapProductsByCategory(categoryId, supplierId);
+
+    //     return ResponseEntity.ok("Products mapped successfully");
+    // }
 
 
 }
