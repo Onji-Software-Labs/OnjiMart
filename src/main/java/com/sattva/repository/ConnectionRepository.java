@@ -14,4 +14,6 @@ public interface ConnectionRepository extends JpaRepository<Connection, Long> {
 
     //Fetch all pending requests for the supplier
     List<Connection> findBySupplierIdAndStatus(String supplierId, ConnectionStatus status);
+
+    List<Connection> findBySupplierId(String supplierId);
 }

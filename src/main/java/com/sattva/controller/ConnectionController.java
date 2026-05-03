@@ -8,6 +8,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.List;
+import com.sattva.model.User;
 //Added newly
 @CrossOrigin
 @RestController
@@ -52,5 +54,10 @@ public class ConnectionController {
     @GetMapping("/supplier/{supplierId}/requests")
         public ResponseEntity<List<Connection>> getPendingRequests(@PathVariable String supplierId) {
             return ResponseEntity.ok(service.getPendingRequests(supplierId));
+    }
+    @GetMapping("/supplier/discover-vendors")
+    public ResponseEntity<List<User>> discoverVendors(@RequestParam String supplierId) {
+        List<User> retailers = service.getUnconnectedRetailers(supplierId);
+        return ResponseEntity.ok(retailers);
     }
 }
