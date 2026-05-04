@@ -14,4 +14,6 @@ public interface SupplierService {
     void deleteBusinessAndCategories(String businessId);
     List<SupplierBusinessRequestDTO> getAllBusinesses();
     List<SupplierBusinessRequestDTO> getBusinessesByPincode(String pincode);
+
+    List<RetailerDTO> getConnectedRetailers(String supplierId);
 }

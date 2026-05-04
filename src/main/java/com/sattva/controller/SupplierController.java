@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.sattva.dto.CategoryDTO;
+import com.sattva.dto.RetailerDTO;
 import com.sattva.dto.SubCategoryDTO;
 import com.sattva.dto.SupplierCategoriesSubCategoriesRequest;
 import com.sattva.dto.SupplierDTO;
@@ -57,5 +58,13 @@ public class SupplierController {
         // Fetching categories for the specified supplier
         List<CategoryDTO> categories = supplierService.getCategoriesForSupplier(supplierId);
         return ResponseEntity.ok(categories);
+    }
+
+    @GetMapping("/{supplierId}/retailers")
+    public ResponseEntity<List<RetailerDTO>> getConnectedRetailers(@PathVariable String supplierId) {
+
+        List<RetailerDTO> retailers = supplierService.getConnectedRetailers(supplierId);
+
+        return ResponseEntity.ok(retailers);
     }
 }

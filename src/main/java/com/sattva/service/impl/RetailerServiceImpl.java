@@ -43,18 +43,16 @@ public class RetailerServiceImpl implements RetailerService {
     @Autowired
     private UserService userService;
 
-    // ✅ NEW (safe addition)
     @Autowired
     private ConnectionRepository connectionRepository;
 
-    // ====================== FIXED METHOD ======================
     @Override
     public PaginatedResponseDTO<SupplierListDTO> getSuppliersForRetailer(String retailerId, int page, int size) {
 
         Retailer retailer = retailerRepository.findById(retailerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Retailer not found with id: " + retailerId));
 
-        // ✅ NEW: fetch only ACCEPTED connections
+        // ✅ fetch only ACCEPTED connections
         List<Connection> connections =
                 connectionRepository.findByRetailerIdAndStatus(retailerId, ConnectionStatus.ACCEPTED);
 
@@ -64,7 +62,7 @@ public class RetailerServiceImpl implements RetailerService {
 
         List<Supplier> suppliers = supplierRepository.findAllById(supplierIds);
 
-        // ✅ manual pagination (SAFE, no change to structure)
+        // ✅ manual pagination
         int start = page * size;
         int end = Math.min(start + size, suppliers.size());
 
@@ -87,8 +85,6 @@ public class RetailerServiceImpl implements RetailerService {
 
         return response;
     }
-
-    // ====================== EXISTING METHODS (UNCHANGED) ======================
 
     private SupplierListDTO convertToListDTO(Supplier supplier) {
         String businessNames = supplier.getBusinesses().stream()
@@ -184,8 +180,6 @@ public class RetailerServiceImpl implements RetailerService {
         );
         return dto;
     }
-
-    // ====================== REMAINING METHODS UNCHANGED ======================
 
     @Override
     public RetailerDTO createBusinessAndAssignCategories(RetailerBusinessRequestDTO dto) {

@@ -1,5 +1,6 @@
 package com.sattva.service.impl;
 import com.sattva.dto.*;
+import com.sattva.enums.ConnectionStatus;
 import com.sattva.enums.UserType;
 import com.sattva.model.*;
 import com.sattva.repository.*;
@@ -41,6 +42,12 @@ public class SupplierServiceImpl implements SupplierService {
 
     @Autowired
     private UserService userService;
+
+    @Autowired
+    private ConnectionRepository connectionRepository;
+
+    @Autowired
+    private RetailerRepository retailerRepository;
 
     @Override
         public SupplierBusinessResponseDTO createBusinessAndAssignCategories(SupplierBusinessRequestDTO dto) {
@@ -319,7 +326,51 @@ public class SupplierServiceImpl implements SupplierService {
 
                 dto.setCategoryIds(categoryIds);
                 dto.setSubCategoryIds(subCategoryIds);
-                }
+        }
+        // Convert Retailer entity to RetailerDTO for API response
+        private RetailerDTO convertToRetailerDTO(Retailer retailer) {
+
+                RetailerDTO dto = new RetailerDTO();
+
+                dto.setId(retailer.getId());
+                dto.setFullName(retailer.getUser().getFullName());
+                dto.setEmail(retailer.getUser().getEmail());
+
+                String pincodes = retailer.getRetailerBusinesses().stream()
+                .filter(RetailerBusiness::isActive)
+                .map(RetailerBusiness::getPincode)
+                .distinct()
+                .collect(Collectors.joining(", "));
+
+                dto.setPincode(pincodes);
+
+                return dto;
+        }
+
+        // Fetch all retailers connected to the supplier using accepted connections
+        public List<RetailerDTO> getConnectedRetailers(String supplierId) {
+
+        //Get ACCEPTED connections
+        List<Connection> connections =
+            connectionRepository.findBySupplierIdAndStatus(supplierId, ConnectionStatus.ACCEPTED);
+
+         if (connections.isEmpty()) {
+        return List.of();
+        }
+
+        //Extract retailer IDs
+        List<String> retailerIds = connections.stream()
+            .map(Connection::getRetailerId)
+            .collect(Collectors.toList());
+
+        //Fetch retailers
+        List<Retailer> retailers = retailerRepository.findAllById(retailerIds);
+
+        // Step 4: Convert to DTO
+        return retailers.stream()
+            .map(this::convertToRetailerDTO)
+            .collect(Collectors.toList());
+        }
 
 
 }
