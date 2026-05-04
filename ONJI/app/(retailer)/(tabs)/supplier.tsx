@@ -1,12 +1,19 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Text, View, TextInput, Pressable, ScrollView, StatusBar, TouchableOpacity, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, MaterialCommunityIcons, FontAwesome5, AntDesign } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
-import FavouriteModal from '../../../components/supplier/FavouriteModal';
-import NewSupplierCard, { INewSupplier } from '../../../components/supplier/NewSupplierCard';
-import { getAllSuppliers, getMySuppliers, BusinessSupplier } from '../../../lib/api/supplier';
+import FavouriteModal from '../../../components/retailer/FavouriteModal';
+import NewSupplierCard, { INewSupplier } from '../../../components/retailer/NewSupplierCard';
 import { storage } from '../../../lib/storage';
+import { ConnectionStatus, getConnectionStatus } from '../../../lib/api/connection';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import axiosInstance from '../../../lib/api/axiosConfig';
+import { BusinessSupplier } from '../../../lib/api/supplier';
+import { getAllSuppliers, getMySuppliers } from '../../../lib/api/supplier';
+
+// Define the BusinessSupplier interface based on backend response
+
 
 // Maps backend ISupplierResponse → INewSupplier used by the card component
 const mapSupplier = (s: BusinessSupplier): INewSupplier => ({
@@ -20,9 +27,27 @@ const mapSupplier = (s: BusinessSupplier): INewSupplier => ({
   credit: false,
 });
 
+const mapMySupplier = (s: any): INewSupplier => ({
+  id: s.userId,
+  businessId: s.userId,
+  name: s.businessName || 'Unknown',
+  description: '',
+  location: s.city || '',
+  rating: s.rating || 0,
+  reviews: 0,
+  credit: false,
+});
+
 // New component specifically for "My Suppliers" UI
-const MySupplierCard = ({ supplier }: { supplier: INewSupplier }) => {
-  const [isFavorite, setIsFavorite] = useState(false);
+const MySupplierCard = ({
+  supplier,
+  isFavourite,
+  onToggleFavourite,
+}: {
+  supplier: INewSupplier;
+  isFavourite: boolean;
+  onToggleFavourite: (id: string) => void;
+}) => {
   const router = useRouter();
 
   return (
@@ -50,13 +75,13 @@ const MySupplierCard = ({ supplier }: { supplier: INewSupplier }) => {
         </View>
 
         {/* Heart Icon */}
-        <TouchableOpacity onPress={() => setIsFavorite(!isFavorite)} className="p-1">
-          {isFavorite ? (
-            <AntDesign name="heart" size={20} color="#EF4444" />
-          ) : (
-            <AntDesign name="hearto" size={20} color="#9CA3AF" />
-          )}
-        </TouchableOpacity>
+        <TouchableOpacity onPress={() => onToggleFavourite(supplier.id)} className="p-1">
+        {isFavourite ? (
+          <AntDesign name="heart" size={20} color="#EF4444" />
+        ) : (
+          <AntDesign name="hearto" size={20} color="#9CA3AF" />
+        )}
+      </TouchableOpacity>
       </View>
 
       {/* Bottom Actions */}
@@ -106,13 +131,26 @@ export default function Dashboard() {
   const [isSortModalVisible, setIsSortModalVisible] = useState(false);
   const [selectedSort, setSelectedSort] = useState<string | null>(null);
   const [isFavouriteModalVisible, setIsFavouriteModalVisible] = useState(false);
-  const [connectedIds, setConnectedIds] = useState<string[]>([]);
   const [favouriteIds, setFavouriteIds] = useState<string[]>([]);
+
+  useEffect(() => {
+  const loadFavs = async () => {
+    const savedFavs = await AsyncStorage.getItem('favouriteIds');
+    if (savedFavs) {
+      setFavouriteIds(JSON.parse(savedFavs));
+    }
+  };
+
+  loadFavs();
+}, []);
 
   // API data state
   const [suppliers, setSuppliers] = useState<INewSupplier[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
+
+  const [connectionStatuses, setConnectionStatuses] = useState<Record<string, ConnectionStatus>>({});
+
 
   const fetchData = useCallback(async () => {
     try {
@@ -120,8 +158,8 @@ export default function Dashboard() {
       setFetchError(null);
 
       // Fetch ALL suppliers for the "Find new suppliers" tab
-      const data = await getAllSuppliers();
-      const mapped = data.map(mapSupplier);
+     const data: BusinessSupplier[] = await getAllSuppliers();
+     const mapped = data.map(mapSupplier);
 
       // De-duplicate by supplierId — backend sometimes returns the same supplier twice
       const seen = new Set<string>();
@@ -132,11 +170,21 @@ export default function Dashboard() {
       });
       setSuppliers(unique);
 
+      const statusEntries = await Promise.all(
+        unique.map(async (s) => {
+          const status = await getConnectionStatus(s.id);
+          return { id: s.id, status };
+        })
+      );
+      const statusMap: Record<string, ConnectionStatus> = {};
+      statusEntries.forEach(({ id, status }) => { statusMap[id] = status; });
+      setConnectionStatuses(statusMap);
+
       // Load the logged-in retailer's suppliers from storage.
       const retailerId = await storage.getItem('userId');
       if (retailerId) {
         const myData = await getMySuppliers(retailerId);
-        setMySuppliers(myData.map(mapSupplier));
+        setMySuppliers(myData.map(mapMySupplier));
       } else {
         console.log('No userId found in local storage.');
         setMySuppliers([]);
@@ -204,17 +252,35 @@ export default function Dashboard() {
 
   const hasActiveFilters = selectedCategories.length > 0 || creditProvided !== null || selectedFilters.length > 0 || selectedQuantity !== '';
 
-  const handleConnect = (id: string) => {
-    setConnectedIds(prev =>
-      prev.includes(id) ? prev.filter(cid => cid !== id) : [...prev, id]
-    );
+  const handleConnect = async (id: string) => {
+    const current = connectionStatuses[id] ?? 'NONE';
+    try {
+      const retailerId = await AsyncStorage.getItem('userId');
+      if (current === 'NONE' || current === 'REJECTED') {
+        await axiosInstance.post('/api/connections/connect', null, {
+          params: { retailerId, supplierId: id },
+        });
+        // ✅ update map immediately so both lists update
+        setConnectionStatuses(prev => ({ ...prev, [id]: 'PENDING' }));
+      } else if (current === 'PENDING') {
+        await axiosInstance.delete('/api/connections/cancel', {
+          params: { retailerId, supplierId: id },
+        });
+        setConnectionStatuses(prev => ({ ...prev, [id]: 'NONE' }));
+      }
+    } catch (err) {
+      console.log('Connection error:', err);
+    }
   };
 
-  const handleToggleFav = (id: string) => {
-    setFavouriteIds(prev =>
-      prev.includes(id) ? prev.filter(fid => fid !== id) : [...prev, id]
-    );
-  };
+  const handleToggleFav = async (id: string) => {
+  const newFavs = favouriteIds.includes(id)
+    ? favouriteIds.filter(fid => fid !== id)
+    : [...favouriteIds, id];
+
+  setFavouriteIds(newFavs);
+  await AsyncStorage.setItem('favouriteIds', JSON.stringify(newFavs));
+};
 
   const favouriteSuppliers = suppliers.filter(s => favouriteIds.includes(s.id));
 
@@ -333,14 +399,20 @@ export default function Dashboard() {
             return (
               <NewSupplierCard
                 supplier={item}
-                isConnected={connectedIds.includes(item.id)}
+                connectionStatus={connectionStatuses[item.id] ?? 'NONE'}
                 isFavourite={favouriteIds.includes(item.id)}
                 onConnect={handleConnect}
                 onToggleFavourite={handleToggleFav}
               />
             );
           } else {
-            return <MySupplierCard supplier={item} />;
+            return (
+              <MySupplierCard
+                supplier={item}
+                isFavourite={favouriteIds.includes(item.id)}
+                onToggleFavourite={handleToggleFav}
+              />
+            );
           }
         }}
         contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 120 }}
@@ -498,6 +570,8 @@ export default function Dashboard() {
         visible={isFavouriteModalVisible}
         onClose={() => setIsFavouriteModalVisible(false)}
         favourites={favouriteSuppliers}
+        connectionStatuses={connectionStatuses}
+        onConnect={handleConnect}
       />
     </View>
   );
