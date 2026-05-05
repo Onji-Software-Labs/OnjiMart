@@ -7,6 +7,10 @@ import FavouriteModal from '../../../components/supplier/FavouriteModal';
 import { getAllSuppliers, getMySuppliers, BusinessSupplier } from '../../../lib/api/supplier';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback } from 'react';
+import axiosInstance from '../../../lib/api/axiosConfig';
+
 export interface INewSupplier {
   id: string;
   businessId: string;
@@ -178,6 +182,38 @@ export default function Dashboard() {
   const [connectedIds, setConnectedIds] = useState<string[]>([]);
   const [favouriteIds, setFavouriteIds] = useState<string[]>([]);
 
+  const [myVendors, setMyVendors] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const fetchMyVendors = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const supplierId = await AsyncStorage.getItem('userId');
+      console.log("Supplier ID:", supplierId);
+      if (!supplierId) return;
+      const response = await axiosInstance.get(
+        `/suppliers/${supplierId}/retailers`
+      );
+      /*const accepted = response.data.filter(
+        (c: any) => c.status === 'ACCEPTED'
+      );
+      */
+     console.log("API RESPONSE:", response.data);
+     const accepted = response.data;
+      setMyVendors(accepted);
+    } catch (err) {
+      console.log('Failed to fetch vendors:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchMyVendors();
+    }, [fetchMyVendors])
+  );
+
   // Filter state
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [creditProvided, setCreditProvided] = useState<'yes' | 'no' | null>(null);
@@ -241,14 +277,16 @@ export default function Dashboard() {
   const favouriteSuppliers = MOCK_ALL_VENDORS.filter(s => favouriteIds.includes(s.id));
 
   // Decide which list to show based on the active tab
-  const activeList = activeTab === 'find' ? MOCK_ALL_VENDORS : MOCK_MY_VENDORS;
+  const activeList = activeTab === 'find' ? MOCK_ALL_VENDORS : myVendors;
 
   // Filter the chosen list by search query
-  const filteredSuppliers = activeList.filter(s =>
-    s.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    s.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    s.location?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredSuppliers = activeTab === 'find'
+  ? activeList.filter(s =>
+      s.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      s.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      s.location?.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+  : activeList;
   
   return (
     <View className="flex-1 bg-white">
@@ -360,7 +398,16 @@ export default function Dashboard() {
               onToggleFavourite={handleToggleFav}
             />
           ) : (
-            <MySupplierCard supplier={item} />
+            <MySupplierCard supplier={{
+              id: item.retailerId,
+              businessId: item.retailerId,
+              name: item.retailerId,
+              description: '',
+              location: '',
+              rating: 0,
+              reviews: 0,
+              credit: false,
+            }} />
           )
         }
         contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 120 }}
