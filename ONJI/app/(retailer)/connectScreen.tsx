@@ -1,5 +1,5 @@
 
-import { FontAwesome, MaterialCommunityIcons } from "@expo/vector-icons";
+import { FontAwesome, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import AntDesign from "@expo/vector-icons/AntDesign";
 import Entypo from "@expo/vector-icons/Entypo";
 import EvilIcons from "@expo/vector-icons/EvilIcons";
@@ -217,8 +217,8 @@ const ConnectScreen = () => {
                 </View>
 
                 <View style={styles.row}>
-                  <AntDesign name="checkcircleo" size={12} color="grey" />
-                  <Text style={styles.textGray}> GST: 03BOMPS0736L2ZM</Text>
+              <Ionicons name="checkmark-circle-outline" size={12} color="grey" />    
+              <Text style={styles.textGray}> GST: 03BOMPS0736L2ZM</Text>
                 </View>
 
                 <View style={styles.row}>

@@ -1,6 +1,7 @@
 import {
   AntDesign,
   FontAwesome,
+  Ionicons,
   MaterialCommunityIcons,
 } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -91,11 +92,11 @@ const NewSupplierCard: React.FC<Props> = ({ supplier, isConnected, isFavourite, 
       {/* Favourite Button */}
       <TouchableOpacity onPress={toggleFavorite} style={styles.favoriteButton} activeOpacity={0.7}>
         <Animated.View style={{ transform: [{ scale: heartScale }, { rotate: rotateHeart }] }}>
-          <AntDesign
-            name={isFavourite ? 'heart' : 'hearto'}
-            size={22}
-            color={isFavourite ? '#EF4444' : '#9CA3AF'}
-          />
+ <Ionicons
+  name={isFavourite ? 'heart' : 'heart-outline'}
+  size={22}
+  color={isFavourite ? '#EF4444' : '#9CA3AF'}
+/>
         </Animated.View>
       </TouchableOpacity>
 

@@ -1,6 +1,7 @@
 import {
     AntDesign,
     FontAwesome,
+    Ionicons,
     MaterialCommunityIcons,
 } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -127,11 +128,11 @@ const SupplierTab: React.FC<ISupplierTabProps> = ({ supplier }) => {
         activeOpacity={0.7}
       >
         <Animated.View style={{ transform: [{ scale: heartScale }, { rotate: rotateHeart }] }}>
-          <AntDesign
-            name={isFavorite ? "heart" : "hearto"}
-            size={24}
-            color={isFavorite ? "#B91C1C" : "#9CA3AF"}
-          />
+  <Ionicons
+  name={isFavorite ? 'heart' : 'heart-outline'}
+  size={24}
+  color={isFavorite ? '#B91C1C' : '#9CA3AF'}
+/>
         </Animated.View>
       </TouchableOpacity>
 

@@ -1,8 +1,7 @@
 import React from 'react';
-import { Tabs } from 'expo-router';
+import { Tabs, useRouter, Href } from 'expo-router';
 import { Pressable, Text, View } from 'react-native';
-import { Feather, MaterialIcons, FontAwesome5, Octicons } from '@expo/vector-icons';
-import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import { Feather, MaterialIcons, Octicons } from '@expo/vector-icons';
 
 export default function SupplierTabs() {
   return (
@@ -22,7 +21,7 @@ export default function SupplierTabs() {
         }}
       />
       <Tabs.Screen
-        name="Vendor"
+        name="vendor" // ✅ FIXED (lowercase)
         options={{
           title: 'Vendor',
           tabBarIcon: ({ color }) => <MaterialIcons name="assignment" size={24} color={color} />,
@@ -53,32 +52,29 @@ export default function SupplierTabs() {
   );
 }
 
-function SupplierTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
+function SupplierTabBar({ state, descriptors }: any) {
+  const router = useRouter();
+
   return (
-    <View style={{
-      flexDirection: 'row',
-      backgroundColor: 'white',
-      borderTopWidth: 1,
-      borderTopColor: '#F3F4F6',
-      // This padding ensures it looks right on both iOS and Android
-      paddingBottom: 25, 
-      paddingTop: 10,
-      // These ensure no black shadows or borders appear
-      elevation: 0,
-      shadowOpacity: 0,
-    }}>
-      {state.routes.map((route, index) => {
+    <View
+      style={{
+        flexDirection: 'row',
+        backgroundColor: 'white',
+        borderTopWidth: 1,
+        borderTopColor: '#F3F4F6',
+        paddingBottom: 25,
+        paddingTop: 10,
+        elevation: 0,
+        shadowOpacity: 0,
+      }}
+    >
+      {state.routes.map((route: any, index: number) => {
         const isFocused = state.index === index;
         const { options } = descriptors[route.key];
 
         const onPress = () => {
-          const event = navigation.emit({
-            type: 'tabPress',
-            target: route.key,
-            canPreventDefault: true,
-          });
-          if (!isFocused && !event.defaultPrevented) {
-            navigation.navigate(route.name);
+          if (!isFocused) {
+            router.push(`/${route.name}` as Href);
           }
         };
 
@@ -86,33 +82,29 @@ function SupplierTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
           <Pressable
             key={route.key}
             onPress={onPress}
-            // Remove all className here to ensure no hidden borders
             style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
           >
-            {/* The Pill Background */}
-            <View 
-              style={{ 
+            <View
+              style={{
                 backgroundColor: isFocused ? '#E8F5E9' : 'transparent',
                 paddingHorizontal: 20,
                 paddingVertical: 4,
                 borderRadius: 20,
                 marginBottom: 4,
-                // Ensure no border is inherited
-                borderWidth: 0,
               }}
             >
               {options.tabBarIcon?.({
                 color: isFocused ? '#2E7D32' : '#9CA3AF',
                 focused: isFocused,
-                size: 24
+                size: 24,
               })}
             </View>
 
-            <Text 
-              style={{ 
-                fontSize: 10, 
+            <Text
+              style={{
+                fontSize: 10,
                 fontWeight: isFocused ? '600' : '400',
-                color: isFocused ? '#111827' : '#9CA3AF' 
+                color: isFocused ? '#111827' : '#9CA3AF',
               }}
             >
               {options.title}

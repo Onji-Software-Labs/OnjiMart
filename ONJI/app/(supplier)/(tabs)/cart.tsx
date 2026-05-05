@@ -285,31 +285,31 @@ export default function Cart() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (success !== 'true') {
-    const fetchCart = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
+  // useEffect(() => {
+  //   if (success !== 'true') {
+  //   const fetchCart = async () => {
+  //     try {
+  //       setIsLoading(true);
+  //       setError(null);
 
-        // TODO: replace with actual shopId from user session / shop profile
-        // const shopId = await AsyncStorage.getItem('shopId') ?? 'temp-shop-id';
-        const shopId = "71cd4dcc-1fac-405e-99be-4f1018999389";
+  //       // TODO: replace with actual shopId from user session / shop profile
+  //       const shopId = await AsyncStorage.getItem('shopId') ?? 'temp-shop-id';
+  //       // const shopId = "71cd4dcc-1fac-405e-99be-4f1018999389";
 
-        const data = await getCartByShopId(shopId);
-        console.log("Cart API Response:", JSON.stringify(data, null, 2));
-        setCarts(data.map(mapCartDTOToSupplierCart));
+  //       const data = await getCartByShopId(shopId);
+  //       console.log("Cart API Response:", JSON.stringify(data, null, 2));
+  //       setCarts(data.map(mapCartDTOToSupplierCart));
 
-      } catch (err: any) {
-        console.error('Failed to fetch cart:', err);
-        setError('Unable to load cart. Please try again.');
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  //     } catch (err: any) {
+  //       console.error('Failed to fetch cart:', err);
+  //       setError('Unable to load cart. Please try again.');
+  //     } finally {
+  //       setIsLoading(false);
+  //     }
+  //   };
 
-    fetchCart();
-  }}, [success]);
+  //   fetchCart();
+  // }}, [success]);
   
 
   const handleRemoveSupplier = (supplierId: string) => {

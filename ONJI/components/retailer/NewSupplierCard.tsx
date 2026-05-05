@@ -1,6 +1,7 @@
 import {
   AntDesign,
   FontAwesome,
+  Ionicons,
   MaterialCommunityIcons,
 } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -119,16 +120,16 @@ const handlePress = () => {
 
   return (
     <View style={styles.card}>
-      {/* Favourite Button */}
-      <TouchableOpacity onPress={toggleFavorite} style={styles.favoriteButton} activeOpacity={0.7}>
-        <Animated.View style={{ transform: [{ scale: heartScale }, { rotate: rotateHeart }] }}>
-          <AntDesign
-            name={isFavourite ? 'heart' : 'hearto'}
-            size={22}
-            color={isFavourite ? '#EF4444' : '#9CA3AF'}
-          />
-        </Animated.View>
-      </TouchableOpacity>
+{/* Favourite Button */}
+<TouchableOpacity onPress={toggleFavorite} style={styles.favoriteButton} activeOpacity={0.7}>
+  <Animated.View style={{ transform: [{ scale: heartScale }, { rotate: rotateHeart }] }}>
+    <Ionicons
+      name={isFavourite ? 'heart' : 'heart-outline'}
+      size={22}
+      color={isFavourite ? '#EF4444' : '#9CA3AF'}
+    />
+  </Animated.View>
+</TouchableOpacity>
 
       {/* Avatar */}
       <View style={styles.avatarContainer}>
@@ -194,8 +195,7 @@ const handlePress = () => {
     {connectionStatus === 'PENDING' ? (
       <AntDesign name="close" size={14} color="#6B7280" />
     ) : connectionStatus === 'ACCEPTED' ? (
-      <AntDesign name="arrowright" size={16} color="#34D399" />
-    ) : (
+      <AntDesign name="arrow-right" size={16} color="#34D399" />    ) : (
       <MaterialCommunityIcons name="account-plus" size={18} color="#34D399" />
     )}
   </Animated.View>
