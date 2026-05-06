@@ -5,8 +5,8 @@
   "scripts": {
     "start": "expo start",
     "reset-project": "node ./scripts/reset-project.js",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
     "web": "expo start --web",
     "lint": "expo lint",
     "format": "prettier --write ."
@@ -17,9 +17,7 @@
     "@expo-google-fonts/poppins": "^0.4.0",
     "@expo/vector-icons": "^15.0.2",
     "@react-native-async-storage/async-storage": "2.2.0",
-    "@react-native-community/checkbox": "^0.5.20",
     "@react-native-community/slider": "5.1.2",
-    "@react-native-vector-icons/fontawesome": "^12.2.0",
     "@react-navigation/bottom-tabs": "^7.3.10",
     "@react-navigation/elements": "^2.3.8",
     "@react-navigation/native": "^7.1.6",
@@ -28,6 +26,7 @@
     "expo": "~55.0.23",
     "expo-application": "~55.0.14",
     "expo-blur": "~55.0.14",
+    "expo-checkbox": "~55.0.4",
     "expo-constants": "~55.0.15",
     "expo-crypto": "~55.0.14",
     "expo-font": "~55.0.6",

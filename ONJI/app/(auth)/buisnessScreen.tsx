@@ -16,7 +16,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Checkbox } from 'react-native-paper';
+import Checkbox from 'expo-checkbox';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Yup from 'yup';
 interface formValues {
@@ -475,10 +475,10 @@ const confirmSelectionSubCategory = () => {
         )}
         <Text className="px-2 text-base text-text-body">{item.name}</Text>
       </View>
-      <Checkbox
-        status={selectedItemsCategory.includes(item.name) ? 'checked' : 'unchecked'}
-        onPress={() => toggleItemCategory(item.name)}
-      />
+<Checkbox
+  value={selectedItemsCategory.includes(item.name)}
+  onValueChange={() => toggleItemCategory(item.name)}
+/>
     </View>
   )}
 />
@@ -558,10 +558,10 @@ const confirmSelectionSubCategory = () => {
         )}
         <Text className="text-base px-2 text-text-body">{item.name}</Text>
       </View>
-      <Checkbox
-        status={selectedItemsSubCategory.includes(item.name) ? 'checked' : 'unchecked'}
-        onPress={() => toggleItemSubCategory(item.name)}
-      />
+<Checkbox
+  value={selectedItemsSubCategory.includes(item.name)}
+  onValueChange={() => toggleItemSubCategory(item.name)}
+/>
     </View>
   )}
 />

@@ -19,11 +19,11 @@ import axiosInstance from "../../lib/api/axiosConfig";
 import { storage } from "../../lib/storage";
 import { useRouter } from "expo-router";
 
-const VegetablesImg = require("../../assets/images/Vegetables.png");
+const VegetablesImg = require("../../assets/images/vegetables.png");
 const FruitsImg = require("../../assets/images/Fruits.png");
 const LeafyImg = require("../../assets/images/Leafy.png");
 const GroceriesImg = require("../../assets/images/Groceries.png");
-const PersonImg = require("../../assets/images/Person.png");
+const PersonImg = require("../../assets/images/supplier.jpg");
 const OnionImg = require("../../assets/images/Onion.png");
 const TomatoImg = require("../../assets/images/tomato.png");
 

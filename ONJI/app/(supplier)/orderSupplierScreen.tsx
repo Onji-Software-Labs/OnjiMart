@@ -19,13 +19,13 @@ import axiosInstance from "../../lib/api/axiosConfig";
 import { storage } from "../../lib/storage";
 import { useRouter } from "expo-router";
 
-import VegetablesImg from "../../assets/images/Vegetables.png";
-import FruitsImg from "../../assets/images/Fruits.png";
-import LeafyImg from "../../assets/images/Leafy.png";
-import GroceriesImg from "../../assets/images/Groceries.png";
-import PersonImg from "../../assets/images/Person.png";
-import OnionImg from "../../assets/images/Onion.png";
-import TomatoImg from "../../assets/images/tomato.png";
+const VegetablesImg = require("../../assets/images/vegetables.png");
+const FruitsImg = require("../../assets/images/Fruits.png");
+const LeafyImg = require("../../assets/images/Leafy.png");
+const GroceriesImg = require("../../assets/images/Groceries.png");
+const PersonImg = require("../../assets/images/supplier.jpg");
+const OnionImg = require("../../assets/images/Onion.png");
+const TomatoImg = require("../../assets/images/tomato.png");
 
 
 // Static data — unchanged
