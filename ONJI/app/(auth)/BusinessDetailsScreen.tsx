@@ -1,5 +1,5 @@
 import axiosInstance from '@/lib/api/axiosConfig';
-import { storage } from '@/lib/storage';
+import { secureStorage } from '@/lib/secureStorage';
 import { router } from 'expo-router';
 import { Formik, FormikProps } from 'formik';
 import React, { useEffect, useRef, useState } from 'react';
@@ -50,7 +50,7 @@ export function BusinessDetailsScreen() {
   const handleFormSubmit = async (values: formValues) => {
     const role = 'ROLE_' + values.radioState.toUpperCase();
     try {
-      const userId = await storage.getItem('userId');
+      const userId = await secureStorage.getItem('userId');
 
       const response = await axiosInstance.put(`/api/users/${userId}`, {
         username: values.fullName,

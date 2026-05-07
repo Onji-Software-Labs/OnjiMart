@@ -16,7 +16,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useEffect } from "react";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { secureStorage } from '@/lib/secureStorage';
 import axiosInstance from "@/lib/api/axiosConfig";
 import { useLocalSearchParams, useRouter } from "expo-router";
 
@@ -74,7 +74,7 @@ const ConnectScreen = () => {
       useEffect(() => {
       const checkConnectionStatus = async () => {
         try {
-          const retailerId = await AsyncStorage.getItem("userId");
+          const retailerId = await secureStorage.getItem("userId");
 
           const response = await axiosInstance.get(
             "/api/connections/status",
@@ -104,7 +104,7 @@ const ConnectScreen = () => {
   const handlePress = async () => {
   try {
 
-    const retailerId = await AsyncStorage.getItem("userId");
+    const retailerId = await secureStorage.getItem("userId");
 
     console.log("Retailer:", retailerId);
     console.log("Supplier:", supplierId);

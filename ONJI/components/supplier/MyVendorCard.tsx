@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { FontAwesome5, AntDesign, Ionicons, Feather } from '@expo/vector-icons';
-import { INewSupplier } from '@/components/supplier/NewSupplierCard';
-
+import { INewSupplier } from '@/app/(supplier)/(tabs)/vendor';
 const MyVendorCard = ({ supplier }: { supplier: INewSupplier }) => {
   const [isFavorite, setIsFavorite] = useState(false);
 

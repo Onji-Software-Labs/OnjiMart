@@ -36,8 +36,18 @@
       "expo-font",
       "expo-secure-store",
       "expo-image",
-      "expo-web-browser"
+      "expo-web-browser",
+      ["expo-build-properties",
+
+    {
+      "android": {
+        "usesCleartextTraffic": true
+      },
+      "ios": {}
+    }]
+  
     ],
+
     "experiments": {
       "typedRoutes": true
     },

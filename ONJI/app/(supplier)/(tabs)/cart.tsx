@@ -1,4 +1,4 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { localStorage } from '@/lib/localStorage';
 import { Feather, MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import {
@@ -293,7 +293,7 @@ export default function Cart() {
   //       setError(null);
 
   //       // TODO: replace with actual shopId from user session / shop profile
-  //       const shopId = await AsyncStorage.getItem('shopId') ?? 'temp-shop-id';
+  //       const shopId = await localStorage.getItem('shopId') ?? 'temp-shop-id';
   //       // const shopId = "71cd4dcc-1fac-405e-99be-4f1018999389";
 
   //       const data = await getCartByShopId(shopId);

@@ -5,13 +5,13 @@ import { Feather, MaterialCommunityIcons, FontAwesome5, AntDesign, Ionicons } fr
 import { useFocusEffect, useRouter } from 'expo-router';
 import FavouriteModal from '../../../components/retailer/FavouriteModal';
 import NewSupplierCard, { INewSupplier } from '../../../components/retailer/NewSupplierCard';
-import { storage } from '../../../lib/storage';
+import { localStorage} from '../../../lib/localStorage';
 import { ConnectionStatus, getConnectionStatus } from '../../../lib/api/connection';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import axiosInstance from '../../../lib/api/axiosConfig';
 import { BusinessSupplier } from '../../../lib/api/supplier';
 import { getAllSuppliers, getMySuppliers } from '../../../lib/api/supplier';
 import MySupplierCard from '../../../components/retailer/MySupplierCard';
+import { secureStorage } from '@/lib/secureStorage';
 
 // Define the BusinessSupplier interface based on backend response
 
@@ -136,7 +136,7 @@ export default function Dashboard() {
 
   useEffect(() => {
   const loadFavs = async () => {
-    const savedFavs = await AsyncStorage.getItem('favouriteIds');
+    const savedFavs = await localStorage.getItem('favouriteIds');
     if (savedFavs) {
       setFavouriteIds(JSON.parse(savedFavs));
     }
@@ -182,7 +182,7 @@ export default function Dashboard() {
       setConnectionStatuses(statusMap);
 
       // Load the logged-in retailer's suppliers from storage.
-      const retailerId = await storage.getItem('userId');
+      const retailerId = await secureStorage.getItem('userId');
       if (retailerId) {
         const myData = await getMySuppliers(retailerId);
         setMySuppliers(myData.map(mapMySupplier));
@@ -256,7 +256,7 @@ export default function Dashboard() {
   const handleConnect = async (id: string) => {
     const current = connectionStatuses[id] ?? 'NONE';
     try {
-      const retailerId = await AsyncStorage.getItem('userId');
+      const retailerId = await secureStorage.getItem('userId');
       if (current === 'NONE' || current === 'REJECTED') {
         await axiosInstance.post('/api/connections/connect', null, {
           params: { retailerId, supplierId: id },
@@ -280,7 +280,7 @@ export default function Dashboard() {
     : [...favouriteIds, id];
 
   setFavouriteIds(newFavs);
-  await AsyncStorage.setItem('favouriteIds', JSON.stringify(newFavs));
+  await localStorage.setItem('favouriteIds', JSON.stringify(newFavs));
 };
 
   const favouriteSuppliers = suppliers.filter(s => favouriteIds.includes(s.id));
