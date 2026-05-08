@@ -374,7 +374,7 @@ export default function Dashboard() {
     try {
       switch (tileLabel) {
         case 'My Suppliers':
-          router.push('/Vendor');
+          router.push('/vendor');
           break;
         case 'Credit':
           router.push('/invoice');
@@ -889,7 +889,7 @@ export default function Dashboard() {
             <TouchableOpacity
               onPress={() => {
                 try {
-                  router.push('/Vendor');
+                  router.push('/vendor');
                 } catch (error) {
                   console.error('Navigation error:', error);
                 }

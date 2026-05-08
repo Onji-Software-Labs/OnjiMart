@@ -1,7 +1,7 @@
 import FormikTextInput from '@/components/auth/FormikTextInput';
 import { createRetailerBusiness} from '@/lib/api/retailer';
 import { createSupplierBusiness, getCategories, getSubCategories } from '@/lib/api/supplier';
-import { storage } from '@/lib/storage';
+import { secureStorage } from '@/lib/secureStorage';
 import AntDesign from '@expo/vector-icons/AntDesign';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Formik, FormikProps } from 'formik';
@@ -124,7 +124,7 @@ const BuisnessScreen = () => {
       if (!values) return;
       console.log('Form Values:', values);
 
-      const retailerId = await storage.getItem('userId');
+      const retailerId = await secureStorage.getItem('userId');
 
       if (!retailerId) {
         console.log('Retailer ID missing');
@@ -153,7 +153,7 @@ const BuisnessScreen = () => {
         userType: paramState.radioState,
       };
 
-      await storage.setItem('userType', paramState.radioState); 
+      await secureStorage.setItem('userType', paramState.radioState); 
 
       // Navigate after success
       if (paramState.radioState === 'Retailer') {

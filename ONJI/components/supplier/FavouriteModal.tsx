@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { AntDesign, Ionicons } from '@expo/vector-icons';
 import FavouriteCard from './FavouriteCard';
 import { useRouter } from 'expo-router';
-import { INewSupplier } from './NewSupplierCard';
+import { INewSupplier } from '@/app/(supplier)/(tabs)/vendor';
 
 const CARD_MARGIN = 8;
 

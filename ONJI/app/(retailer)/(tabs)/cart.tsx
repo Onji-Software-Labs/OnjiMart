@@ -9,7 +9,7 @@ import {
   View,
 } from 'react-native';
 import { getCartByShopId, ICartDTO } from '../../../lib/api/cart';
-import { storage } from '../../../lib/storage';
+import { localStorage } from '../../../lib/localStorage';
 import { useFocusEffect, useRouter, useLocalSearchParams } from 'expo-router';
 
 
@@ -299,7 +299,7 @@ export default function Cart() {
   //     //     setError(null);
 
   //     //     // Use the same storage helper as the supplier flow so the shopId matches.
-  //     //     const shopId = (await storage.getItem('shopId')) ?? 'temp-shop-id';
+  //     //     const shopId = (await localStorage.getItem('shopId')) ?? 'temp-shop-id';
 
   //     //     const data = await getCartByShopId(shopId);
   //     //     console.log('Cart API Response:', JSON.stringify(data, null, 2));
