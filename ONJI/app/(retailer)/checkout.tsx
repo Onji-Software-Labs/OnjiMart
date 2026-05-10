@@ -1,13 +1,13 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-  SafeAreaView,
   View,
   Text,
   TouchableOpacity,
   ScrollView,
   Image,
 } from "react-native";
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from "@expo/vector-icons";
 import { TextInput } from "react-native";
 import { submitOrder } from "@/lib/api/order"; 

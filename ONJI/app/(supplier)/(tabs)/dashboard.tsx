@@ -6,16 +6,16 @@ import {
   Image,
   ImageBackground,
   Platform,
-  SafeAreaView,
   ScrollView,
   StatusBar,
   Text,
   TextInput,
   TouchableOpacity,
   useWindowDimensions,
-  View
+  View,
+  StatusBar as RNStatusBar
 } from 'react-native';
-
+import { SafeAreaView } from 'react-native-safe-area-context';
 // Types
 interface Supplier {
   id: number;
@@ -374,7 +374,7 @@ export default function Dashboard() {
     try {
       switch (tileLabel) {
         case 'My Suppliers':
-          router.push('/vendor');
+          router.push('/Vendor');
           break;
         case 'Credit':
           router.push('/invoice');
@@ -416,8 +416,9 @@ export default function Dashboard() {
       <View
         style={{
           paddingHorizontal: horizontalPadding,
-          paddingTop: isWeb ? 20 : 12,
-          paddingBottom: 8,
+          paddingTop: Platform.OS === 'android' 
+      ? (RNStatusBar.currentHeight ?? 24) + 8  // ← status bar height + extra space
+      : isWeb ? 20 : 12,             paddingBottom: 8,
           backgroundColor: '#FFFFFF',
           zIndex: 10,
           position: 'relative'
@@ -529,7 +530,7 @@ export default function Dashboard() {
           </View>
 
           {/* Icons */}
-          <View style={{ flexDirection: 'row', marginLeft: 12, zIndex: 3 }}>
+          <View style={{ flexDirection: 'row', marginLeft: 12,   zIndex: 20, elevation: 10   }}>
             <TouchableOpacity 
             onPress={() => router.push('/notifications'as any )}
             style={{
@@ -539,7 +540,7 @@ export default function Dashboard() {
               backgroundColor: '#F3F4F6',
               alignItems: 'center',
               justifyContent: 'center',
-              marginRight: 8
+              marginRight: 8,
             }}>
               <Ionicons name="notifications-outline" size={isWeb ? 24 : 20} color="#374151" />
             </TouchableOpacity>
@@ -889,7 +890,7 @@ export default function Dashboard() {
             <TouchableOpacity
               onPress={() => {
                 try {
-                  router.push('/vendor');
+                  router.push('/Vendor');
                 } catch (error) {
                   console.error('Navigation error:', error);
                 }

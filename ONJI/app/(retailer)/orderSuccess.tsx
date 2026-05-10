@@ -1,6 +1,7 @@
 import { useRouter } from "expo-router";
-import { SafeAreaView, Text, TouchableOpacity, View } from "react-native";
+import { Text, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function OrderSuccess() {
   const router = useRouter();

@@ -21,7 +21,7 @@ export default function SupplierTabs() {
         }}
       />
       <Tabs.Screen
-        name="vendor" // ✅ FIXED (lowercase)
+        name="Vendor" // ✅ FIXED (lowercase)
         options={{
           title: 'Vendor',
           tabBarIcon: ({ color }) => <MaterialIcons name="assignment" size={24} color={color} />,
