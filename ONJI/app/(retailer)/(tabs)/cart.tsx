@@ -2,12 +2,12 @@ import { Feather, MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useState } from 'react';
 import {
   FlatList,
-  SafeAreaView,
   StatusBar,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { getCartByShopId, ICartDTO } from '../../../lib/api/cart';
 import { localStorage } from '../../../lib/localStorage';
 import { useFocusEffect, useRouter, useLocalSearchParams } from 'expo-router';

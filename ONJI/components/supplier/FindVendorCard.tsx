@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { FontAwesome5, AntDesign, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { INewSupplier } from '@/app/(supplier)/(tabs)/vendor';
+import { INewSupplier } from '@/app/(supplier)/(tabs)/Vendor';
 
 const FindVendorCard = ({
   supplier,
