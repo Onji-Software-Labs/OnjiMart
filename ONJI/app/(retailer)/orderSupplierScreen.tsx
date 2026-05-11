@@ -18,9 +18,9 @@ import { Ionicons, MaterialCommunityIcons, FontAwesome, Feather } from "@expo/ve
 import axiosInstance from "../../lib/api/axiosConfig";
 import { secureStorage } from "../../lib/secureStorage";
 import { localStorage } from "../../lib/localStorage";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 
-const VegetablesImg = require("../../assets/images/vegetables.png");
+const VegetablesImg = require("../../assets/images/Vegetables.png");
 const FruitsImg = require("../../assets/images/Fruits.png");
 const LeafyImg = require("../../assets/images/Leafy.png");
 const GroceriesImg = require("../../assets/images/Groceries.png");
@@ -68,6 +68,11 @@ const products = [
 
 export default function OrderSupplierScreen() {
   const router = useRouter();
+
+  const {
+  supplierId: paramSupplierId,
+  supplierName: paramSupplierName,
+} = useLocalSearchParams();
 
   //  UI state 
   const [expanded, setExpanded] = useState(true);
@@ -510,23 +515,37 @@ export default function OrderSupplierScreen() {
         if (!storedShopId) {
           try {
             const headers = await getAuthHeader();
-            const rRes = await axiosInstance.get("/api/retailer-business/all", { headers });
-            const rData = rRes.data?.data || rRes.data;
+            // Step 1 — get the retailer's own ID
+            // Get the logged-in user's ID directly from storage
+            const loggedInUserId = await localStorage.getItem("userId") || await localStorage.getItem("businessId");
+            const retailerId = loggedInUserId;
+            console.log("[init] retailerId from storage:", retailerId);
 
-            if (Array.isArray(rData) && rData.length > 0) {
-              const retailerId = rData[0].retailerId || rData[0].id;
-              const createRes = await axiosInstance.post("/api/shops/create", {
-                retailerId, name: "My Shop", city: "Bangalore", state: "Karnataka",
-                pincode: "560001", country: "India",
-                contactNumber: "9999999999", openingHours: ["9AM-9PM"], active: true,
-              }, { headers });
-              const newShopId = createRes.data?.id;
-              if (newShopId) { await localStorage.setItem("shopId", newShopId); storedShopId = newShopId; }
+            console.log("[init] retailerId from API:", retailerId);
+
+            // Step 2 — get ALL shops and filter by retailerId
+            const shopsRes = await axiosInstance.get("/api/shops/AllShop", { headers });
+            const allShops = shopsRes.data;
+            const myShop = allShops.find((s: any) => s.retailerId === retailerId);
+
+            console.log("[init] myShop found:", myShop);
+
+            if (myShop) {
+              // Retailer HAS a shop — save it
+              await localStorage.setItem("shopId", myShop.id);
+              storedShopId = myShop.id;
+              console.log("[init] shopId found and saved:", myShop.id);
+            } else {
+              // Retailer has NO shop — show popup
+              console.log("[init] No shop found for this retailer — show create shop popup");
+              // TODO: show popup here
             }
-          } catch (e: any) { console.log("ERROR: auto-create shop:", e?.message); }
+          } catch (e: any) {
+            console.log("ERROR fetching shop:", e?.message);
+          }
         }
+         if (!storedShopId) throw new Error("shopId unavailable");
 
-        if (!storedShopId) throw new Error("shopId unavailable");
 
         setShopId(storedShopId);
         shopIdRef.current = storedShopId;
@@ -541,17 +560,17 @@ export default function OrderSupplierScreen() {
           console.log(`[init]  cartId restored from storage: ${storedCartId}`);
         }
 
-        const headers = await getAuthHeader();
-        const res = await axiosInstance.get("/api/supplier-business/all", { headers });
-        const data = res.data?.data || res.data;
+       if (paramSupplierId) {
+        setSupplierId(String(paramSupplierId));
 
-        if (Array.isArray(data) && data.length > 0) {
-          const first = data[0];
-          const sid = String(first.supplierId || first.id || first._id);
-          setSupplierId(sid);
-          supplierIdRef.current = sid;
-          setSupplier(first);
-        }
+        supplierIdRef.current = String(paramSupplierId);
+
+        setSupplier({
+          name: paramSupplierName || "Supplier",
+          city: "",
+          address: "",
+        });
+      }
       } catch (err: any) {
         console.log("ERROR: initApp:", err?.message);
       } finally {
@@ -631,22 +650,23 @@ export default function OrderSupplierScreen() {
       Alert.alert("Cart Empty", "Please add items to cart before checking out.");
       return;
     }
-    try {
-      setIsGeneratingInvoice(true);
-      const headers = await getAuthHeader();
-      await axiosInstance.post(`/api/orders/submit/${cartIdRef.current}`, null, { headers });
-      Alert.alert("Order Placed! ✅", "Your cart has been successfully checked out.");
-      cartRef.current = {};
-      setCart({});
-      setCartId(null);
-      cartIdRef.current = null;
-      await localStorage.setItem("cartId", "");
-    } catch (err: any) {
-      console.log("ERROR: checkout:", err?.response?.status, err?.message);
-      Alert.alert("Error", "Failed to checkout. Please try again.");
-    } finally {
-      setIsGeneratingInvoice(false);
-    }
+        router.push({
+      pathname: "/(retailer)/checkout",
+      params: {
+        cart: JSON.stringify({
+          supplierId: supplierIdRef.current,
+          supplierName: supplier?.name || "Supplier",
+          cartId: cartIdRef.current,
+
+          items: cartItems.map((item) => ({
+            itemId: item.id,
+            name: item.name,
+            emoji: "📦",
+            quantity: cartRef.current[item.id] || 0,
+          })),
+        }),
+      },
+    });
   };
 
   

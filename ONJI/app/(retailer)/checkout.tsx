@@ -433,7 +433,7 @@ const timeSlots = [
         <TouchableOpacity
           onPress={async () => {
   try {
-    const order = await submitOrder(parsedCart.supplierId);
+    const order = await submitOrder(parsedCart.cartId);
 
     // Inside your checkout.tsx button onPress:
               console.log("Order success:", order);

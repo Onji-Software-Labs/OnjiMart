@@ -163,12 +163,19 @@ export default function Dashboard() {
      const mapped = data.map(mapSupplier);
 
       // De-duplicate by supplierId — backend sometimes returns the same supplier twice
-      const seen = new Set<string>();
-      const unique = mapped.filter(s => {
-        if (seen.has(s.id)) return false;
-        seen.add(s.id);
-        return true;
+      const seen = new Map<string, INewSupplier>();
+
+      mapped.forEach(s => {
+        const existing = seen.get(s.id);
+
+        // Prefer entry that has a valid name
+        if (!existing || (!existing.name && s.name)) {
+          seen.set(s.id, s);
+        }
       });
+
+      const unique = Array.from(seen.values());
+
       setSuppliers(unique);
 
       const statusEntries = await Promise.all(
