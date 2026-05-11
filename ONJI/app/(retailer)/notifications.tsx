@@ -5,11 +5,11 @@ import {
   Image, 
   TouchableOpacity, 
   ScrollView, 
-  SafeAreaView, 
   StatusBar,
   Platform ,
   Alert
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons, Feather } from '@expo/vector-icons'; 
 import axiosInstance from '../../lib/api/axiosConfig';

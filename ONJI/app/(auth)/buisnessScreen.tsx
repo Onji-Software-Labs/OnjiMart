@@ -1,7 +1,7 @@
 import FormikTextInput from '@/components/auth/FormikTextInput';
 import { createRetailerBusiness} from '@/lib/api/retailer';
 import { createSupplierBusiness, getCategories, getSubCategories } from '@/lib/api/supplier';
-import { storage } from '@/lib/storage';
+import { secureStorage } from '@/lib/secureStorage';
 import AntDesign from '@expo/vector-icons/AntDesign';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Formik, FormikProps } from 'formik';
@@ -16,7 +16,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Checkbox } from 'react-native-paper';
+import Checkbox from 'expo-checkbox';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Yup from 'yup';
 interface formValues {
@@ -124,7 +124,7 @@ const BuisnessScreen = () => {
       if (!values) return;
       console.log('Form Values:', values);
 
-      const retailerId = await storage.getItem('userId');
+      const retailerId = await secureStorage.getItem('userId');
 
       if (!retailerId) {
         console.log('Retailer ID missing');
@@ -153,7 +153,7 @@ const BuisnessScreen = () => {
         userType: paramState.radioState,
       };
 
-      await storage.setItem('userType', paramState.radioState); 
+      await secureStorage.setItem('userType', paramState.radioState); 
 
       // Navigate after success
       if (paramState.radioState === 'Retailer') {
@@ -475,10 +475,10 @@ const confirmSelectionSubCategory = () => {
         )}
         <Text className="px-2 text-base text-text-body">{item.name}</Text>
       </View>
-      <Checkbox
-        status={selectedItemsCategory.includes(item.name) ? 'checked' : 'unchecked'}
-        onPress={() => toggleItemCategory(item.name)}
-      />
+<Checkbox
+  value={selectedItemsCategory.includes(item.name)}
+  onValueChange={() => toggleItemCategory(item.name)}
+/>
     </View>
   )}
 />
@@ -558,10 +558,10 @@ const confirmSelectionSubCategory = () => {
         )}
         <Text className="text-base px-2 text-text-body">{item.name}</Text>
       </View>
-      <Checkbox
-        status={selectedItemsSubCategory.includes(item.name) ? 'checked' : 'unchecked'}
-        onPress={() => toggleItemSubCategory(item.name)}
-      />
+<Checkbox
+  value={selectedItemsSubCategory.includes(item.name)}
+  onValueChange={() => toggleItemSubCategory(item.name)}
+/>
     </View>
   )}
 />

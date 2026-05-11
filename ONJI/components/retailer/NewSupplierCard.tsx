@@ -1,6 +1,7 @@
 import {
   AntDesign,
   FontAwesome,
+  Ionicons,
   MaterialCommunityIcons,
 } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -14,6 +15,9 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+
+import { ConnectionStatus } from '../../lib/api/connection';
+
 
 export interface INewSupplier {
   id: string;
@@ -29,13 +33,41 @@ export interface INewSupplier {
 
 interface Props {
   supplier: INewSupplier;
-  isConnected: boolean;
+  connectionStatus: ConnectionStatus; 
   isFavourite: boolean;
   onConnect: (id: string) => void;
   onToggleFavourite: (id: string) => void;
 }
 
-const NewSupplierCard: React.FC<Props> = ({ supplier, isConnected, isFavourite, onConnect, onToggleFavourite }) => {
+const NewSupplierCard: React.FC<Props> = ({ supplier, connectionStatus, isFavourite, onConnect, onToggleFavourite }) => {  
+
+console.log("Supplier ID:", supplier.id, "Name:", supplier.name);
+
+const handlePress = () => {
+  if (connectionStatus === 'ACCEPTED') {
+    router.push({
+      pathname: '/(retailer)/orderSupplierScreen',
+      params: {
+        supplierId: supplier.id,
+        businessId: supplier.businessId,
+        supplierName: supplier.name,
+      },
+    });
+  } else if (connectionStatus === 'NONE' || connectionStatus === 'REJECTED') {
+    // ✅ open ConnectScreen
+    router.push({
+      pathname: '/(retailer)/connectScreen',
+      params: {
+        supplierId: supplier.id,
+        businessId: supplier.businessId,
+      },
+    });
+  } else if (connectionStatus === 'PENDING') {
+    // ✅ cancel directly
+    onConnect(supplier.id);
+  }
+};
+
   // Heart animation refs
   const heartScale = useRef(new Animated.Value(1)).current;
   const heartRotation = useRef(new Animated.Value(0)).current;
@@ -88,16 +120,16 @@ const NewSupplierCard: React.FC<Props> = ({ supplier, isConnected, isFavourite, 
 
   return (
     <View style={styles.card}>
-      {/* Favourite Button */}
-      <TouchableOpacity onPress={toggleFavorite} style={styles.favoriteButton} activeOpacity={0.7}>
-        <Animated.View style={{ transform: [{ scale: heartScale }, { rotate: rotateHeart }] }}>
-          <AntDesign
-            name={isFavourite ? 'heart' : 'hearto'}
-            size={22}
-            color={isFavourite ? '#EF4444' : '#9CA3AF'}
-          />
-        </Animated.View>
-      </TouchableOpacity>
+{/* Favourite Button */}
+<TouchableOpacity onPress={toggleFavorite} style={styles.favoriteButton} activeOpacity={0.7}>
+  <Animated.View style={{ transform: [{ scale: heartScale }, { rotate: rotateHeart }] }}>
+    <Ionicons
+      name={isFavourite ? 'heart' : 'heart-outline'}
+      size={22}
+      color={isFavourite ? '#EF4444' : '#9CA3AF'}
+    />
+  </Animated.View>
+</TouchableOpacity>
 
       {/* Avatar */}
       <View style={styles.avatarContainer}>
@@ -136,38 +168,38 @@ const NewSupplierCard: React.FC<Props> = ({ supplier, isConnected, isFavourite, 
       </View>
 
       {/* Action Button */}
-      {isConnected ? (
-        <TouchableOpacity onPress={handleCancelPress} style={styles.cancelButton} activeOpacity={0.7}>
-          <Text style={styles.cancelButtonText}>Cancel</Text>
-          <AntDesign name="close" size={14} color="#6B7280" />
-        </TouchableOpacity>
-      ) : (
-          <TouchableOpacity
-            onPress={() =>
-              router.push({
-                pathname: "/(retailer)/connectScreen",
-                params: { 
-                    supplierId: supplier.id,
-                    businessId: supplier.businessId,
-                  }
-              })
-            }
-            onPressIn={handleConnectPressIn}
-            onPressOut={handleConnectPressOut}
-            style={styles.connectButtonWrapper}
-            activeOpacity={1}
-          >
-          <Animated.View
-            style={[
-              styles.connectButton,
-              { transform: [{ scale: connectScale }], backgroundColor: interpolatedConnectBg },
-            ]}
-          >
-            <Text style={styles.connectButtonText}>Connect</Text>
-            <MaterialCommunityIcons name="account-plus" size={18} color="#34D399" />
-          </Animated.View>
-        </TouchableOpacity>
-      )}
+      <TouchableOpacity
+  onPress={handlePress}
+  style={[
+    styles.connectButtonWrapper,
+    {
+      borderColor:
+        connectionStatus === 'PENDING' ? '#D1D5DB' : '#34D399',
+    },
+  ]}
+>
+  <Animated.View
+    style={[
+      styles.connectButton,
+      { transform: [{ scale: connectScale }], backgroundColor: interpolatedConnectBg },
+    ]}
+  >
+    <Text style={styles.connectButtonText}>
+      {connectionStatus === 'PENDING'
+        ? 'Cancel'
+        : connectionStatus === 'ACCEPTED'
+        ? 'Order'
+        : 'Connect'}
+    </Text>
+
+    {connectionStatus === 'PENDING' ? (
+      <AntDesign name="close" size={14} color="#6B7280" />
+    ) : connectionStatus === 'ACCEPTED' ? (
+      <AntDesign name="arrow-right" size={16} color="#34D399" />    ) : (
+      <MaterialCommunityIcons name="account-plus" size={18} color="#34D399" />
+    )}
+  </Animated.View>
+</TouchableOpacity>
     </View>
   );
 };

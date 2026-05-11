@@ -142,7 +142,7 @@ public class OrderServiceImpl implements OrderService {
         } else if (status == OrderItemStatus.OUT_OF_STOCK) {
             orderItem.setFulfilled(false);
             orderItem.setBackordered(false);
-        }~
+        }
 
         OrderItem updatedItem = orderItemRepository.save(orderItem);
         return convertToOrderItemDTO(updatedItem);

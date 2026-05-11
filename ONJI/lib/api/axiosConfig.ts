@@ -1,32 +1,95 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
+import { secureStorage } from '@/lib/secureStorage';
 
-// const token = 'eyJhbGciOiJIUzUxMiJ9.eyJwaG9uZU51bWJlciI6Iis5MTk4NzY1NDMyMTEiLCJ1c2VySWQiOiJlNDE4MmNkNy1iZWMyLTRjYWUtYTVjZS03NDRmNDQzZTgyZWUiLCJzdWIiOiIrOTE5ODc2NTQzMjExIiwiaWF0IjoxNzcwMzc0MjkxLCJleHAiOjE3NzI5NjYyOTF9.t3G4h6zt4wVrQH-R0m2WFc8wV5IqyxpAt9_mkbNVVZnyOueZ2mvK0JeIHgVb4kytpZNpL5LlE9HIRKY6FfuHag'; // paste the token you got from Postman
+const PUBLIC_ROUTES = [
+  '/api/auth/send-otp',
+  '/api/auth/login',
+];
 
 const axiosInstance = axios.create({
   baseURL: 'http://35.207.208.109:5000', // replace with your API base URL
   headers: {
     'Content-Type': 'application/json',
     'ngrok-skip-browser-warning': 'true',
-    // Authorization: `Bearer ${token}`, // attach the token here
   },
 });
 
-// Optional: Add interceptors (e.g., auth tokens)
+
+// ===============================
+// 🔥 REQUEST INTERCEPTOR
+// ===============================
 axiosInstance.interceptors.request.use(
   async (config) => {
-    // You can inject tokens here if needed (e.g. using AsyncStorage or SecureStore)
-    const token = await AsyncStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
+    console.log("\n🚀 ========== REQUEST START ==========");
+    console.log("➡️ URL:", (config.baseURL || '') + config.url);
+    console.log("➡️ METHOD:", config.method);
+    console.log("➡️ DATA:", JSON.stringify(config.data));
+    console.log("➡️ HEADERS:", config.headers);
 
-    return config;
+    try {
+      const isPublic = PUBLIC_ROUTES.some(route =>
+        config.url?.includes(route)
+      );
+
+      console.log("🔍 IS PUBLIC ROUTE:", isPublic);
+
+      if (!isPublic) {
+        console.log("🔐 Fetching token...");
+
+        const token = await secureStorage.getItem('token');
+
+        console.log("🎯 TOKEN RESULT:", token);
+
+        if (token && config.headers) {
+          config.headers.Authorization = `Bearer ${token}`;
+          console.log("✅ Authorization header added");
+        } else {
+          console.log("⚠️ No token found");
+        }
+      } else {
+        console.log("🌍 Public route → skipping token");
+      }
+
+      console.log("📦 REQUEST READY\n");
+      return config;
+
+    } catch (error) {
+      console.log("❌ INTERCEPTOR ERROR:", error);
+      return config;
+    }
   },
   (error) => {
+    console.log("❌ REQUEST INTERCEPTOR FAILED:", error);
     return Promise.reject(error);
+  }
+);
+
+
+// ===============================
+// 🔥 RESPONSE INTERCEPTOR
+// ===============================
+axiosInstance.interceptors.response.use(
+  (response) => {
+    console.log("\n📩 ========= RESPONSE SUCCESS =========");
+    console.log("📊 STATUS:", response.status);
+    console.log("📦 DATA:", JSON.stringify(response.data));
+    console.log("=====================================\n");
+
+    return response;
   },
+  (error) => {
+    console.log("\n❌ ========= RESPONSE ERROR =========");
+
+    console.log("🔥 MESSAGE:", error.message);
+    console.log("🔥 CODE:", error.code);
+    console.log("🔥 STATUS:", error?.response?.status);
+    console.log("🔥 DATA:", error?.response?.data);
+    console.log("🔥 REQUEST:", error.request);
+
+    console.log("=====================================\n");
+
+    return Promise.reject(error);
+  }
 );
 
 export default axiosInstance;
-

@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
-import { AntDesign } from '@expo/vector-icons';
+import { AntDesign, Ionicons } from '@expo/vector-icons';
 import FavouriteCard from './FavouriteCard';
 import { useRouter } from 'expo-router';
-import { INewSupplier } from './NewSupplierCard';
+import { INewSupplier } from '@/app/(supplier)/(tabs)/Vendor';
 
 const CARD_MARGIN = 8;
 
@@ -38,7 +38,7 @@ export default function FavouriteModal({ visible, onClose, favourites }: Favouri
       {/* Header */}
       <View className="flex-row items-center px-4 py-4 border-b border-gray-200 bg-white">
         <TouchableOpacity onPress={onClose} className="mr-4">
-          <AntDesign name="arrowleft" size={24} color="#10B981" />
+          <AntDesign name="arrow-left" size={24} color="#10B981" />
         </TouchableOpacity>
         <Text className="text-xl font-semibold text-green-600">Favourite</Text>
         {favourites.length > 0 && (
@@ -51,7 +51,7 @@ export default function FavouriteModal({ visible, onClose, favourites }: Favouri
       {/* Empty state */}
       {favourites.length === 0 ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 }}>
-          <AntDesign name="hearto" size={48} color="#E5E7EB" style={{ marginBottom: 16 }} />
+          <Ionicons name="heart-outline" size={48} color="#E5E7EB" style={{ marginBottom: 16 }} />
           <Text style={{ fontSize: 16, fontWeight: '600', color: '#6B7280', textAlign: 'center', marginBottom: 8 }}>
             No favourites yet
           </Text>

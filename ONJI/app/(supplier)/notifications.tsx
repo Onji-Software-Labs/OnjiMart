@@ -5,10 +5,10 @@ import {
   Image, 
   TouchableOpacity, 
   ScrollView, 
-  SafeAreaView, 
   StatusBar,
   Platform 
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons, Feather } from '@expo/vector-icons'; 
 

@@ -2,14 +2,14 @@ import { Feather, MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useState } from 'react';
 import {
   FlatList,
-  SafeAreaView,
   StatusBar,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { getCartByShopId, ICartDTO } from '../../../lib/api/cart';
-import { storage } from '../../../lib/storage';
+import { localStorage } from '../../../lib/localStorage';
 import { useFocusEffect, useRouter, useLocalSearchParams } from 'expo-router';
 
 
@@ -291,40 +291,39 @@ export default function Cart() {
         setIsLoading(false);
         return;
       }
+  //     let isActive = true;
 
-      let isActive = true;
+  //     // const fetchCart = async () => {
+  //     //   try {
+  //     //     setIsLoading(true);
+  //     //     setError(null);
 
-      const fetchCart = async () => {
-        try {
-          setIsLoading(true);
-          setError(null);
+  //     //     // Use the same storage helper as the supplier flow so the shopId matches.
+  //     //     const shopId = (await localStorage.getItem('shopId')) ?? 'temp-shop-id';
 
-          // Use the same storage helper as the supplier flow so the shopId matches.
-          const shopId = (await storage.getItem('shopId')) ?? 'temp-shop-id';
+  //     //     const data = await getCartByShopId(shopId);
+  //     //     console.log('Cart API Response:', JSON.stringify(data, null, 2));
 
-          const data = await getCartByShopId(shopId);
-          console.log('Cart API Response:', JSON.stringify(data, null, 2));
+  //     //     if (isActive) {
+  //     //       setCarts(data.map(mapCartDTOToSupplierCart));
+  //     //     }
+  //     //   } catch (err: any) {
+  //     //     console.error('Failed to fetch cart:', err);
+  //     //     if (isActive) {
+  //     //       setError('Unable to load cart. Please try again.');
+  //     //     }
+  //     //   } finally {
+  //     //     if (isActive) {
+  //     //       setIsLoading(false);
+  //     //     }
+  //     //   }
+  //     // };
 
-          if (isActive) {
-            setCarts(data.map(mapCartDTOToSupplierCart));
-          }
-        } catch (err: any) {
-          console.error('Failed to fetch cart:', err);
-          if (isActive) {
-            setError('Unable to load cart. Please try again.');
-          }
-        } finally {
-          if (isActive) {
-            setIsLoading(false);
-          }
-        }
-      };
+  //     // fetchCart();
 
-      fetchCart();
-
-      return () => {
-        isActive = false;
-      };
+      // return () => {
+      //   isActive = false;
+      // };
     }, [success])
   );
   

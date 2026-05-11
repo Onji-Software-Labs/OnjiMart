@@ -1,8 +1,7 @@
 import React from 'react';
-import { Tabs } from 'expo-router';
+import { Tabs, useRouter, Href } from 'expo-router';
 import { Pressable, Text, View } from 'react-native';
 import { Feather, MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
-import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 
 export default function RetailerTabs() {
   return (
@@ -46,21 +45,18 @@ export default function RetailerTabs() {
   );
 }
 
-function RetailerTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
+function RetailerTabBar({ state, descriptors }: any) {
+  const router = useRouter();
+
   return (
     <View className="flex-row bg-white border-t border-gray-200 pb-safe">
-      {state.routes.map((route, index) => {
+      {state.routes.map((route: any, index: number) => {
         const isFocused = state.index === index;
         const { options } = descriptors[route.key];
 
         const onPress = () => {
-          const event = navigation.emit({
-            type: 'tabPress',
-            target: route.key,
-            canPreventDefault: true,
-          });
-          if (!isFocused && !event.defaultPrevented) {
-            navigation.navigate(route.name);
+          if (!isFocused) {
+            router.push(`/${route.name}` as Href);
           }
         };
 
@@ -70,7 +66,7 @@ function RetailerTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
             onPress={onPress} 
             className="flex-1 items-center justify-center py-2 bg-white"
           >
-            {/* Pill Container for the Icon */}
+            {/* Icon container */}
             <View className={`px-5 py-1.5 rounded-full mb-1 ${isFocused ? 'bg-[#E8F5E9]' : 'bg-transparent'}`}>
               {options.tabBarIcon?.({ 
                 color: isFocused ? '#2E7D32' : '#9CA3AF',

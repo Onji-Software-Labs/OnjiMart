@@ -59,7 +59,7 @@ export default function FavouriteCard({ data, onConnect, onOrder, connected, sty
             onPress={onOrder} // ✅ added onPress
             style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: 'white', paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: '#10B981' }}>
             <Text style={{ textAlign: 'center', color: '#10B981', fontWeight: '500', fontSize: 16, marginRight: 8 }}>Order</Text>
-            <AntDesign name="arrowright" size={18} color="#10B981" />
+            <AntDesign name="arrow-right" size={18} color="#10B981" />
           </TouchableOpacity>
         )}
 

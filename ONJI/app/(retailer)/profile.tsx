@@ -18,7 +18,7 @@ import {
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { secureStorage } from '@/lib/secureStorage';
 import axiosInstance from "@/lib/api/axiosConfig";
 
 // ── API response type ──
@@ -49,10 +49,10 @@ export default function RetailerProfileScreen() {
       setLoading(true);
       setError(null);
 
-      // Get jwtToken and phoneNumber from AsyncStorage
-      const jwtToken = await AsyncStorage.getItem("jwtToken");
-      const phoneNumber = await AsyncStorage.getItem("phoneNumber");
-      const storedId = await AsyncStorage.getItem("userId");
+      // Get jwtToken and phoneNumber from SecureStore
+      const jwtToken = await secureStorage.getItem("jwtToken");
+      const phoneNumber = await secureStorage.getItem("phoneNumber");
+      const storedId = await secureStorage.getItem("userId");
 
       if (!jwtToken) {
         setError("Session expired. Please login again.");
@@ -61,8 +61,12 @@ export default function RetailerProfileScreen() {
       }
 
       // ── Step 1: Call /all to get all retailer businesses ──
-      const allResponse = await axiosInstance.get(`/api/retailer-business/all`,)
-      
+      const allResponse = await axiosInstance.get(`/api/retailer-business/all`, {
+        headers: {
+          Authorization: `Bearer ${jwtToken}`,
+        },
+      });
+
       if (!allResponse) {
         throw new Error(`Failed to fetch profile`);
       }
@@ -101,7 +105,9 @@ export default function RetailerProfileScreen() {
         text: "Log out",
         style: "destructive",
         onPress: async () => {
-          await AsyncStorage.clear();
+          await secureStorage.removeItem("jwtToken");
+          await secureStorage.removeItem("phoneNumber");
+          await secureStorage.removeItem("userId");
           router.replace("/(auth)/login");
         },
       },

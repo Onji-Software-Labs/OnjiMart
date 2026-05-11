@@ -1,17 +1,25 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Text, View, TextInput, Pressable, ScrollView, StatusBar, TouchableOpacity, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Feather, MaterialCommunityIcons, FontAwesome5, AntDesign } from '@expo/vector-icons';
+import { Feather, MaterialCommunityIcons, FontAwesome5, AntDesign, Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
-import FavouriteModal from '../../../components/supplier/FavouriteModal';
-import NewSupplierCard, { INewSupplier } from '../../../components/supplier/NewSupplierCard';
-import { getAllSuppliers, getMySuppliers, BusinessSupplier } from '../../../lib/api/supplier';
-import { storage } from '../../../lib/storage';
+import FavouriteModal from '../../../components/retailer/FavouriteModal';
+import NewSupplierCard, { INewSupplier } from '../../../components/retailer/NewSupplierCard';
+import { localStorage} from '../../../lib/localStorage';
+import { ConnectionStatus, getConnectionStatus } from '../../../lib/api/connection';
+import axiosInstance from '../../../lib/api/axiosConfig';
+import { BusinessSupplier } from '../../../lib/api/supplier';
+import { getAllSuppliers, getMySuppliers } from '../../../lib/api/supplier';
+import MySupplierCard from '../../../components/retailer/MySupplierCard';
+import { secureStorage } from '@/lib/secureStorage';
+
+// Define the BusinessSupplier interface based on backend response
+
 
 // Maps backend ISupplierResponse → INewSupplier used by the card component
 const mapSupplier = (s: BusinessSupplier): INewSupplier => ({
   id: s.supplierId,
-  businessId: s.businessId, 
+  businessId: s.businessId||'', 
   name: s.name,
   description: s.contactNumber || '',
   location: `${s.city}${s.pincode ? ', ' + s.pincode : ''}`,
@@ -20,78 +28,96 @@ const mapSupplier = (s: BusinessSupplier): INewSupplier => ({
   credit: false,
 });
 
-// New component specifically for "My Suppliers" UI
-const MySupplierCard = ({ supplier }: { supplier: INewSupplier }) => {
-  const [isFavorite, setIsFavorite] = useState(false);
-  const router = useRouter();
+const mapMySupplier = (s: any): INewSupplier => ({
+  id: s.userId,
+  businessId: s.userId,
+  name: s.businessName || 'Unknown',
+  description: '',
+  location: s.city || '',
+  rating: s.rating || 0,
+  reviews: 0,
+  credit: false,
+});
 
-  return (
-    <View className="bg-white rounded-2xl p-4 mb-4 border border-gray-100 shadow-sm">
-      <View className="flex-row justify-between">
-        <View className="flex-row flex-1">
-          {/* Avatar Placeholder */}
-          <View className="w-14 h-14 rounded-full bg-blue-100 mr-3 overflow-hidden items-center justify-center">
-            {/* You can replace this with an actual Image component when you have avatar URLs */}
-            <FontAwesome5 name="user-alt" size={24} color="#9CA3AF" />
-          </View>
+// // New component specifically for "My Suppliers" UI
+// const MySupplierCard = ({
+//   supplier,
+//   isFavourite,
+//   onToggleFavourite,
+// }: {
+//   supplier: INewSupplier;
+//   isFavourite: boolean;
+//   onToggleFavourite: (id: string) => void;
+// }) => {
+//   const router = useRouter();
+
+//   return (
+//     <View className="bg-white rounded-2xl p-4 mb-4 border border-gray-100 shadow-sm">
+//       <View className="flex-row justify-between">
+//         <View className="flex-row flex-1">
+//           {/* Avatar Placeholder */}
+//           <View className="w-14 h-14 rounded-full bg-blue-100 mr-3 overflow-hidden items-center justify-center">
+//             {/* You can replace this with an actual Image component when you have avatar URLs */}
+//             <FontAwesome5 name="user-alt" size={24} color="#9CA3AF" />
+//           </View>
           
-          {/* Info */}
-          <View className="flex-1">
-            <Text className="text-base font-bold text-gray-800">{supplier.name}</Text>
-            <Text className="text-sm text-gray-500">{supplier.description || 'Random kaka'}</Text>
-            <Text className="text-xs text-gray-400 mt-0.5">{supplier.location || '3 kms away, Udupi'}</Text>
+//           {/* Info */}
+//           <View className="flex-1">
+//             <Text className="text-base font-bold text-gray-800">{supplier.name}</Text>
+//             <Text className="text-sm text-gray-500">{supplier.description || 'Random kaka'}</Text>
+//             <Text className="text-xs text-gray-400 mt-0.5">{supplier.location || '3 kms away, Udupi'}</Text>
             
-            <View className="flex-row items-center mt-1">
-              <AntDesign name="star" size={12} color="#10B981" />
-              <Text className="text-xs text-green-500 ml-1 font-medium">4.5(6)</Text>
-              <Text className="text-xs ml-2">🥔 🍏</Text>
-            </View>
-          </View>
-        </View>
+//             <View className="flex-row items-center mt-1">
+//               <AntDesign name="star" size={12} color="#10B981" />
+//               <Text className="text-xs text-green-500 ml-1 font-medium">4.5(6)</Text>
+//               <Text className="text-xs ml-2">🥔 🍏</Text>
+//             </View>
+//           </View>
+//         </View>
 
-        {/* Heart Icon */}
-        <TouchableOpacity onPress={() => setIsFavorite(!isFavorite)} className="p-1">
-          {isFavorite ? (
-            <AntDesign name="heart" size={20} color="#EF4444" />
-          ) : (
-            <AntDesign name="hearto" size={20} color="#9CA3AF" />
-          )}
-        </TouchableOpacity>
-      </View>
+//         {/* Heart Icon */}
+//         <TouchableOpacity onPress={() => onToggleFavourite(supplier.id)} className="p-1">
+//         {isFavourite ? (
+//           <AntDesign name="heart" size={20} color="#EF4444" />
+//         ) : (
+//           <Ionicons name="heart-outline" size={20} color="#9CA3AF" />
+//         )}
+//       </TouchableOpacity>
+//       </View>
 
-      {/* Bottom Actions */}
-      <View className="flex-row justify-between items-center mt-4">
-        <View className="flex-row items-center">
-          <Feather name="box" size={14} color="#9CA3AF" />
-          <Text className="text-xs text-gray-400 ml-1.5">3 days ago</Text>
-        </View>
+//       {/* Bottom Actions */}
+//       <View className="flex-row justify-between items-center mt-4">
+//         <View className="flex-row items-center">
+//           <Feather name="box" size={14} color="#9CA3AF" />
+//           <Text className="text-xs text-gray-400 ml-1.5">3 days ago</Text>
+//         </View>
 
-        <View className="flex-row items-center">
-          <TouchableOpacity className="mr-5">
-            <Feather name="phone" size={18} color="#6B7280" />
-          </TouchableOpacity>
+//         <View className="flex-row items-center">
+//           <TouchableOpacity className="mr-5">
+//             <Feather name="phone" size={18} color="#6B7280" />
+//           </TouchableOpacity>
           
-          <TouchableOpacity 
-            className="flex-row items-center bg-green-50 px-4 py-2 rounded-lg border border-green-100"
-            onPress={() => {
-              router.push({
-                pathname: "/(retailer)/orderSupplierScreen",
-                params: {
-                  supplierId: supplier.id,
-                  businessId: supplier.businessId,
-                  supplierName: supplier.name
-                }
-              })
-            }}
-          >
-            <Text className="text-green-600 font-medium mr-2">Order</Text>
-            <AntDesign name="arrowright" size={16} color="#10B981" />
-          </TouchableOpacity>
-        </View>
-      </View>
-    </View>
-  );
-};
+//           <TouchableOpacity 
+//             className="flex-row items-center bg-green-50 px-4 py-2 rounded-lg border border-green-100"
+//             onPress={() => {
+//               router.push({
+//                 pathname: "/(retailer)/orderSupplierScreen",
+//                 params: {
+//                   supplierId: supplier.id,
+//                   businessId: supplier.businessId,
+//                   supplierName: supplier.name
+//                 }
+//               })
+//             }}
+//           >
+//             <Text className="text-green-600 font-medium mr-2">Order</Text>
+//             <AntDesign name="arrow-right" size={16} color="#10B981" />
+//           </TouchableOpacity>
+//         </View>
+//       </View>
+//     </View>
+//   );
+// };
 
 export default function Dashboard() {
   // Navigation State for the top tabs
@@ -106,13 +132,26 @@ export default function Dashboard() {
   const [isSortModalVisible, setIsSortModalVisible] = useState(false);
   const [selectedSort, setSelectedSort] = useState<string | null>(null);
   const [isFavouriteModalVisible, setIsFavouriteModalVisible] = useState(false);
-  const [connectedIds, setConnectedIds] = useState<string[]>([]);
   const [favouriteIds, setFavouriteIds] = useState<string[]>([]);
+
+  useEffect(() => {
+  const loadFavs = async () => {
+    const savedFavs = await localStorage.getItem('favouriteIds');
+    if (savedFavs) {
+      setFavouriteIds(JSON.parse(savedFavs));
+    }
+  };
+
+  loadFavs();
+}, []);
 
   // API data state
   const [suppliers, setSuppliers] = useState<INewSupplier[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
+
+  const [connectionStatuses, setConnectionStatuses] = useState<Record<string, ConnectionStatus>>({});
+
 
   const fetchData = useCallback(async () => {
     try {
@@ -120,8 +159,8 @@ export default function Dashboard() {
       setFetchError(null);
 
       // Fetch ALL suppliers for the "Find new suppliers" tab
-      const data = await getAllSuppliers();
-      const mapped = data.map(mapSupplier);
+     const data: BusinessSupplier[] = await getAllSuppliers();
+     const mapped = data.map(mapSupplier);
 
       // De-duplicate by supplierId — backend sometimes returns the same supplier twice
       const seen = new Set<string>();
@@ -132,11 +171,21 @@ export default function Dashboard() {
       });
       setSuppliers(unique);
 
+      const statusEntries = await Promise.all(
+        unique.map(async (s) => {
+          const status = await getConnectionStatus(s.id);
+          return { id: s.id, status };
+        })
+      );
+      const statusMap: Record<string, ConnectionStatus> = {};
+      statusEntries.forEach(({ id, status }) => { statusMap[id] = status; });
+      setConnectionStatuses(statusMap);
+
       // Load the logged-in retailer's suppliers from storage.
-      const retailerId = await storage.getItem('userId');
+      const retailerId = await secureStorage.getItem('userId');
       if (retailerId) {
         const myData = await getMySuppliers(retailerId);
-        setMySuppliers(myData.map(mapSupplier));
+        setMySuppliers(myData.map(mapMySupplier));
       } else {
         console.log('No userId found in local storage.');
         setMySuppliers([]);
@@ -204,17 +253,35 @@ export default function Dashboard() {
 
   const hasActiveFilters = selectedCategories.length > 0 || creditProvided !== null || selectedFilters.length > 0 || selectedQuantity !== '';
 
-  const handleConnect = (id: string) => {
-    setConnectedIds(prev =>
-      prev.includes(id) ? prev.filter(cid => cid !== id) : [...prev, id]
-    );
+  const handleConnect = async (id: string) => {
+    const current = connectionStatuses[id] ?? 'NONE';
+    try {
+      const retailerId = await secureStorage.getItem('userId');
+      if (current === 'NONE' || current === 'REJECTED') {
+        await axiosInstance.post('/api/connections/connect', null, {
+          params: { retailerId, supplierId: id },
+        });
+        // ✅ update map immediately so both lists update
+        setConnectionStatuses(prev => ({ ...prev, [id]: 'PENDING' }));
+      } else if (current === 'PENDING') {
+        await axiosInstance.delete('/api/connections/cancel', {
+          params: { retailerId, supplierId: id },
+        });
+        setConnectionStatuses(prev => ({ ...prev, [id]: 'NONE' }));
+      }
+    } catch (err) {
+      console.log('Connection error:', err);
+    }
   };
 
-  const handleToggleFav = (id: string) => {
-    setFavouriteIds(prev =>
-      prev.includes(id) ? prev.filter(fid => fid !== id) : [...prev, id]
-    );
-  };
+  const handleToggleFav = async (id: string) => {
+  const newFavs = favouriteIds.includes(id)
+    ? favouriteIds.filter(fid => fid !== id)
+    : [...favouriteIds, id];
+
+  setFavouriteIds(newFavs);
+  await localStorage.setItem('favouriteIds', JSON.stringify(newFavs));
+};
 
   const favouriteSuppliers = suppliers.filter(s => favouriteIds.includes(s.id));
 
@@ -333,14 +400,20 @@ export default function Dashboard() {
             return (
               <NewSupplierCard
                 supplier={item}
-                isConnected={connectedIds.includes(item.id)}
+                connectionStatus={connectionStatuses[item.id] ?? 'NONE'}
                 isFavourite={favouriteIds.includes(item.id)}
                 onConnect={handleConnect}
                 onToggleFavourite={handleToggleFav}
               />
             );
           } else {
-            return <MySupplierCard supplier={item} />;
+            return (
+              <MySupplierCard
+                supplier={item}
+                isFavourite={favouriteIds.includes(item.id)}
+                onToggleFavourite={handleToggleFav}
+              />
+            );
           }
         }}
         contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 120 }}
@@ -498,6 +571,8 @@ export default function Dashboard() {
         visible={isFavouriteModalVisible}
         onClose={() => setIsFavouriteModalVisible(false)}
         favourites={favouriteSuppliers}
+        connectionStatuses={connectionStatuses}
+        onConnect={handleConnect}
       />
     </View>
   );
