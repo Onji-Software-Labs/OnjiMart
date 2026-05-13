@@ -20,7 +20,7 @@ import { secureStorage } from '@/lib/secureStorage';
 import { useRouter } from "expo-router";
 import { localStorage } from "../../lib/localStorage";
 
-const VegetablesImg = require("../../assets/images/vegetables.png");
+const VegetablesImg = require("../../assets/images/Vegetables.png");
 const FruitsImg = require("../../assets/images/Fruits.png");
 const LeafyImg = require("../../assets/images/Leafy.png");
 const GroceriesImg = require("../../assets/images/Groceries.png");

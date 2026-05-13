@@ -1,423 +1,773 @@
-import { Feather, MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
-import React, { useCallback, useState } from 'react';
+import {
+  Feather,
+  MaterialCommunityIcons,
+  Ionicons,
+} from "@expo/vector-icons";
+import React, { useState } from "react";
 import {
   FlatList,
+  Image,
+  ScrollView,
   StatusBar,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { getCartByShopId, ICartDTO } from '../../../lib/api/cart';
-import { localStorage } from '../../../lib/localStorage';
-import { useFocusEffect, useRouter, useLocalSearchParams } from 'expo-router';
+  LayoutAnimation,
+  Platform,
+  UIManager,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
+// Enable LayoutAnimation on Android
+if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+// TYPES
+// ─────────────────────────────────────────────────────────────
 
 interface CartItem {
   itemId: string;
-  name: string;
   emoji: string;
-  quantity: number; 
 }
 
-
 interface SupplierCart {
-  supplierId: string;   
+  supplierId: string;
   supplierName: string;
-  location: string;
+  ownerName: string;
+  avatarUri: any;
   totalItems: number;
   totalQty: number;
   items: CartItem[];
 }
 
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-const MAX_VISIBLE_ITEMS = 10;
-
-/** Default emoji for items that don't have a known mapping */
-const DEFAULT_EMOJI = '📦';
-
-
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-/**
- * Maps a CartDTO from the backend into the SupplierCart shape used by the UI.
- * The API returns one cart per shop (not per supplier), so each CartDTO becomes
- * one "supplier" card. supplierId is the cartId, supplierName is derived from
- * the shopId until a dedicated supplier field is available.
- */
-const mapCartDTOToSupplierCart = (cart: ICartDTO, index: number): SupplierCart => ({
-  supplierId: cart.id,
-  // shopName not returned by this endpoint — use index fallback
-  supplierName: cart.shopName || `Cart #${index + 1}`,
-  location: cart.shopName || '',
-  totalItems: cart.items.length,                              // distinct product types
-  totalQty: cart.items.reduce((sum, item) => sum + (item.quantity || 0), 0),
-  // Expand each item into N emoji boxes (capped at 10) based on quantity
- items: cart.items.map((item,itemIndex) => ({
-  itemId: `${item.id}-${itemIndex}`,
-  name: item.productName,
-  emoji: DEFAULT_EMOJI,
-  quantity: item.quantity || 0,
-})),
-});
-
-// ─── SupplierCartCard Component ───────────────────────────────────────────────
-
-interface SupplierCartCardProps {
-  cart: SupplierCart;
-  onRemove: (supplierId: string) => void;
+interface PreviousOrder {
+  orderId: string;
+  date: string;
+  time: string;
+  amount: string;
 }
 
-const SupplierCartCard: React.FC<SupplierCartCardProps> = ({ cart, onRemove }) => {
-  const router = useRouter();
-  const visibleItems = cart.items.slice(0, MAX_VISIBLE_ITEMS);
-  const overflowCount = cart.items.length - MAX_VISIBLE_ITEMS;
+interface Order {
+  id: string;
+  supplierName: string;
+  avatarUri: any;
+  totalOrdersCompleted: number;
+  amount: string;
+  latestOrderId: string;
+  status: "active" | "delivered";
+  date: string;
+  time: string;
+  previousOrders: PreviousOrder[];
+}
 
-  const handleCheckout = () => {
-  router.push({
-  pathname: '/(retailer)/checkout',
-  params: {
-    cart: JSON.stringify(cart),
+// ─────────────────────────────────────────────────────────────
+// AVATAR — update this path to your actual PNG
+// ─────────────────────────────────────────────────────────────
+const PLACEHOLDER_AVATAR = require("../../../assets/images/3davatar.png");
+// ─────────────────────────────────────────────────────────────
+// DUMMY DATA
+// ─────────────────────────────────────────────────────────────
+
+const dummyCart: SupplierCart[] = [
+  {
+    supplierId: "1",
+    supplierName: "Sunways trading",
+    ownerName: "Aslam",
+    avatarUri: PLACEHOLDER_AVATAR,
+    totalItems: 18,
+    totalQty: 240,
+    items: Array.from({ length: 9 }, (_, i) => ({ itemId: `${i}`, emoji: "🧅" })),
   },
-});
-};
+  {
+    supplierId: "2",
+    supplierName: "Reliance trading",
+    ownerName: "Ashok",
+    avatarUri: PLACEHOLDER_AVATAR,
+    totalItems: 18,
+    totalQty: 240,
+    items: Array.from({ length: 9 }, (_, i) => ({ itemId: `${i}`, emoji: "🧅" })),
+  },
+  {
+    supplierId: "3",
+    supplierName: "More Mart",
+    ownerName: "John",
+    avatarUri: PLACEHOLDER_AVATAR,
+    totalItems: 12,
+    totalQty: 180,
+    items: Array.from({ length: 9 }, (_, i) => ({ itemId: `${i}`, emoji: "🍅" })),
+  },
+];
 
-  return (
-    <View
-      style={{
-        backgroundColor: '#FFFFFF',
-        borderRadius: 16,
-        marginBottom: 16,
-        borderWidth: 1,
-        borderColor: '#E5E7EB',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.06,
-        shadowRadius: 6,
-        elevation: 3,
-        overflow: 'hidden',
-      }}
-    >
-      {/* ── Card Header ── */}
+const dummyOrders: Order[] = [
+  {
+    id: "1",
+    supplierName: "Harvest Ledger Sourcing",
+    avatarUri: PLACEHOLDER_AVATAR,
+    totalOrdersCompleted: 3,
+    amount: "$1,240.00",
+    latestOrderId: "#HL-99284",
+    status: "active",
+    date: "Oct 24, 2023",
+    time: "09:45 AM",
+    previousOrders: [
+      { orderId: "#HL-99283", date: "Oct 24, 2023", time: "09:45 AM", amount: "$1,240.00" },
+      { orderId: "#HL-99282", date: "Oct 24, 2023", time: "09:45 AM", amount: "$1,240.00" },
+      { orderId: "#HL-99281", date: "Oct 24, 2023", time: "09:45 AM", amount: "$1,240.00" },
+      { orderId: "#HL-99280", date: "Oct 24, 2023", time: "09:45 AM", amount: "$1,240.00" },
+    ],
+  },
+  {
+    id: "2",
+    supplierName: "Harvest Ledger Sourcing",
+    avatarUri: PLACEHOLDER_AVATAR,
+    totalOrdersCompleted: 3,
+    amount: "$1,240.00",
+    latestOrderId: "#HL-99284",
+    status: "active",
+    date: "Oct 24, 2023",
+    time: "09:45 AM",
+    previousOrders: [
+      { orderId: "#HL-99280", date: "Oct 24, 2023", time: "09:45 AM", amount: "$980.00" },
+    ],
+  },
+  {
+    id: "3",
+    supplierName: "Harvest Ledger Sourcing",
+    avatarUri: PLACEHOLDER_AVATAR,
+    totalOrdersCompleted: 5,
+    amount: "$2,100.00",
+    latestOrderId: "#HL-88102",
+    status: "delivered",
+    date: "Oct 20, 2023",
+    time: "11:00 AM",
+    previousOrders: [
+      { orderId: "#HL-88101", date: "Oct 18, 2023", time: "10:30 AM", amount: "$1,500.00" },
+      { orderId: "#HL-88100", date: "Oct 15, 2023", time: "08:00 AM", amount: "$900.00" },
+    ],
+  },
+  {
+    id: "4",
+    supplierName: "Harvest Ledger Sourcing",
+    avatarUri: PLACEHOLDER_AVATAR,
+    totalOrdersCompleted: 2,
+    amount: "$750.00",
+    latestOrderId: "#HL-77021",
+    status: "delivered",
+    date: "Oct 12, 2023",
+    time: "02:15 PM",
+    previousOrders: [],
+  },
+];
+
+// ─────────────────────────────────────────────────────────────
+// TYPES
+// ─────────────────────────────────────────────────────────────
+
+type FilterChip = "This week" | "Recent" | "This Month" | "Custom Date";
+
+// ─────────────────────────────────────────────────────────────
+// MAIN SCREEN
+// ─────────────────────────────────────────────────────────────
+
+export default function CartScreen() {
+  const [activeTab, setActiveTab] = useState<"cart" | "orders">("cart");
+  const [orderStatusTab, setOrderStatusTab] = useState<"active" | "delivered">("active");
+  const [cartData, setCartData] = useState(dummyCart);
+  const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
+  const [activeChip, setActiveChip] = useState<FilterChip | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const filteredOrders = dummyOrders.filter((item) => item.status === orderStatusTab);
+
+  // ── TOGGLE ACCORDION ──
+  const toggleAccordion = (orderId: string) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setExpandedOrders((prev) => {
+      const next = new Set(prev);
+      if (next.has(orderId)) {
+        next.delete(orderId);
+      } else {
+        next.add(orderId);
+      }
+      return next;
+    });
+  };
+
+  // ── REMOVE CART ──
+  const removeSupplier = (supplierId: string) => {
+    setCartData((prev) => prev.filter((item) => item.supplierId !== supplierId));
+  };
+
+  // ─────────────────────────────────────────────────────────────
+  // CART CARD
+  // ─────────────────────────────────────────────────────────────
+
+  const renderCartCard = ({ item }: { item: SupplierCart }) => {
+    const visibleItems = item.items.slice(0, 9);
+    const remaining = item.totalItems - 9;
+
+    return (
       <View
         style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          paddingHorizontal: 14,
-          paddingTop: 14,
-          paddingBottom: 12,
-          borderBottomWidth: 1,
-          borderBottomColor: '#F3F4F6',
+          backgroundColor: "#fff",
+          borderRadius: 18,
+          padding: 14,
+          marginBottom: 18,
+          borderWidth: 1,
+          borderColor: "#E5E7EB",
         }}
       >
-        <View
-          style={{
-            width: 40,
-            height: 40,
-            borderRadius: 20,
-            backgroundColor: '#D1FAE5',
-            alignItems: 'center',
-            justifyContent: 'center',
-            marginRight: 10,
-          }}
-        >
-          <MaterialCommunityIcons name="store" size={20} color="#059669" />
+        {/* HEADER */}
+        <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 16 }}>
+          <Image
+            source={item.avatarUri}
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 22,
+              marginRight: 10,
+              backgroundColor: "#D1FAE5",
+            }}
+          />
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 17, fontWeight: "700", color: "#111827" }}>
+              {item.supplierName}
+            </Text>
+            <Text style={{ fontSize: 13, color: "#6B7280", marginTop: 2 }}>
+              {item.ownerName}
+            </Text>
+          </View>
+          <TouchableOpacity onPress={() => removeSupplier(item.supplierId)}>
+            <Feather name="x" size={22} color="#15803D" />
+          </TouchableOpacity>
         </View>
 
-        <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 15, fontWeight: '700', color: '#111827' }}>
-            {cart.supplierName}
+        {/* ITEMS GRID */}
+        <View style={{ flexDirection: "row", flexWrap: "wrap", marginBottom: 18 }}>
+          {visibleItems.map((cartItem, index) => (
+            <View
+              key={index}
+              style={{
+                width: 58,
+                height: 58,
+                borderRadius: 14,
+                borderWidth: 1.5,
+                borderColor: "#15803D",
+                alignItems: "center",
+                justifyContent: "center",
+                marginRight: 10,
+                marginBottom: 10,
+                backgroundColor: "#fff",
+              }}
+            >
+              <Text style={{ fontSize: 28 }}>{cartItem.emoji}</Text>
+            </View>
+          ))}
+          {remaining > 0 && (
+            <View
+              style={{
+                width: 58,
+                height: 58,
+                borderRadius: 14,
+                borderWidth: 1.5,
+                borderColor: "#15803D",
+                alignItems: "center",
+                justifyContent: "center",
+                marginBottom: 10,
+                backgroundColor: "#F0FDF4",
+              }}
+            >
+              <Text style={{ fontSize: 16, fontWeight: "700", color: "#15803D" }}>
+                +{remaining}
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {/* FOOTER */}
+        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end" }}>
+          <View>
+            <View style={{ flexDirection: "row", marginBottom: 6 }}>
+              <Text style={{ fontSize: 14, color: "#111827" }}>Total Shipment items</Text>
+              <Text style={{ fontSize: 14, fontWeight: "700", marginLeft: 10 }}>
+                {item.totalItems} Items
+              </Text>
+            </View>
+            <View style={{ flexDirection: "row" }}>
+              <Text style={{ fontSize: 14, color: "#111827" }}>Total Quantity</Text>
+              <Text style={{ fontSize: 12, color: "#9CA3AF", marginLeft: 4 }}>(weight)</Text>
+              <Text style={{ fontSize: 14, fontWeight: "700", marginLeft: 10 }}>
+                {item.totalQty} Kg
+              </Text>
+            </View>
+          </View>
+
+          <TouchableOpacity
+            activeOpacity={0.8}
+            style={{
+              backgroundColor: "#2E7D32",
+              paddingHorizontal: 22,
+              paddingVertical: 14,
+              borderRadius: 14,
+              flexDirection: "row",
+              alignItems: "center",
+            }}
+          >
+            <Text style={{ color: "#fff", fontWeight: "700", fontSize: 16, marginRight: 10 }}>
+              Checkout
+            </Text>
+            <Feather name="arrow-right" size={20} color="#fff" />
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
+
+  // ─────────────────────────────────────────────────────────────
+  // ORDER CARD
+  // ─────────────────────────────────────────────────────────────
+
+  const renderOrderCard = (item: Order) => {
+    const isExpanded = expandedOrders.has(item.id);
+    const hasPreviousOrders = item.previousOrders.length > 0;
+
+    return (
+      <View
+        key={item.id}
+        style={{
+          backgroundColor: "#fff",
+          borderRadius: 18,
+          padding: 16,
+          marginBottom: 18,
+          borderWidth: 1,
+          borderColor: "#ECECEC",
+        }}
+      >
+        {/* TOP ROW */}
+        <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 6 }}>
+          <Image
+            source={item.avatarUri}
+            style={{
+              width: 46,
+              height: 46,
+              borderRadius: 23,
+              marginRight: 12,
+              backgroundColor: "#D1FAE5",
+            }}
+          />
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 17, fontWeight: "700", color: "#111827" }}>
+              {item.supplierName}
+            </Text>
+            <Text style={{ fontSize: 13, color: "#9CA3AF", marginTop: 2 }}>
+              {item.totalOrdersCompleted} Orders Completed
+            </Text>
+          </View>
+          <View
+            style={{
+              backgroundColor: item.status === "active" ? "#DCFCE7" : "#ECFCCB",
+              paddingHorizontal: 12,
+              paddingVertical: 6,
+              borderRadius: 20,
+            }}
+          >
+            <Text
+              style={{
+                color: item.status === "active" ? "#15803D" : "#65A30D",
+                fontSize: 12,
+                fontWeight: "700",
+              }}
+            >
+              {item.status === "active" ? "Approved" : "Delivered"}
+            </Text>
+          </View>
+        </View>
+
+        {/* DATE + TIME */}
+        <View style={{ flexDirection: "row", marginBottom: 16 }}>
+          <Text style={{ color: "#6B7280", fontSize: 13, marginRight: 18 }}>{item.date}</Text>
+          <Text style={{ color: "#6B7280", fontSize: 13 }}>• {item.time}</Text>
+        </View>
+
+        {/* ORDER INFO */}
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 18,
+          }}
+        >
+          <View>
+            <Text style={{ fontSize: 11, color: "#9CA3AF" }}>Latest Order Id</Text>
+            <View style={{ flexDirection: "row", alignItems: "center", marginTop: 4 }}>
+              <Text style={{ fontSize: 14, fontWeight: "700", color: "#111827" }}>
+                {item.latestOrderId}
+              </Text>
+              <TouchableOpacity style={{ marginLeft: 8 }}>
+                <MaterialCommunityIcons name="content-copy" size={16} color="#9CA3AF" />
+              </TouchableOpacity>
+            </View>
+          </View>
+          <Text style={{ color: "#15803D", fontSize: 26, fontWeight: "700" }}>
+            {item.amount}
           </Text>
         </View>
 
-        <TouchableOpacity
-          onPress={() => onRemove(cart.supplierId)}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        {/* ACTION BUTTONS */}
+        <View
           style={{
-            width: 28,
-            height: 28,
-            borderRadius: 14,
-            backgroundColor: '#FEF2F2',
-            alignItems: 'center',
-            justifyContent: 'center',
+            flexDirection: "row",
+            justifyContent: "space-between",
+            marginBottom: hasPreviousOrders ? 16 : 0,
           }}
         >
-          <Feather name="x" size={16} color="#EF4444" />
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity
+            style={{
+              flex: 1,
+              backgroundColor: "#2E7D32",
+              paddingVertical: 14,
+              borderRadius: 12,
+              alignItems: "center",
+              marginRight: 10,
+            }}
+          >
+            <Text style={{ color: "#fff", fontWeight: "700" }}>Order Details</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={{
+              flex: 1,
+              backgroundColor: "#F3F4F6",
+              paddingVertical: 14,
+              borderRadius: 12,
+              alignItems: "center",
+            }}
+          >
+            <Text style={{ color: "#15803D", fontWeight: "700" }}>
+              {item.status === "active" ? "Track Order" : "Rate Order"}
+            </Text>
+          </TouchableOpacity>
+        </View>
 
-      {/* ── Items Grid ── */}
-      <View style={{ paddingHorizontal: 14, paddingTop: 12 }}>
-        {cart.items.length === 0 ? (
-          <Text style={{ fontSize: 13, color: '#9CA3AF', paddingBottom: 8 }}>No items in this cart.</Text>
-        ) : (
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-            {visibleItems.map((item, index) => (
-              <View
-                key={`${item.itemId}-${index}`}
-                style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: 10,
-                  borderWidth: 1.5,
-                  borderColor: '#34D399',
-                  backgroundColor: '#F0FDF4',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <Text style={{ fontSize: 22 }}>{item.emoji}</Text>
-              </View>
-            ))}
-            {overflowCount > 0 && (
-              <View
-                style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: 10,
-                  borderWidth: 1.5,
-                  borderColor: '#34D399',
-                  backgroundColor: '#D1FAE5',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <Text style={{ fontSize: 13, fontWeight: '700', color: '#065F46' }}>
-                  +{overflowCount}
+        {/* PREVIOUS ORDERS ACCORDION */}
+        {hasPreviousOrders && (
+          <View>
+            <View style={{ height: 1, backgroundColor: "#F3F4F6", marginBottom: 14 }} />
+
+            <TouchableOpacity
+              onPress={() => toggleAccordion(item.id)}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <MaterialCommunityIcons
+                  name="history"
+                  size={18}
+                  color="#6B7280"
+                  style={{ marginRight: 6 }}
+                />
+                <Text style={{ fontSize: 13, color: "#6B7280", fontWeight: "600" }}>
+                  +{item.previousOrders.length} previous order
+                  {item.previousOrders.length > 1 ? "s" : ""}
                 </Text>
+              </View>
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <Text style={{ fontSize: 13, color: "#15803D", fontWeight: "600", marginRight: 4 }}>
+                  {isExpanded ? "Hide" : "View all"}
+                </Text>
+                <Feather
+                  name={isExpanded ? "chevron-up" : "chevron-down"}
+                  size={16}
+                  color="#15803D"
+                />
+              </View>
+            </TouchableOpacity>
+
+            {isExpanded && (
+              <View style={{ marginTop: 14 }}>
+                <View style={{ flexDirection: "row", flexWrap: "wrap", marginHorizontal: -6 }}>
+                  {item.previousOrders.map((prev, index) => (
+                    <TouchableOpacity
+                      key={prev.orderId}
+                      activeOpacity={0.8}
+                      style={{
+                        width: "48%",
+                        marginHorizontal: "1%",
+                        marginBottom: 10,
+                        backgroundColor: index === 0 ? "#2E7D32" : "#F9FAFB",
+                        borderRadius: 12,
+                        padding: 12,
+                        borderWidth: index === 0 ? 0 : 1,
+                        borderColor: "#E5E7EB",
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 11,
+                          color: index === 0 ? "#A7F3D0" : "#9CA3AF",
+                          marginBottom: 4,
+                        }}
+                      >
+                        {prev.date} • {prev.time}
+                      </Text>
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          fontWeight: "600",
+                          color: index === 0 ? "#fff" : "#374151",
+                          marginBottom: 6,
+                        }}
+                      >
+                        Order Id {prev.orderId}
+                      </Text>
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontSize: 14,
+                            fontWeight: "700",
+                            color: index === 0 ? "#fff" : "#111827",
+                          }}
+                        >
+                          {prev.amount}
+                        </Text>
+                        <Feather
+                          name="chevron-right"
+                          size={16}
+                          color={index === 0 ? "#A7F3D0" : "#9CA3AF"}
+                        />
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </View>
               </View>
             )}
           </View>
         )}
       </View>
-
-      {/* ── Footer ── */}
-      <View
-        style={{
-          paddingHorizontal: 14,
-          paddingTop: 12,
-          paddingBottom: 14,
-          flexDirection: 'row',
-          alignItems: 'flex-end',
-          justifyContent: 'space-between',
-        }}
-      >
-        <View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 3 }}>
-            <Text style={{ fontSize: 12, color: '#6B7280' }}>Total Shipment Items: </Text>
-            <Text style={{ fontSize: 12, fontWeight: '600', color: '#111827' }}>
-              {cart.totalItems} items
-            </Text>
-          </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Text style={{ fontSize: 12, color: '#6B7280' }}>Total Quantity </Text>
-            <Text style={{ fontSize: 11, color: '#9CA3AF' }}>(weight): </Text>
-            <Text style={{ fontSize: 12, fontWeight: '600', color: '#111827' }}>
-              {cart.totalQty} Kg
-            </Text>
-          </View>
-        </View>
-
-        <TouchableOpacity
-          onPress={handleCheckout}
-          activeOpacity={0.85}
-          style={{
-            backgroundColor: '#16A34A',
-            borderRadius: 10,
-            paddingHorizontal: 18,
-            paddingVertical: 10,
-            flexDirection: 'row',
-            alignItems: 'center',
-            columnGap: 6,
-            shadowColor: '#16A34A',
-            shadowOffset: { width: 0, height: 3 },
-            shadowOpacity: 0.3,
-            shadowRadius: 5,
-            elevation: 4,
-          }}
-        >
-          <Text style={{ color: '#FFFFFF', fontSize: 14, fontWeight: '700' }}>Checkout</Text>
-          <Feather name="arrow-right" size={15} color="#FFFFFF" />
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-};
-
-// ─── Empty Cart Component ─────────────────────────────────────────────────────
-
-const EmptyCart: React.FC = () => (
-  <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 }}>
-    <View
-      style={{
-        width: 80,
-        height: 80,
-        borderRadius: 40,
-        backgroundColor: '#F3F4F6',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: 20,
-      }}
-    >
-      <Feather name="shopping-cart" size={36} color="#D1D5DB" />
-    </View>
-    <Text
-      style={{ fontSize: 17, fontWeight: '600', color: '#6B7280', textAlign: 'center', marginBottom: 8 }}
-    >
-      Looks like your cart's empty.
-    </Text>
-    <Text style={{ fontSize: 13, color: '#9CA3AF', textAlign: 'center', lineHeight: 20 }}>
-      Browse suppliers and add items you love.
-    </Text>
-  </View>
-);
-
-// ─── Main Cart Screen ─────────────────────────────────────────────────────────
-
-export default function Cart() {
-  const router = useRouter();
-  const { success } = useLocalSearchParams();
-  const [carts, setCarts] = useState<SupplierCart[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useFocusEffect(
-    useCallback(() => {
-      if (success === 'true') {
-        setIsLoading(false);
-        return;
-      }
-  //     let isActive = true;
-
-  //     // const fetchCart = async () => {
-  //     //   try {
-  //     //     setIsLoading(true);
-  //     //     setError(null);
-
-  //     //     // Use the same storage helper as the supplier flow so the shopId matches.
-  //     //     const shopId = (await localStorage.getItem('shopId')) ?? 'temp-shop-id';
-
-  //     //     const data = await getCartByShopId(shopId);
-  //     //     console.log('Cart API Response:', JSON.stringify(data, null, 2));
-
-  //     //     if (isActive) {
-  //     //       setCarts(data.map(mapCartDTOToSupplierCart));
-  //     //     }
-  //     //   } catch (err: any) {
-  //     //     console.error('Failed to fetch cart:', err);
-  //     //     if (isActive) {
-  //     //       setError('Unable to load cart. Please try again.');
-  //     //     }
-  //     //   } finally {
-  //     //     if (isActive) {
-  //     //       setIsLoading(false);
-  //     //     }
-  //     //   }
-  //     // };
-
-  //     // fetchCart();
-
-      // return () => {
-      //   isActive = false;
-      // };
-    }, [success])
-  );
-  
-
-  const handleRemoveSupplier = (supplierId: string) => {
-    // Local removal only — DELETE API integration is out of scope for this task
-    setCarts(prev => prev.filter(c => c.supplierId !== supplierId));
-  };
-
-  // ── Render ────────────────────────────────────────────────────────────────
-
-  const renderBody = () => {
-    if (success === 'true') {
-      return (
-        <View style={{ flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 24 }}>
-          <View style={{ width: 90, height: 90, borderRadius: 45, backgroundColor: "#6AA84F", justifyContent: "center", alignItems: "center", marginBottom: 20 }}>
-            <Ionicons name="checkmark" size={50} color="#fff" />
-          </View>
-          <Text style={{ fontSize: 18, fontWeight: "700", color: "#2E7D32", textAlign: "center", marginBottom: 10 }}>
-            Your order request has been{"\n"}sent to Sunways trading.
-          </Text>
-          <Text style={{ fontSize: 13, color: "#555", textAlign: "center", marginBottom: 25, lineHeight: 20 }}>
-            You will be notified once it is approved. You can also{"\n"}track it in the Orders section
-          </Text>
-          <TouchableOpacity
-            onPress={() => router.setParams({ success: "" })}
-            style={{ backgroundColor: "#5A7F41", paddingVertical: 16, paddingHorizontal: 40, borderRadius: 14, minWidth: 250, alignItems: "center" }}
-          >
-            <Text style={{ color: "#fff", fontWeight: "700", fontSize: 16 }}>Go back to Cart</Text>
-          </TouchableOpacity>
-        </View>
-      );
-    }
-    if (isLoading) {
-      return (
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ fontSize: 15, color: '#6B7280' }}>Loading cart…</Text>
-        </View>
-      );
-    }
-
-    if (error) {
-      return (
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
-          <Feather name="alert-circle" size={36} color="#EF4444" style={{ marginBottom: 12 }} />
-          <Text style={{ fontSize: 15, color: '#EF4444', textAlign: 'center' }}>{error}</Text>
-        </View>
-      );
-    }
-
-    if (carts.length === 0) {
-      return <EmptyCart />;
-    }
-
-    return (
-      <FlatList
-        data={carts}
-       keyExtractor={(item, index) => `${item.supplierId}-${index}`}
-        renderItem={({ item }) => (
-          <SupplierCartCard cart={item} onRemove={handleRemoveSupplier} />
-        )}
-        contentContainerStyle={{
-          paddingHorizontal: 16,
-          paddingTop: 4,
-          paddingBottom: 120,
-        }}
-        showsVerticalScrollIndicator={false}
-      />
     );
   };
 
+  // ─────────────────────────────────────────────────────────────
+  // RENDER
+  // ─────────────────────────────────────────────────────────────
+
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#F9FAFB" }}>
       <StatusBar barStyle="dark-content" backgroundColor="#F9FAFB" />
 
-      {/* ── Header ── */}
-      {success !== 'true' && (
-      <View
-        style={{
-          paddingHorizontal: 20,
-          paddingTop: 16,
-          paddingBottom: 12,
-          backgroundColor: '#F9FAFB',
-        }}
-      >
-        <Text style={{ fontSize: 24, fontWeight: '700', color: '#16A34A' }}>Cart</Text>
-        {!isLoading && !error && carts.length > 0 && (
-          <Text style={{ fontSize: 13, color: '#6B7280', marginTop: 2 }}>
-            {carts.length} supplier cart{carts.length > 1 ? 's' : ''} found
-          </Text>
-        )}
+      {/* TOP TOGGLE */}
+      <View style={{ paddingHorizontal: 20, paddingTop: 12 }}>
+        <View
+          style={{
+            backgroundColor: "#E5E7EB",
+            borderRadius: 20,
+            flexDirection: "row",
+            padding: 4,
+          }}
+        >
+          <TouchableOpacity
+            onPress={() => setActiveTab("cart")}
+            style={{
+              flex: 1,
+              backgroundColor: activeTab === "cart" ? "#fff" : "transparent",
+              paddingVertical: 14,
+              borderRadius: 16,
+              alignItems: "center",
+            }}
+          >
+            <Text
+              style={{
+                color: activeTab === "cart" ? "#15803D" : "#4B5563",
+                fontWeight: "600",
+                fontSize: 16,
+              }}
+            >
+              Cart
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => setActiveTab("orders")}
+            style={{
+              flex: 1,
+              backgroundColor: activeTab === "orders" ? "#fff" : "transparent",
+              paddingVertical: 14,
+              borderRadius: 16,
+              alignItems: "center",
+            }}
+          >
+            <Text
+              style={{
+                color: activeTab === "orders" ? "#15803D" : "#4B5563",
+                fontWeight: "600",
+                fontSize: 16,
+              }}
+            >
+              Orders
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
-)}
-      {renderBody()}
+
+      {/* CART TAB */}
+      {activeTab === "cart" ? (
+        <FlatList
+          data={cartData}
+          renderItem={renderCartCard}
+          keyExtractor={(item) => item.supplierId}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ padding: 20, paddingBottom: 120 }}
+        />
+      ) : (
+        // ORDERS TAB
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ padding: 20, paddingBottom: 120 }}
+        >
+          {/* SEARCH + FILTER ICON */}
+          <View style={{ flexDirection: "row", marginBottom: 18 }}>
+            <View
+              style={{
+                flex: 1,
+                backgroundColor: "#fff",
+                borderRadius: 14,
+                flexDirection: "row",
+                alignItems: "center",
+                paddingHorizontal: 14,
+                marginRight: 12,
+                borderWidth: 1,
+                borderColor: "#E5E7EB",
+              }}
+            >
+              <Feather name="search" size={18} color="#9CA3AF" />
+              <TextInput
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                placeholder='Search "Random kaka"'
+                placeholderTextColor="#9CA3AF"
+                style={{ flex: 1, height: 50, marginLeft: 10 }}
+              />
+            </View>
+            <TouchableOpacity
+              style={{
+                width: 50,
+                height: 50,
+                borderRadius: 14,
+                backgroundColor: "#fff",
+                justifyContent: "center",
+                alignItems: "center",
+                borderWidth: 1,
+                borderColor: "#E5E7EB",
+              }}
+            >
+              <Ionicons name="options-outline" size={22} color="#15803D" />
+            </TouchableOpacity>
+          </View>
+
+          {/* ACTIVE / DELIVERED TABS */}
+          <View style={{ flexDirection: "row", marginBottom: 18 }}>
+            <TouchableOpacity
+              onPress={() => setOrderStatusTab("active")}
+              style={{
+                marginRight: 24,
+                borderBottomWidth: orderStatusTab === "active" ? 2 : 0,
+                borderBottomColor: "#15803D",
+                paddingBottom: 8,
+              }}
+            >
+              <Text
+                style={{
+                  color: orderStatusTab === "active" ? "#15803D" : "#4B5563",
+                  fontWeight: orderStatusTab === "active" ? "700" : "500",
+                }}
+              >
+                Active Orders
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => setOrderStatusTab("delivered")}
+              style={{
+                borderBottomWidth: orderStatusTab === "delivered" ? 2 : 0,
+                borderBottomColor: "#15803D",
+                paddingBottom: 8,
+              }}
+            >
+              <Text
+                style={{
+                  color: orderStatusTab === "delivered" ? "#15803D" : "#4B5563",
+                  fontWeight: orderStatusTab === "delivered" ? "700" : "500",
+                }}
+              >
+                Delivered
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* FILTER CHIPS */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={{ marginBottom: 18 }}
+          >
+            {(["This week", "Recent", "This Month", "Custom Date"] as FilterChip[]).map((chip) => {
+              const isActive = activeChip === chip;
+              return (
+                <TouchableOpacity
+                  key={chip}
+                  onPress={() => setActiveChip(isActive ? null : chip)}
+                  style={{
+                    paddingHorizontal: 16,
+                    paddingVertical: 8,
+                    borderRadius: 20,
+                    backgroundColor: isActive ? "#9333EA" : "#F3E8FF",
+                    marginRight: 10,
+                    flexDirection: "row",
+                    alignItems: "center",
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: isActive ? "#fff" : "#9333EA",
+                      fontSize: 13,
+                      fontWeight: "600",
+                    }}
+                  >
+                    {chip}
+                  </Text>
+                  {isActive && (
+                    <Feather name="x" size={13} color="#fff" style={{ marginLeft: 6 }} />
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+
+          {/* ORDER CARDS */}
+          {filteredOrders.length === 0 ? (
+            <View style={{ alignItems: "center", marginTop: 60 }}>
+              <MaterialCommunityIcons name="package-variant" size={64} color="#D1D5DB" />
+              <Text style={{ color: "#9CA3AF", marginTop: 16, fontSize: 16 }}>
+                No {orderStatusTab} orders
+              </Text>
+            </View>
+          ) : (
+            filteredOrders.map((item) => renderOrderCard(item))
+          )}
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 }
