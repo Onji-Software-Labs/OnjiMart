@@ -20,13 +20,13 @@ import { secureStorage } from "../../lib/secureStorage";
 import { localStorage } from "../../lib/localStorage";
 import { useRouter } from "expo-router";
 
-const VegetablesImg = require("../../assets/images/vegetables.png");
-const FruitsImg = require("../../assets/images/Fruits.png");
-const LeafyImg = require("../../assets/images/Leafy.png");
-const GroceriesImg = require("../../assets/images/Groceries.png");
+// const VegetablesImg = require("../../assets/images/vegetables.png");
+// const FruitsImg = require("../../assets/images/Fruits.png");
+// const LeafyImg = require("../../assets/images/Leafy.png");
+// const GroceriesImg = require("../../assets/images/Groceries.png");
 const PersonImg = require("../../assets/images/supplier.jpg");
-const OnionImg = require("../../assets/images/Onion.png");
-const TomatoImg = require("../../assets/images/tomato.png");
+// const OnionImg = require("../../assets/images/Onion.png");
+// const TomatoImg = require("../../assets/images/tomato.png");
 
 
 // Static data — unchanged
@@ -47,18 +47,23 @@ const timeSlots = [
   { label: "Evening", time: "3pm – 7pm", available: true },
 ];
 
-const categories = [
-  { label: "Vegetables", img: VegetablesImg },
-  { label: "Fruits", img: FruitsImg },
-  { label: "Leafy", img: LeafyImg },
-  { label: "Groceries", img: GroceriesImg },
-];
+// const categories = [
+//   { label: "Vegetables", img: VegetablesImg },
+//   { label: "Fruits", img: FruitsImg },
+//   { label: "Leafy", img: LeafyImg },
+//   { label: "Groceries", img: GroceriesImg },
+// ];
 
-const products = [
-  { id: "1", name: "ONION", price: 28, image: OnionImg },
-  { id: "2", name: "TOMATO", price: 28, image: TomatoImg },
-];
-
+type Product = {
+  id: string;
+  name: string;
+  price: number;
+  image: any;
+  minOrderQuantity: number;
+  unit: string;
+  stock: number;
+  description: string;
+};
 
 // TRUE DELTA MODE
 // API always receives exactly +1 or -1 per call — never an absolute quantity.
@@ -109,10 +114,6 @@ export default function OrderSupplierScreen() {
   useEffect(() => { cartIdRef.current = cartId; }, [cartId]);
   useEffect(() => { tokenRef.current = token; }, [token]);
 
-  
-  // Helpers
-  
-
   const getAuthHeader = useCallback(async (): Promise<Record<string, string>> => {
     const tok = await secureStorage.getItem("jwtToken") || await secureStorage.getItem("token");
     tokenRef.current = tok ?? null;
@@ -136,11 +137,6 @@ export default function OrderSupplierScreen() {
     return true;
   }, []);
 
-  
-  // fetchCartItems — hydrates local cart state from server
-  // FIXED: Extracted as standalone function so it can be called
-  //   after every successful Add action, keeping UI in sync with backend.
-  
   const fetchCartItems = useCallback(async (): Promise<void> => {
     if (!isSessionValid()) return;
 
@@ -189,13 +185,7 @@ export default function OrderSupplierScreen() {
       console.log(`[fetchCartItems] ERROR:`, err?.response?.status, err?.message);
     }
   }, [getAuthHeader, isSessionValid]);
-
  
-  // syncCartWithServer — TRUE DELTA MODE + SESSION GUARD
-  // FIXED: POST /add is the ONLY cart-creation mechanism.
-  //   No /create endpoint is called anywhere.
-  //   After a successful add, fetchCartItems() is called to sync UI.
-  
   const syncCartWithServer = useCallback(async (productId: string, delta: number): Promise<void> => {
     if (!isSessionValid()) return;
 
@@ -262,9 +252,6 @@ export default function OrderSupplierScreen() {
     }
   }, [getAuthHeader, isSessionValid, fetchCartItems]);
 
-  
-  // scheduleSync — TRUE DELTA MODE (unchanged logic)
-  
   const scheduleSync = useCallback((productId: string, delta: number): void => {
     if (!syncQueueRef.current[productId]) {
       syncQueueRef.current[productId] = { pendingDelta: delta, inFlight: false };
@@ -294,11 +281,6 @@ export default function OrderSupplierScreen() {
     }, 500);
   }, [syncCartWithServer]);
 
-  
-  // add — increment by +1 (optimistic)
-  //  FIXED: No cartId guard here. /add creates the cart on first call.
-  //   The backend handles cart creation automatically.
-  
   const add = useCallback((id: any): void => {
     if (!isSessionValid()) return;
 
@@ -315,11 +297,6 @@ export default function OrderSupplierScreen() {
     scheduleSync(strId, +1);
   }, [scheduleSync, isSessionValid]);
 
-
-  // remove — decrement by -1 (optimistic)
-  // FIXED: Block -/+ if item doesn't exist in cart yet (qty === 0).
-  //   This prevents spurious API calls for items never added.
-  
   const remove = useCallback((id: any): void => {
     if (!isSessionValid()) return;
 
@@ -361,13 +338,6 @@ export default function OrderSupplierScreen() {
     setSavedItems((p) => p.includes(id) ? p.filter((i) => i !== id) : [...p, id]),
     []);
 
- 
-  // ensureCartExists —  FIXED: No /create call — ever.
-  // Strategy:
-  //   1. GET /items → hydrate cart state if cart already exists
-  //   2. 404 → log and wait. Cart will be created on the user's first Add.
-  // This matches the backend design: POST /add creates the cart automatically.
-  
   const ensureCartExists = useCallback(async (): Promise<void> => {
     if (!isSessionValid()) return;
 
@@ -451,9 +421,6 @@ export default function OrderSupplierScreen() {
     }
   }, [getAuthHeader, isSessionValid]);
 
-  
-  // handleLogout — full session teardown (unchanged)
-  
   const handleLogout = useCallback(async (): Promise<void> => {
     isLoggedOutRef.current = true;
 
@@ -486,7 +453,6 @@ export default function OrderSupplierScreen() {
     console.log("[logout]  Session cleared — navigating to login");
     router.replace("/(auth)/login" as any);
   }, [router]);
-
   
   // INIT
   
@@ -620,8 +586,6 @@ export default function OrderSupplierScreen() {
   }, [supplierId, activeCategory, token]);
 
   
-  // Checkout
-  
   const handleGenerateInvoice = async () => {
     if (!isSessionValid()) {
       Alert.alert("Session Expired", "Please log in again.");
@@ -649,31 +613,26 @@ export default function OrderSupplierScreen() {
     }
   };
 
-  
-  // Display helpers
-  
-  const displayProducts = apiProducts.length > 0
-    ? apiProducts.map((p, idx) => ({
-      id: String(p.productId || p.id || p._id || idx),
-      name: p.productName || p.name || `Product ${idx + 1}`,
-      price: p.price ?? p.unitValue ?? 0,
-      image: p.image || TomatoImg,
-    }))
-    : products;
+const displayProducts: Product[] = apiProducts.map((p, idx) => ({
+  id: String(p.productId || p.id || idx),
+  name: p.name || `Product ${idx + 1}`,
+  price: p.price ?? 0,
+  image: p.imageUrl && p.imageUrl.startsWith('http') 
+    ? { uri: p.imageUrl }  // ← accept any http URL, no extension check
+    : null, 
+  minOrderQuantity: p.minOrderQuantity ?? 1,
+  unit: p.quantityType === 'COUNT' ? 'pcs' : 'kg',
+  stock: p.stockQuantity ?? 0,
+  description: p.description ?? '',
+}));
 
-  const displayCategories = apiCategories.length > 0
-    ? apiCategories.map((apiCat) => {
-      const staticMatch = categories.find(
-        (c) => c.label.toLowerCase() === (apiCat.name || "").toLowerCase()
-      );
-      return {
-        id: String(apiCat.id || apiCat.categoryId || apiCat._id),
-        displayName: apiCat.name || apiCat.displayName || "Category",
-        img: staticMatch?.img || VegetablesImg,
-      };
-    })
-    : categories.map((c, i) => ({ id: String(i), displayName: c.label, img: c.img }));
-
+const displayCategories = apiCategories.map((apiCat) => ({
+  id: String(apiCat.id || apiCat.categoryId || apiCat._id),
+  displayName: apiCat.name || apiCat.displayName || "Category",
+  img: apiCat.imageUrl && apiCat.imageUrl.startsWith('http')
+    ? { uri: apiCat.imageUrl }
+    : null, // ← fallback if no image from API
+}));
   const cartItems = displayProducts.filter((p) => (cartRef.current[p.id] || 0) > 0);
 
   if (isInitializing || !supplier) {
@@ -798,13 +757,25 @@ export default function OrderSupplierScreen() {
         <Text style={styles.subtitle}>Browse Items</Text>
         <View style={styles.categoryRow}>
           {displayCategories.map((cat) => (
-            <TouchableOpacity key={cat.id} onPress={() => setActiveCategory(cat.id)} style={styles.categoryItem}>
-              <Image source={cat.img} style={styles.categoryIcon} />
-              <Text style={[styles.categoryText, activeCategory === cat.id && styles.categoryTextActive]}>
-                {cat.displayName}
-              </Text>
-              {activeCategory === cat.id && <View style={styles.categoryUnderline} />}
-            </TouchableOpacity>
+            <TouchableOpacity 
+  key={cat.id} 
+  onPress={() => setActiveCategory(cat.id)} 
+  style={styles.categoryItem}
+>
+  {cat.img && (
+    <Image 
+      source={cat.img} 
+      style={styles.categoryIcon}
+    />
+  )}
+  <Text style={[
+    styles.categoryText, 
+    activeCategory === cat.id && styles.categoryTextActive
+  ]}>
+    {cat.displayName}
+  </Text>
+  {activeCategory === cat.id && <View style={styles.categoryUnderline} />}
+</TouchableOpacity>
           ))}
         </View>
 
@@ -840,13 +811,23 @@ export default function OrderSupplierScreen() {
                 <View style={styles.imgBox}>
                   <Image source={item.image} style={styles.productImg} />
                 </View>
-                <Text style={styles.minQty}>Min quantity: 40kg</Text>
-                <Text style={styles.productName}>{item.name}</Text>
-                <Text style={styles.productSub}>Price as of yesterday: 25/kg</Text>
-                <Text style={styles.discount}>5% off</Text>
-                <Text style={styles.productPrice}>
-                  ₹{item.price}/kg <Text style={styles.mrp}>MRP ₹28/kg</Text>
-                </Text>
+<Text style={styles.minQty}>
+  Min quantity: {item.minOrderQuantity} {item.unit}
+</Text>
+
+<Text style={styles.productName}>{item.name}</Text>
+
+{item.description ? (
+  <Text style={styles.productSub}>{item.description}</Text>
+) : null}
+
+{item.stock === 0 && (
+  <Text style={{ color: 'red', fontSize: 11 }}>Out of stock</Text>
+)}
+
+<Text style={styles.productPrice}>
+  ₹{item.price}/{item.unit}
+</Text>
                 {qty === 0 ? (
                   <TouchableOpacity style={styles.addBtn} onPress={() => add(item.id)}>
                     <Text style={styles.addBtnText}>Add</Text>

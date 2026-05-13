@@ -20,4 +20,5 @@ public class CategoryDTO {
 	    
 	    private String description;
 	    private List<SubCategoryDTO> subCategories;
+        private String imageUrl;
 }

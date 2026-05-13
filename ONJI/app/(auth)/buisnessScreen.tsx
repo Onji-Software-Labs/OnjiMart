@@ -246,6 +246,7 @@ const confirmSelectionCategory = () => {
 
   setSelectedCategoryIds(categoryIds); // ← full replace, not addAll
   toggleDropdownCategory();
+  console.log('Selected Category IDs:', categoryIds);
 };
 
 const confirmSelectionSubCategory = () => {
@@ -256,6 +257,7 @@ const confirmSelectionSubCategory = () => {
 
   setSelectedSubCategoryIds(subCategoryIds); // ← full replace, not addAll
   toggleDropdownSubCategory();
+  console.log('Selected SubCategory IDs:', subCategoryIds);
 };
   return (
     <View className="bg-surface-page flex-1">
@@ -458,7 +460,7 @@ const confirmSelectionSubCategory = () => {
                         onRequestClose={toggleDropdownCategory}
                       >
                         <Pressable
-                          onPress={toggleDropdownCategory}
+                          // onPress={toggleDropdownCategory}
                           className="flex-1 bg-black/40 justify-center px-4"
                         >
                           <View className="bg-surface-pressed rounded-xl p-4">
@@ -536,7 +538,7 @@ const confirmSelectionSubCategory = () => {
                         onRequestClose={toggleDropdownSubCategory}
                       >
                         <Pressable
-                          onPress={toggleDropdownSubCategory}
+                          // onPress={toggleDropdownSubCategory}
                           className="flex-1 bg-black/40 justify-center px-4"
                         >
                           <View className="bg-surface-pressed rounded-xl p-4">
