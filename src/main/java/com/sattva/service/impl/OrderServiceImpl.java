@@ -216,4 +216,52 @@ public class OrderServiceImpl implements OrderService {
         return modelMapper.map(updatedItem, OrderItemDTO.class);
     }
 
+    // Fetch retailer orders by statuses
+    @Override
+    public List<OrderDTO> getOrdersByRetailerIdAndStatus(String retailerId,List<OrderStatus> statuses) {
+
+        // Fetch matching orders from database
+        List<Order> orders = orderRepository
+                .findByRetailer_IdAndStatusIn(retailerId, statuses);
+
+        // Convert Order entities to DTOs
+        return orders.stream()
+                .map(order -> modelMapper.map(order, OrderDTO.class))
+                .collect(Collectors.toList());
+    }
+
+    // Fetch retailer orders for specific supplier by statuses
+    @Override
+    public List<OrderDTO> getOrdersByRetailerAndSupplierAndStatus(String retailerId,String supplierId,List<OrderStatus> statuses) {
+    
+        // Fetch matching orders from database
+        List<Order> orders = orderRepository
+                .findByRetailer_IdAndSupplier_IdAndStatusIn(
+                        retailerId,
+                        supplierId,
+                        statuses
+                );
+
+        // Convert Order entities to DTOs
+        return orders.stream()
+                .map(order -> modelMapper.map(order, OrderDTO.class))
+                .collect(Collectors.toList());
+    }
+
+    // Fetch retailer order details by order ID
+    @Override
+    public OrderDTO getOrderById(String orderId) {
+
+        // Fetch order from database
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Order not found with ID: " + orderId
+                        )
+                );
+
+        // Convert entity to DTO
+        return modelMapper.map(order, OrderDTO.class);
+    }
+
 }
