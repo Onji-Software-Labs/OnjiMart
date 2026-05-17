@@ -3,11 +3,13 @@ package com.sattva.controller;
 import com.sattva.dto.OrderDTO;
 import com.sattva.dto.OrderItemDTO;
 import com.sattva.enums.OrderItemStatus;
+import com.sattva.enums.OrderStatus;
 import com.sattva.service.OrderService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import java.util.Arrays;
 
 import java.util.List;
 
@@ -59,6 +61,83 @@ public class OrderController {
         // Updated the service method to accept fulfilledQuantity as an argument
         OrderItemDTO updatedItem = orderService.fulfillOrderItem(orderId, itemId, unitPrice, fulfilledQuantity);
         return ResponseEntity.ok(updatedItem);
+    }
+
+    // Endpoint for retailer to view orders by filter
+    @GetMapping("/retailer/{retailerId}")
+    public ResponseEntity<List<OrderDTO>> getOrdersByRetailer(
+            @PathVariable String retailerId,
+            @RequestParam String filter) {
+
+        List<OrderStatus> statuses;
+
+        // Map UI filter to backend statuses
+        if (filter.equalsIgnoreCase("ACTIVE")) {
+            statuses = Arrays.asList(
+                    OrderStatus.NEW,
+                    OrderStatus.PROCESSING
+            );
+        } else if (filter.equalsIgnoreCase("DELIVERED")) {
+            statuses = Arrays.asList(
+                    OrderStatus.COMPLETED
+            );
+        } else {
+            throw new IllegalArgumentException("Invalid filter value");
+        }
+
+        // Fetch retailer orders
+        List<OrderDTO> orders =
+                orderService.getOrdersByRetailerIdAndStatus(
+                        retailerId,
+                        statuses
+                );
+
+        return ResponseEntity.ok(orders);
+    }
+
+    // Endpoint for retailer to view orders for specific supplier by filter
+    @GetMapping("/retailer/{retailerId}/supplier/{supplierId}")
+    public ResponseEntity<List<OrderDTO>> getOrdersByRetailerAndSupplier(
+            @PathVariable String retailerId,
+            @PathVariable String supplierId,
+            @RequestParam String filter) {
+
+        List<OrderStatus> statuses;
+
+        // Map UI filter to backend statuses
+        if (filter.equalsIgnoreCase("ACTIVE")) {
+            statuses = Arrays.asList(
+                    OrderStatus.NEW,
+                    OrderStatus.PROCESSING
+            );
+        } else if (filter.equalsIgnoreCase("DELIVERED")) {
+            statuses = Arrays.asList(
+                    OrderStatus.COMPLETED
+            );
+        } else {
+            throw new IllegalArgumentException("Invalid filter value");
+        }
+
+        // Fetch retailer orders for specific supplier
+        List<OrderDTO> orders =
+                orderService.getOrdersByRetailerAndSupplierAndStatus(
+                        retailerId,
+                        supplierId,
+                        statuses
+                );
+
+        return ResponseEntity.ok(orders);
+    }
+
+    // Endpoint to get retailer order details by order ID
+    @GetMapping("/{orderId}")
+    public ResponseEntity<OrderDTO> getOrderById(
+            @PathVariable String orderId) {
+
+        // Fetch order details
+        OrderDTO order = orderService.getOrderById(orderId);
+
+        return ResponseEntity.ok(order);
     }
 
 }
