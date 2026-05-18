@@ -516,6 +516,9 @@ export default function OrderSupplierScreen() {
           const sid = String(first.supplierId || first.id || first._id);
           setSupplierId(sid);
           supplierIdRef.current = sid;
+
+          await localStorage.setItem("supplierId", sid);
+
           setSupplier(first);
         }
       } catch (err: any) {
