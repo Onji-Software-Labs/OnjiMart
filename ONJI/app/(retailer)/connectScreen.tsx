@@ -1,5 +1,5 @@
 
-import { FontAwesome, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { FontAwesome, Ionicons, MaterialCommunityIcons, Feather } from "@expo/vector-icons";
 import AntDesign from "@expo/vector-icons/AntDesign";
 import Entypo from "@expo/vector-icons/Entypo";
 import EvilIcons from "@expo/vector-icons/EvilIcons";
@@ -35,7 +35,7 @@ const ConnectScreen = () => {
   console.log("SupplierId:", supplierId);
   console.log("BusinessId:", businessId);
 
-  const [isConnected, setIsConnected] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<string>("NONE");
   const [supplier, setSupplier] = useState<Supplier | null>(null);
 
   
@@ -88,7 +88,7 @@ const ConnectScreen = () => {
 
           const status = response?.data?.status;
 
-          setIsConnected(status === "ACCEPTED" || status === "PENDING");
+          setConnectionStatus(status || "NONE");
 
         } catch (error) {
           console.log("Status check error:", error);
@@ -109,7 +109,7 @@ const ConnectScreen = () => {
     console.log("Retailer:", retailerId);
     console.log("Supplier:", supplierId);
 
-    if (!isConnected) {
+    if (connectionStatus === "NONE" || connectionStatus === "REJECTED") {
 
       await axiosInstance.post("/api/connections/connect", null, {
         params: {
@@ -120,9 +120,9 @@ const ConnectScreen = () => {
 
       console.log("Connect success");
 
-      setIsConnected(true);
+      setConnectionStatus("PENDING");
 
-    } else {
+    } else if (connectionStatus === "PENDING") {
 
       await axiosInstance.delete("/api/connections/cancel", {
         params: {
@@ -131,7 +131,16 @@ const ConnectScreen = () => {
         },
       });
 
-      setIsConnected(false);
+      setConnectionStatus("NONE");
+    } else if (connectionStatus === "ACCEPTED") {
+      router.push({
+        pathname: "/(retailer)/orderSupplierScreen",
+        params: {
+          supplierId: supplierId,
+          businessId: businessId,
+          supplierName: supplier?.name || ''
+        }
+      });
     }
 
   } catch (error) {
@@ -254,7 +263,7 @@ const ConnectScreen = () => {
                 onPressIn={handlePressIn}
                 onPressOut={handlePressOut}
               >
-                {!isConnected ? (
+                {!connectionStatus || connectionStatus === "NONE" || connectionStatus === "REJECTED" ? (
                   <Animated.View
                     style={[
                       styles.connectButton,
@@ -268,7 +277,7 @@ const ConnectScreen = () => {
                       color="#0F9D58"
                     />
                   </Animated.View>
-                ) : (
+                ) : connectionStatus === "PENDING" ? (
                   <Animated.View
                     style={[
                       styles.connectButton,
@@ -278,6 +287,16 @@ const ConnectScreen = () => {
                     <Text style={styles.cancelText}>Cancel</Text>
                     <Entypo name="cross" size={20} color="#6B7280" />
                   </Animated.View>
+                ) : (
+                  <Animated.View
+                    style={[
+                      styles.connectButton,
+                      { borderColor: "#0F9D58", backgroundColor: "#EAF5EA", transform: [{ scale: connectScale }] },
+                    ]}
+                  >
+                    <Text style={styles.connectText}>Order</Text>
+                    <Feather name="arrow-right" size={16} color="#0F9D58" />
+                  </Animated.View>
                 )}
               </TouchableOpacity>
             </View>
@@ -286,7 +305,7 @@ const ConnectScreen = () => {
 
         {/* Bottom */}
         <View style={{ width: windowWidth }}>
-          {!isConnected ? (
+          {!connectionStatus || connectionStatus === "NONE" || connectionStatus === "REJECTED" ? (
             <View style={{ alignItems: "center" }}>
               <Image
                 source={require("../../assets/images/Lock.png")}
@@ -296,7 +315,7 @@ const ConnectScreen = () => {
                 Connect with supplier to start placing orders
               </Text>
             </View>
-          ) : (
+          ) : connectionStatus === "PENDING" ? (
             <View style={{ alignItems: "center" }}>
               <Image
                 source={require("../../assets/images/IconClock.png")}
@@ -305,6 +324,17 @@ const ConnectScreen = () => {
               <Text style={styles.lockText}>Connection request sent</Text>
               <Text style={{ color: "#9CA3AF" }}>
                 Great things are coming your way with this supplier
+              </Text>
+            </View>
+          ) : (
+            <View style={{ alignItems: "center" }}>
+              <Image
+                source={require("../../assets/images/IconClock.png")} // Update if you have a connected icon!
+                style={{ marginVertical: 10, tintColor: '#0F9D58' }}
+              />
+              <Text style={[styles.lockText, { color: '#0F9D58' }]}>Connected</Text>
+              <Text style={{ color: "#9CA3AF" }}>
+                You can now place orders with this supplier
               </Text>
             </View>
           )}

@@ -26,7 +26,7 @@
     "expo": "~55.0.23",
     "expo-application": "~55.0.14",
     "expo-blur": "~55.0.14",
-    "expo-build-properties": "~55.0.13",
+    "expo-build-properties": "~55.0.14",
     "expo-checkbox": "~55.0.4",
     "expo-constants": "~55.0.15",
     "expo-crypto": "~55.0.14",

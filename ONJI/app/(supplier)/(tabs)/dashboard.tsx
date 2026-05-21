@@ -1,6 +1,6 @@
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import React, { useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Alert,
   Image,
@@ -16,6 +16,9 @@ import {
   StatusBar as RNStatusBar
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { secureStorage } from '@/lib/secureStorage';
+import axiosInstance from "@/lib/api/axiosConfig";
+
 // Types
 interface Supplier {
   id: number;
@@ -304,6 +307,28 @@ export default function Dashboard() {
   const [selectedAddress, setSelectedAddress] = useState('Mandavi palace');
   const [showAddressDropdown, setShowAddressDropdown] = useState(false);
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
+  const [hasNotifications, setHasNotifications] = useState(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      const fetchRequests = async () => {
+        try {
+          const supplierId = await secureStorage.getItem("userId");
+          if (!supplierId) return;
+
+          const response = await axiosInstance.get(
+            `/api/connections/supplier/${supplierId}/requests`
+          );
+          
+          setHasNotifications(response.data && response.data.length > 0);
+        } catch (error) {
+          console.error("Error fetching notification status:", error);
+        }
+      };
+
+      fetchRequests();
+    }, [])
+  );
 
   // dummy data
   const addresses = [
@@ -543,6 +568,19 @@ export default function Dashboard() {
               marginRight: 8,
             }}>
               <Ionicons name="notifications-outline" size={isWeb ? 24 : 20} color="#374151" />
+              {hasNotifications && (
+                <View style={{
+                  position: 'absolute',
+                  top: 8,
+                  right: 8,
+                  width: 10,
+                  height: 10,
+                  borderRadius: 5,
+                  backgroundColor: '#2E7D32',
+                  borderWidth: 1.5,
+                  borderColor: '#F3F4F6'
+                }} />
+              )}
             </TouchableOpacity>
             <TouchableOpacity style={{
               width: isWeb ? 44 : 40,
