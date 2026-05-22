@@ -117,7 +117,7 @@ public class OrderServiceImpl implements OrderService {
     public List<OrderDTO> getOrdersBySupplierId(String supplierId) {
         List<Order> orders = orderRepository.findBySupplier_Id(supplierId);
         return orders.stream()
-                .map(order -> modelMapper.map(order, OrderDTO.class))
+                .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }
 
@@ -150,6 +150,30 @@ public class OrderServiceImpl implements OrderService {
 
     private OrderItemDTO convertToOrderItemDTO(OrderItem orderItem) {
         return modelMapper.map(orderItem, OrderItemDTO.class);
+    }
+   private OrderDTO convertToDTO(Order order) {
+
+        OrderDTO dto = modelMapper.map(order, OrderDTO.class);
+
+        // Set supplier name
+        if (order.getSupplier() != null &&
+                order.getSupplier().getUser() != null) {
+
+            dto.setSupplierName(
+                    order.getSupplier().getUser().getFullName()
+            );
+        }
+
+        // Set retailer name
+        if (order.getRetailer() != null &&
+                order.getRetailer().getUser() != null) {
+
+            dto.setRetailerName(
+                    order.getRetailer().getUser().getFullName()
+            );
+        }
+
+        return dto;
     }
 
     @Override
@@ -226,7 +250,7 @@ public class OrderServiceImpl implements OrderService {
 
         // Convert entities to DTOs
         return orders.stream()
-                .map(order -> modelMapper.map(order, OrderDTO.class))
+                .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }
 
@@ -240,7 +264,7 @@ public class OrderServiceImpl implements OrderService {
 
         // Convert Order entities to DTOs
         return orders.stream()
-                .map(order -> modelMapper.map(order, OrderDTO.class))
+                .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }
 
@@ -257,7 +281,7 @@ public class OrderServiceImpl implements OrderService {
 
         // Convert Order entities to DTOs
         return orders.stream()
-                .map(order -> modelMapper.map(order, OrderDTO.class))
+                .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }
 
@@ -274,7 +298,7 @@ public class OrderServiceImpl implements OrderService {
 
         // Convert Order entities to DTOs
         return orders.stream()
-                .map(order -> modelMapper.map(order, OrderDTO.class))
+                .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }
 
@@ -291,7 +315,7 @@ public class OrderServiceImpl implements OrderService {
 
         // Convert Order entities to DTOs
         return orders.stream()
-                .map(order -> modelMapper.map(order, OrderDTO.class))
+                .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }
 
@@ -309,7 +333,7 @@ public class OrderServiceImpl implements OrderService {
                 );
 
         // Convert entity to DTO
-        return modelMapper.map(order, OrderDTO.class);
+        return convertToDTO(order);
     }
 
 }
