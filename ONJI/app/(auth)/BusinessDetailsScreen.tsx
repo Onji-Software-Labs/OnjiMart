@@ -157,6 +157,9 @@ export function BusinessDetailsScreen() {
                         fieldName="City"
                         placeholder="City"
                         keyboardType="default"
+                        onChangeText={(text) =>
+                          formikRef.current?.setFieldValue('city', text.replace(/[^a-zA-Z\s]/g, ''))
+                        }
                       ></FormikTextInput>
                     </View>
                     <View className="w-[49.5%]">
