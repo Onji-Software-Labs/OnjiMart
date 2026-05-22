@@ -58,8 +58,8 @@ export function BusinessDetailsScreen() {
         roles: [role],
         cityName: values.city,
         pincode: values.pinCode,
-        buisnessName: values.businessName,
-        buisnessAddress: values.businessAddress,
+        businessName: values.businessName,
+        businessAddress: values.businessAddress,
         email: 'sample@gmail.com',
         status: 'ACTIVE',
         userType: radioState.toUpperCase(),
@@ -182,10 +182,13 @@ export function BusinessDetailsScreen() {
                             errors.pinCode && touched.pinCode ? '#F44336' : '#AAB2B8'
                           }
                           value={values.pinCode}
-                          onChangeText={handleChange('pinCode')}
+                          onChangeText={(text) =>
+                            handleChange('pinCode')(text.replace(/[^0-9]/g, ''))
+                          }
                           onFocus={() => formikRef.current?.setFieldTouched('pinCode', true)}
                           onBlur={handleBlur('pinCode')}
                           keyboardType="numeric"
+                          maxLength={6}
                         ></TextInput>
                       </View>
                     </View>

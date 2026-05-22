@@ -60,7 +60,7 @@ const PersonalProfile = () => {
         const name=values.fullName
         const number=values.phoneNumber
         router.push({
-            pathname:"/(auth)/buisnessScreen",
+            pathname:"/(auth)/BusinessDetailsScreen",
             params:{name,number,radioState}
         });
     };

@@ -20,9 +20,9 @@ import Checkbox from 'expo-checkbox';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Yup from 'yup';
 interface formValues {
-  buisnessName: string;
-  buisnessAddress: string;
-  buisnessPhoneNumber: string;
+  businessName: string;
+  businessAddress: string;
+  businessPhoneNumber: string;
   city: string;
   pinCode: string;
   category: string[];
@@ -33,9 +33,9 @@ interface formValues {
 }
 const indianPhoneRegex = /^[6-9]\d{9}$/;
 const formSchema = Yup.object().shape({
-  buisnessName: Yup.string().required(),
-  buisnessAddress: Yup.string().required(),
-  buisnessPhoneNumber: Yup.string().matches(indianPhoneRegex),
+  businessName: Yup.string().required(),
+  businessAddress: Yup.string().required(),
+  businessPhoneNumber: Yup.string().matches(indianPhoneRegex),
   city: Yup.string().required(),
   pinCode: Yup.string().required().min(6).max(6),
 });
@@ -45,7 +45,7 @@ const formSchema = Yup.object().shape({
 
 
 
-const BuisnessScreen = () => {
+const BusinessScreen = () => {
   const [isCategoryVisible, setIsCategoryVisible] = useState(false);
   const [selectedItemsCategory, setSelectedItemsCategory] = useState<string[]>([]);
 
@@ -133,21 +133,21 @@ const BuisnessScreen = () => {
 
       const Retailer = {
         retailerId: retailerId,
-        name: values.buisnessName,
-        address: values.buisnessAddress,
+        name: values.businessName,
+        address: values.businessAddress,
         city: values.city,
         pincode: values.pinCode,
-        contactNumber: values.buisnessPhoneNumber,
+        contactNumber: values.businessPhoneNumber,
         userType: paramState.radioState,
       };
 
       const Supplier = {
         supplierId: retailerId,
-        name: values.buisnessName,
-        address: values.buisnessAddress,
+        name: values.businessName,
+        address: values.businessAddress,
         city: values.city,
         pincode: values.pinCode,
-        contactNumber: values.buisnessPhoneNumber,
+        contactNumber: values.businessPhoneNumber,
         categoryIds: selectedCategoryIds,       
         subCategoryIds: selectedSubCategoryIds, 
         userType: paramState.radioState,
@@ -273,13 +273,13 @@ const confirmSelectionSubCategory = () => {
         </SafeAreaView>
         <View className="flex-1">
           <Text className="text-heading-h5 font-primarysemibold text-text-headings">
-            Buisness Profile
+            Business Profile
           </Text>
           <Formik
             initialValues={{
-              buisnessName: '',
-              buisnessAddress: '',
-              buisnessPhoneNumber: '',
+              businessName: '',
+              businessAddress: '',
+              businessPhoneNumber: '',
               city: '',
               pinCode: '',
               category: selectedItemsCategory ?? '',
@@ -317,25 +317,25 @@ const confirmSelectionSubCategory = () => {
                 <View className="flex-1 justify-between">
                   <View className="mt-6">
                     <FormikTextInput
-                      name="buisnessName"
+                      name="businessName"
                       fieldName="Buiness Name"
-                      placeholder="Buisness name "
+                      placeholder="Business name "
                       keyboardType="default"
                     />
                     <FormikTextInput
-                      name="buisnessAddress"
+                      name="businessAddress"
                       fieldName="Buiness Address"
-                      placeholder="Buisness address "
+                      placeholder="Business address "
                       keyboardType="default"
                     />
                     <View className="mt-6">
                       <View className="flex-row">
                         <Text
                           className={`${
-                            errors.buisnessPhoneNumber ? 'text-text-error' : 'text-text-action'
+                            errors.businessPhoneNumber ? 'text-text-error' : 'text-text-action'
                           } text-sm font-primarymedium`}
                         >
-                          Buisness Phone number
+                          Business Phone number
                         </Text>
                         <Text className="text-sm font-primarymedium text-text-disabled">
                           {' '}
@@ -344,9 +344,9 @@ const confirmSelectionSubCategory = () => {
                       </View>
                       <View
                         className={`flex-row  border-xs px-[12] overflow-hidden bg-surface-pressed rounded-md ${
-                          !touched.buisnessPhoneNumber
+                          !touched.businessPhoneNumber
                             ? 'border-border-disabled'
-                            : touched.buisnessPhoneNumber && errors.buisnessPhoneNumber
+                            : touched.businessPhoneNumber && errors.businessPhoneNumber
                               ? 'border-border-error'
                               : 'border-border-success'
                         }`}
@@ -356,15 +356,15 @@ const confirmSelectionSubCategory = () => {
                           placeholder="Mobile number"
                           className="h-[44px] ml-4 w-full font-primary border-none focus:outline-none bg-surface-pressed "
                           placeholderTextColor={'#AAB2B8'}
-                          onBlur={handleBlur('buisnessPhoneNumber')}
-                          value={values.buisnessPhoneNumber}
+                          onBlur={handleBlur('businessPhoneNumber')}
+                          value={values.businessPhoneNumber}
                           keyboardType="numeric"
-                          onChangeText={handleChange('buisnessPhoneNumber')}
-                          onFocus={() => setFieldTouched('buisnessPhoneNumber', true)}
+                          onChangeText={handleChange('businessPhoneNumber')}
+                          onFocus={() => setFieldTouched('businessPhoneNumber', true)}
                         ></TextInput>
                       </View>
-                      {/* {errors.buisnessPhoneNumber &&
-                                        touched.buisnessPhoneNumber && (
+                      {/* {errors.businessPhoneNumber &&
+                                        touched.businessPhoneNumber && (
                                             <Text className="text-text-error font-primarymedium">
                                                 Phone number is not valid
                                             </Text>
@@ -415,7 +415,7 @@ const confirmSelectionSubCategory = () => {
                         </View>
                       </View>
                     </View>
-                    {((errors.buisnessPhoneNumber && touched.buisnessPhoneNumber) ||
+                    {((errors.businessPhoneNumber && touched.businessPhoneNumber) ||
                       (errors.pinCode && touched.pinCode)) && (
                       <View>
                         <Text className="text-text-error">Information is not valid</Text>
@@ -665,4 +665,4 @@ const confirmSelectionSubCategory = () => {
   );
 };
 
-export default BuisnessScreen;
+export default BusinessScreen;
