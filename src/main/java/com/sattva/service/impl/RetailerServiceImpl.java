@@ -195,6 +195,7 @@ public class RetailerServiceImpl implements RetailerService {
                 ));
 
         user.setUserType(UserType.valueOf(dto.getUserType().toUpperCase()));
+        user.setUserOnboardingStatus(true);
         userRepository.save(user);
 
         if (retailer.getRetailerBusinesses() != null && !retailer.getRetailerBusinesses().isEmpty()) {
@@ -226,10 +227,6 @@ public class RetailerServiceImpl implements RetailerService {
 
         Retailer savedRetailer = retailerRepository.save(retailer);
 
-        if (!user.isUserOnboardingStatus()) {
-            user.setUserOnboardingStatus(true);
-            userRepository.save(user);
-        }
 
         return modelMapper.map(savedRetailer, RetailerDTO.class);
     }
