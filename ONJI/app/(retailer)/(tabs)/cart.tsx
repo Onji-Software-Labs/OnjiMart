@@ -23,6 +23,10 @@ import { useEffect, useCallback} from "react";
 import { ActivityIndicator, RefreshControl } from "react-native";
 import axiosInstance from "@/lib/api/axiosConfig";
 import { localStorage } from "@/lib/localStorage";
+import { secureStorage } from "@/lib/secureStorage";
+
+
+import { useFocusEffect } from "@react-navigation/native";
 
 // Enable LayoutAnimation on Android
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -81,7 +85,6 @@ const PLACEHOLDER_AVATAR = require("../../../assets/images/3davatar.png");
 // ─────────────────────────────────────────────────────────────
 // DUMMY DATA
 // ─────────────────────────────────────────────────────────────
-
 
 const dummyOrders: Order[] = [
   {
@@ -158,11 +161,18 @@ export default function CartScreen() {
   const [activeTab, setActiveTab] = useState<"cart" | "orders">("cart");
   const [orderStatusTab, setOrderStatusTab] = useState<"active" | "delivered">("active");
   const [cartData, setCartData] = useState<SupplierCart[]>([]);
+
+const [ordersData, setOrdersData] = useState<Order[]>([]);
+const [ordersLoading, setOrdersLoading] = useState(false);
+const [ordersError, setOrdersError] = useState<string | null>(null);
+
   const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
   const [activeChip, setActiveChip] = useState<FilterChip | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const filteredOrders = dummyOrders.filter((item) => item.status === orderStatusTab);
+const filteredOrders = ordersData.filter(
+  (item) => item.status === orderStatusTab
+);
 
   const [cartLoading, setCartLoading] = useState(false);
   const [cartError, setCartError] = useState<string | null>(null);
@@ -192,7 +202,11 @@ export default function CartScreen() {
       throw err;
     }
 
-    const items = Array.isArray(itemsRes.data) ? itemsRes.data : [];
+    const items = Array.isArray(itemsRes.data)
+  ? itemsRes.data.filter(
+      (i: any) => (i.quantity ?? i.requestedQuantity ?? 0) > 0
+    )
+  : [];
 
     if (items.length === 0) {
       setCartData([]);
@@ -204,7 +218,7 @@ export default function CartScreen() {
     const cart: SupplierCart = {
       cartId: cartId ?? shopId,
       supplierId,
-      supplierName: "Supplier",
+      supplierName: await localStorage.getItem("supplierName") ?? "Supplier",
       ownerName: "",
       avatarUri: PLACEHOLDER_AVATAR,
       totalItems: items.length,
@@ -232,9 +246,95 @@ export default function CartScreen() {
   }
 }, []);
 
-    useEffect(() => {
+const fetchOrders = useCallback(async () => {
+  try {
+    setOrdersLoading(true);
+    setOrdersError(null);
+
+    const retailerId = await secureStorage.getItem("userId");
+    
+    //ID for testing
+    //const retailerId = "769814f3-7a8a-43f3-b5e8-7892212da0cc";
+    
+    console.log("CALLING ORDERS API...");
+    console.log("Retailer ID:", retailerId);
+
+    if (!retailerId) {
+      setOrdersData([]);
+      return;
+    }
+
+    const response = await axiosInstance.get(
+      `/api/orders/retailer/${retailerId}`
+    );
+
+    //console.log("Orders response:", response.data);
+    console.log(
+  "Orders response:",
+  JSON.stringify(response.data, null, 2)
+);
+
+    const data = Array.isArray(response.data)
+      ? response.data
+      : [];
+
+    const formattedOrders: Order[] = data.map((order: any) => ({
+      id: order.id,
+      supplierName: order.supplierName ?? "Supplier",
+      avatarUri: PLACEHOLDER_AVATAR,
+
+      totalOrdersCompleted: order.items?.length ?? 0,
+
+      amount: `₹${
+        order.items?.reduce(
+          (sum: number, item: any) => sum + (item.totalPrice ?? 0),
+          0
+        ) ?? 0
+      }`,
+
+      latestOrderId: `#${order.id.slice(0, 8)}`,
+
+      status: order.completed === true
+        ? "delivered"
+        : "active",
+
+      date: new Date(order.orderDate).toLocaleDateString(),
+
+      time: new Date(order.orderDate).toLocaleTimeString(),
+
+      previousOrders: [],
+    }));
+
+    setOrdersData(formattedOrders);
+
+  } catch (err: any) {
+    console.log(
+      "Orders API failed:",
+      err?.response?.data
+    );
+
+    setOrdersError("Failed to load orders");
+  } finally {
+    setOrdersLoading(false);
+  }
+}, []);
+
+    useFocusEffect(
+    useCallback(() => {
+      console.log("Fetching latest cart...");
       fetchCart();
-    }, [fetchCart]);
+    }, [])
+  );
+
+  useEffect(() => {
+    fetchCart();
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === "orders") {
+      fetchOrders();
+    }
+  }, [activeTab]);
 
     const onRefresh = () => {
       setRefreshing(true);
@@ -257,11 +357,29 @@ export default function CartScreen() {
 
   // ── REMOVE CART ──
     const removeSupplier = async (cartId: string) => {
+  try {
+    await axiosInstance.delete(`/api/carts/${cartId}/remove`);
+
+    fetchCart();
+
+  } catch (err) {
+    console.log("Failed to remove cart:", err);
+  }
+};
+
+    const handleCheckout = async (cartId: string) => {
     try {
-      await axiosInstance.delete(`/api/carts/${cartId}/remove`);
-      setCartData((prev) => prev.filter((item) => item.cartId !== cartId));
+      await axiosInstance.post(`/api/orders/submit/${cartId}`);
+
+      setCartData((prev) =>
+        prev.filter((item) => item.cartId !== cartId)
+      );
+
+      fetchCart();
+
+      console.log("Order placed successfully");
     } catch (err) {
-      console.log("Failed to remove cart:", err);
+      console.log("Checkout failed:", err);
     }
   };
 
@@ -318,7 +436,16 @@ export default function CartScreen() {
               alignItems: "center", justifyContent: "center",
               marginRight: 10, marginBottom: 10, backgroundColor: "#fff",
             }}>
-              <Text style={{ fontSize: 10, color: "#15803D", fontWeight: "600", textAlign: "center", paddingHorizontal: 4 }}>
+              <Text
+                numberOfLines={2}
+                style={{
+                  fontSize: 10,
+                  color: "#15803D",
+                  fontWeight: "600",
+                  textAlign: "center",
+                  paddingHorizontal: 4,
+                }}
+              >
                 {cartItem.productName}
               </Text>
             </View>
@@ -364,6 +491,7 @@ export default function CartScreen() {
 
           <TouchableOpacity
             activeOpacity={0.8}
+            onPress={() => handleCheckout(item.cartId)}
             style={{
               backgroundColor: "#2E7D32",
               paddingHorizontal: 22,
@@ -458,17 +586,40 @@ export default function CartScreen() {
             marginBottom: 18,
           }}
         >
-          <View>
-            <Text style={{ fontSize: 11, color: "#9CA3AF" }}>Latest Order Id</Text>
-            <View style={{ flexDirection: "row", alignItems: "center", marginTop: 4 }}>
-              <Text style={{ fontSize: 14, fontWeight: "700", color: "#111827" }}>
-                {item.latestOrderId}
+          <View style={{ flex: 1, marginRight: 10 }}>
+              <Text style={{ fontSize: 11, color: "#9CA3AF" }}>
+                Latest Order Id
               </Text>
-              <TouchableOpacity style={{ marginLeft: 8 }}>
-                <MaterialCommunityIcons name="content-copy" size={16} color="#9CA3AF" />
-              </TouchableOpacity>
+
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  marginTop: 4,
+                }}
+              >
+                <Text
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                  style={{
+                    flex: 1,
+                    fontSize: 14,
+                    fontWeight: "700",
+                    color: "#111827",
+                  }}
+                >
+                  {item.latestOrderId}
+                </Text>
+
+                <TouchableOpacity style={{ marginLeft: 8 }}>
+                  <MaterialCommunityIcons
+                    name="content-copy"
+                    size={16}
+                    color="#9CA3AF"
+                  />
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
           <Text style={{ color: "#15803D", fontSize: 26, fontWeight: "700" }}>
             {item.amount}
           </Text>
@@ -483,6 +634,7 @@ export default function CartScreen() {
           }}
         >
           <TouchableOpacity
+            onPress={() => console.log("Order clicked", item.id)}
             style={{
               flex: 1,
               backgroundColor: "#2E7D32",

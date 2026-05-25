@@ -28,7 +28,6 @@ const PersonImg = require("../../assets/images/supplier.jpg");
 // const OnionImg = require("../../assets/images/Onion.png");
 // const TomatoImg = require("../../assets/images/tomato.png");
 
-
 // Static data — unchanged
 
 const days = [
@@ -69,7 +68,6 @@ type Product = {
 // API always receives exactly +1 or -1 per call — never an absolute quantity.
 // Rapid clicks while a request is in-flight accumulate into pendingDelta
 // and are flushed as one follow-up call once the current one resolves.
-
 
 export default function OrderSupplierScreen() {
   const router = useRouter();
@@ -518,6 +516,7 @@ export default function OrderSupplierScreen() {
           supplierIdRef.current = sid;
 
           await localStorage.setItem("supplierId", sid);
+          await localStorage.setItem("supplierName", first.name ?? "Supplier");
 
           setSupplier(first);
         }
@@ -936,7 +935,6 @@ const displayCategories = apiCategories.map((apiCat) => ({
     </View>
   );
 }
-
 // ── STYLES COMPLETELY UNCHANGED ────────────────────────────────
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#fff", paddingTop: Platform.OS === "ios" ? 55 : StatusBar.currentHeight },
