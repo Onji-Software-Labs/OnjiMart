@@ -117,7 +117,7 @@ public class OrderServiceImpl implements OrderService {
     public List<OrderDTO> getOrdersBySupplierId(String supplierId) {
         List<Order> orders = orderRepository.findBySupplier_Id(supplierId);
         return orders.stream()
-                .map(order -> modelMapper.map(order, OrderDTO.class))
+                .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }
 
@@ -150,6 +150,30 @@ public class OrderServiceImpl implements OrderService {
 
     private OrderItemDTO convertToOrderItemDTO(OrderItem orderItem) {
         return modelMapper.map(orderItem, OrderItemDTO.class);
+    }
+   private OrderDTO convertToDTO(Order order) {
+
+        OrderDTO dto = modelMapper.map(order, OrderDTO.class);
+
+        // Set supplier name
+        if (order.getSupplier() != null &&
+                order.getSupplier().getUser() != null) {
+
+            dto.setSupplierName(
+                    order.getSupplier().getUser().getFullName()
+            );
+        }
+
+        // Set retailer name
+        if (order.getRetailer() != null &&
+                order.getRetailer().getUser() != null) {
+
+            dto.setRetailerName(
+                    order.getRetailer().getUser().getFullName()
+            );
+        }
+
+        return dto;
     }
 
     @Override
@@ -216,6 +240,20 @@ public class OrderServiceImpl implements OrderService {
         return modelMapper.map(updatedItem, OrderItemDTO.class);
     }
 
+    // Fetch all retailer orders
+    @Override
+    public List<OrderDTO> getOrdersByRetailerId(String retailerId) {
+
+        // Fetch orders from database
+        List<Order> orders =
+                orderRepository.findByRetailer_Id(retailerId);
+
+        // Convert entities to DTOs
+        return orders.stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
     // Fetch retailer orders by statuses
     @Override
     public List<OrderDTO> getOrdersByRetailerIdAndStatus(String retailerId,List<OrderStatus> statuses) {
@@ -226,27 +264,61 @@ public class OrderServiceImpl implements OrderService {
 
         // Convert Order entities to DTOs
         return orders.stream()
-                .map(order -> modelMapper.map(order, OrderDTO.class))
+                .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }
 
-    // Fetch retailer orders for specific supplier by statuses
+    // Fetch retailer orders for specific supplier
     @Override
-    public List<OrderDTO> getOrdersByRetailerAndSupplierAndStatus(String retailerId,String supplierId,List<OrderStatus> statuses) {
-    
+    public List<OrderDTO> getOrdersByRetailerAndSupplier(String retailerId,String supplierId) {
+
         // Fetch matching orders from database
         List<Order> orders = orderRepository
-                .findByRetailer_IdAndSupplier_IdAndStatusIn(
+                .findByRetailer_IdAndSupplier_Id(
                         retailerId,
+                        supplierId
+                );
+
+        // Convert Order entities to DTOs
+        return orders.stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
+    // Fetch supplier orders by statuses
+    @Override
+    public List<OrderDTO> getOrdersBySupplierIdAndStatus(String supplierId,List<OrderStatus> statuses) {
+
+        // Fetch matching orders from database
+        List<Order> orders = orderRepository
+                .findBySupplier_IdAndStatusIn(
                         supplierId,
                         statuses
                 );
 
         // Convert Order entities to DTOs
         return orders.stream()
-                .map(order -> modelMapper.map(order, OrderDTO.class))
+                .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }
+
+    // Fetch supplier orders for specific retailer
+    @Override
+    public List<OrderDTO> getOrdersBySupplierAndRetailer(String supplierId,String retailerId) {
+
+        // Fetch matching orders from database
+        List<Order> orders = orderRepository
+                .findBySupplier_IdAndRetailer_Id(
+                        supplierId,
+                        retailerId
+                );
+
+        // Convert Order entities to DTOs
+        return orders.stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
 
     // Fetch retailer order details by order ID
     @Override
@@ -261,7 +333,7 @@ public class OrderServiceImpl implements OrderService {
                 );
 
         // Convert entity to DTO
-        return modelMapper.map(order, OrderDTO.class);
+        return convertToDTO(order);
     }
 
 }
