@@ -153,6 +153,23 @@ public class RetailerServiceImpl implements RetailerService {
                 })
                 .collect(Collectors.toList());
 
+                // Fetch accepted connections for this retailer
+                List<Connection> acceptedConnections =
+                        connectionRepository.findByRetailerIdAndStatus(
+                                retailerId,
+                                ConnectionStatus.ACCEPTED
+                        );
+
+                // Extract connected supplier IDs
+                List<String> connectedSupplierIds = acceptedConnections.stream()
+                        .map(Connection::getSupplierId)
+                        .collect(Collectors.toList());
+
+                // Remove already connected suppliers
+                suppliers = suppliers.stream()
+                        .filter(supplier -> !connectedSupplierIds.contains(supplier.getId()))
+                        .collect(Collectors.toList());
+
         return suppliers.stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
