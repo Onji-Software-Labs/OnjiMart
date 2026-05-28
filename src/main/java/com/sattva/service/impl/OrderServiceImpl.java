@@ -60,8 +60,6 @@ public class OrderServiceImpl implements OrderService {
         // Step 1: Fetch the cart by cartId
         Cart cart = cartRepository.findById(request.getCartId())
                 .orElseThrow(() -> new ResourceNotFoundException("Cart not found with id: " + request.getCartId()));
-        Cart cart = cartRepository.findById(cartId)
-                .orElseThrow(() -> new ResourceNotFoundException("Cart not found with id: " + cartId));
         
         // 🔹 Step 2: Validate cart is not empty (NEW CHANGE)
         if (cart.getItems() == null || cart.getItems().isEmpty()) {
