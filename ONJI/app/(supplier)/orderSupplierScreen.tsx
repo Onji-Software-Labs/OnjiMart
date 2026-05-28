@@ -16,16 +16,17 @@ import {
 } from "react-native";
 import { Ionicons, MaterialCommunityIcons, FontAwesome, Feather } from "@expo/vector-icons";
 import axiosInstance from "../../lib/api/axiosConfig";
-import { storage } from "../../lib/storage";
+import { secureStorage } from '@/lib/secureStorage';
 import { useRouter } from "expo-router";
+import { localStorage } from "../../lib/localStorage";
 
-import VegetablesImg from "../../assets/images/Vegetables.png";
-import FruitsImg from "../../assets/images/Fruits.png";
-import LeafyImg from "../../assets/images/Leafy.png";
-import GroceriesImg from "../../assets/images/Groceries.png";
-import PersonImg from "../../assets/images/Person.png";
-import OnionImg from "../../assets/images/Onion.png";
-import TomatoImg from "../../assets/images/tomato.png";
+const VegetablesImg = require("../../assets/images/Vegetables.png");
+const FruitsImg = require("../../assets/images/Fruits.png");
+const LeafyImg = require("../../assets/images/Leafy.png");
+const GroceriesImg = require("../../assets/images/Groceries.png");
+const PersonImg = require("../../assets/images/supplier.jpg");
+const OnionImg = require("../../assets/images/Onion.png");
+const TomatoImg = require("../../assets/images/tomato.png");
 
 
 // Static data — unchanged
@@ -113,13 +114,13 @@ export default function OrderSupplierScreen() {
   
 
   const getAuthHeader = useCallback(async (): Promise<Record<string, string>> => {
-    const tok = await storage.getItem("jwtToken") || await storage.getItem("token");
+    const tok = await secureStorage.getItem("jwtToken") || await secureStorage.getItem("token");
     tokenRef.current = tok ?? null;
     return tok ? { Authorization: `Bearer ${tok}` } : {};
   }, []);
 
   const getShopId = useCallback(async (): Promise<string | null> => {
-    return await storage.getItem("shopId");
+    return await localStorage.getItem("shopId");
   }, []);
 
   const isSessionValid = useCallback((): boolean => {
@@ -162,7 +163,7 @@ export default function OrderSupplierScreen() {
       if (newCartId && newCartId !== cartIdRef.current) {
         setCartId(newCartId);
         cartIdRef.current = newCartId;
-        await storage.setItem("cartId", newCartId);
+        await localStorage.setItem("cartId", newCartId);
         console.log(`[fetchCartItems]  cartId from GET response: ${newCartId}`);
       }
 
@@ -235,7 +236,7 @@ export default function OrderSupplierScreen() {
       if (newCartId && newCartId !== cartIdRef.current) {
         setCartId(newCartId);
         cartIdRef.current = newCartId;
-        await storage.setItem("cartId", newCartId);
+        await localStorage.setItem("cartId", newCartId);
         console.log(`[sync]  cartId captured from /add response: ${newCartId}`);
       }
 
@@ -375,7 +376,7 @@ export default function OrderSupplierScreen() {
 
     // Restore cartId from storage before any network call
     if (!cartIdRef.current) {
-      const stored = await storage.getItem("cartId");
+      const stored = await localStorage.getItem("cartId");
       if (stored) {
         cartIdRef.current = stored;
         setCartId(stored);
@@ -408,7 +409,7 @@ export default function OrderSupplierScreen() {
       if (newCartId && newCartId !== cartIdRef.current) {
         setCartId(newCartId);
         cartIdRef.current = newCartId;
-        await storage.setItem("cartId", newCartId);
+        await localStorage.setItem("cartId", newCartId);
         console.log(`[ensureCart]  cartId from GET response: ${newCartId}`);
       }
 
@@ -443,7 +444,7 @@ export default function OrderSupplierScreen() {
         // FIXED: Clear stale cartId from storage so add() doesn't use a dead ID
         cartIdRef.current = null;
         setCartId(null);
-        await storage.setItem("cartId", "");
+        await localStorage.setItem("cartId", "");
       } else {
         console.log(`[ensureCart] Unexpected error:`, err?.message);
       }
@@ -457,10 +458,10 @@ export default function OrderSupplierScreen() {
     isLoggedOutRef.current = true;
 
     await Promise.all([
-      storage.setItem("jwtToken", ""),
-      storage.setItem("token", ""),
-      storage.setItem("shopId", ""),
-      storage.setItem("cartId", ""),
+      secureStorage.setItem("jwtToken", ""),
+      secureStorage.setItem("token", ""),
+      localStorage.setItem("shopId", ""),
+      localStorage.setItem("cartId", ""),
     ]);
 
     cartRef.current = {};
@@ -495,7 +496,7 @@ export default function OrderSupplierScreen() {
         setIsInitializing(true);
         isLoggedOutRef.current = false;
 
-        const storedToken = await storage.getItem("jwtToken") || await storage.getItem("token");
+        const storedToken = await secureStorage.getItem("jwtToken") || await secureStorage.getItem("token");
         if (!storedToken) {
           console.log("[init] No token found — redirecting to login");
           router.replace("/(auth)/login" as any);
@@ -520,7 +521,7 @@ export default function OrderSupplierScreen() {
                 contactNumber: "9999999999", openingHours: ["9AM-9PM"], active: true,
               }, { headers });
               const newShopId = createRes.data?.id;
-              if (newShopId) { await storage.setItem("shopId", newShopId); storedShopId = newShopId; }
+              if (newShopId) { await localStorage.setItem("shopId", newShopId); storedShopId = newShopId; }
             }
           } catch (e: any) { console.log("ERROR: auto-create shop:", e?.message); }
         }
@@ -533,7 +534,7 @@ export default function OrderSupplierScreen() {
         //  FIXED: Restore cartId from storage on init only —
         //   this is purely informational; it won't block Add from working.
         //   The /add endpoint will create or reuse the cart on the backend.
-        const storedCartId = await storage.getItem("cartId");
+        const storedCartId = await localStorage.getItem("cartId");
         if (storedCartId) {
           setCartId(storedCartId);
           cartIdRef.current = storedCartId;
@@ -639,7 +640,7 @@ export default function OrderSupplierScreen() {
       setCart({});
       setCartId(null);
       cartIdRef.current = null;
-      await storage.setItem("cartId", "");
+      await localStorage.setItem("cartId", "");
     } catch (err: any) {
       console.log("ERROR: checkout:", err?.response?.status, err?.message);
       Alert.alert("Error", "Failed to checkout. Please try again.");

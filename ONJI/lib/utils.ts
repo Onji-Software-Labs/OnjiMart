@@ -1,6 +1,7 @@
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import * as Crypto from 'expo-crypto';
+import { secureStorage } from './secureStorage';
 
 /**
  * Returns a stable unique deviceId per app installation.
@@ -27,11 +28,11 @@ export const getDeviceId = async () => {
   // 📱 Mobile (Android / iOS)
   try {
 
-    let deviceId = await SecureStore.getItemAsync('deviceId');
+    let deviceId = await secureStorage.getItem('deviceId');
 
     if (!deviceId) {
       deviceId = Crypto.randomUUID();
-      await SecureStore.setItemAsync('deviceId', deviceId);
+      await secureStorage.setItem('deviceId', deviceId);
     }
 
     return deviceId;

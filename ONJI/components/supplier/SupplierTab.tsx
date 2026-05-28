@@ -1,9 +1,10 @@
 import {
     AntDesign,
     FontAwesome,
+    Ionicons,
     MaterialCommunityIcons,
 } from "@expo/vector-icons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { localStorage } from '@/lib/localStorage';
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import React, { useRef, useState } from "react";
@@ -101,7 +102,7 @@ const SupplierTab: React.FC<ISupplierTabProps> = ({ supplier }) => {
         ]).start();
 
         try {
-            const id = await AsyncStorage.getItem("id");
+            const id = await localStorage.getItem("id");
             //call api for supplier details
             router.push("/(supplier)/connectScreen");
         } catch (e) {
@@ -127,11 +128,11 @@ const SupplierTab: React.FC<ISupplierTabProps> = ({ supplier }) => {
         activeOpacity={0.7}
       >
         <Animated.View style={{ transform: [{ scale: heartScale }, { rotate: rotateHeart }] }}>
-          <AntDesign
-            name={isFavorite ? "heart" : "hearto"}
-            size={24}
-            color={isFavorite ? "#B91C1C" : "#9CA3AF"}
-          />
+  <Ionicons
+  name={isFavorite ? 'heart' : 'heart-outline'}
+  size={24}
+  color={isFavorite ? '#B91C1C' : '#9CA3AF'}
+/>
         </Animated.View>
       </TouchableOpacity>
 

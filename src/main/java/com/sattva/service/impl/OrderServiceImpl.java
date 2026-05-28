@@ -60,8 +60,15 @@ public class OrderServiceImpl implements OrderService {
         // Step 1: Fetch the cart by cartId
         Cart cart = cartRepository.findById(request.getCartId())
                 .orElseThrow(() -> new ResourceNotFoundException("Cart not found with id: " + request.getCartId()));
+        Cart cart = cartRepository.findById(cartId)
+                .orElseThrow(() -> new ResourceNotFoundException("Cart not found with id: " + cartId));
+        
+        // 🔹 Step 2: Validate cart is not empty (NEW CHANGE)
+        if (cart.getItems() == null || cart.getItems().isEmpty()) {
+            throw new InvalidInputException("Cart is empty"); // prevents invalid order
+        }
 
-        // Step 2: Create a new order and set its relationships
+        // Step 3: Create a new order and set its relationships
         Order order = new Order();
         order.setShop(cart.getShop()); // Set the shop from the cart
         order.setSupplier(cart.getSupplier()); // Set the supplier from the cart
@@ -85,13 +92,16 @@ public class OrderServiceImpl implements OrderService {
         order.setStatus(OrderStatus.NEW);
         order.setIsCompleted(false);
 
-        // Step 3: Convert cart items to order items
+        // Step 4: Convert cart items to order items
         Set<OrderItem> orderItems = cart.getItems().stream()
                 .map(cartItem -> {
+                    Product product = cartItem.getProduct();
                     OrderItem orderItem = new OrderItem();
                     orderItem.setOrder(order); // Link each order item back to the order
                     orderItem.setProduct(cartItem.getProduct());
                     orderItem.setRequestedQuantity(cartItem.getQuantity());
+                    orderItem.setUnitPrice(product.getPrice()); // price per item
+                    orderItem.setTotalPrice(product.getPrice() * cartItem.getQuantity()); // total = price * quantity
                     orderItem.setStatus(OrderItemStatus.PENDING); // Set default status
                     return orderItem;
                 })
@@ -100,10 +110,10 @@ public class OrderServiceImpl implements OrderService {
         // Add the items to the order
         order.setItems(orderItems);
 
-        // Step 4: Save the new order and delete the cart if needed
+        // Step 5: Save the new order and delete the cart if needed
         orderRepository.save(order);
 
-        // Step 5: Add the order items to the aggregate order for the day
+        // Step 6: Add the order items to the aggregate order for the day
         aggregateOrderService.addToAggregate(order);
 
         // Optional: delete the cart after creating the order if no longer needed
@@ -117,7 +127,7 @@ public class OrderServiceImpl implements OrderService {
     public List<OrderDTO> getOrdersBySupplierId(String supplierId) {
         List<Order> orders = orderRepository.findBySupplier_Id(supplierId);
         return orders.stream()
-                .map(order -> modelMapper.map(order, OrderDTO.class))
+                .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }
 
@@ -150,6 +160,30 @@ public class OrderServiceImpl implements OrderService {
 
     private OrderItemDTO convertToOrderItemDTO(OrderItem orderItem) {
         return modelMapper.map(orderItem, OrderItemDTO.class);
+    }
+   private OrderDTO convertToDTO(Order order) {
+
+        OrderDTO dto = modelMapper.map(order, OrderDTO.class);
+
+        // Set supplier name
+        if (order.getSupplier() != null &&
+                order.getSupplier().getUser() != null) {
+
+            dto.setSupplierName(
+                    order.getSupplier().getUser().getFullName()
+            );
+        }
+
+        // Set retailer name
+        if (order.getRetailer() != null &&
+                order.getRetailer().getUser() != null) {
+
+            dto.setRetailerName(
+                    order.getRetailer().getUser().getFullName()
+            );
+        }
+
+        return dto;
     }
 
     @Override
@@ -214,6 +248,102 @@ public class OrderServiceImpl implements OrderService {
 
         // Convert the order item to DTO and return
         return modelMapper.map(updatedItem, OrderItemDTO.class);
+    }
+
+    // Fetch all retailer orders
+    @Override
+    public List<OrderDTO> getOrdersByRetailerId(String retailerId) {
+
+        // Fetch orders from database
+        List<Order> orders =
+                orderRepository.findByRetailer_Id(retailerId);
+
+        // Convert entities to DTOs
+        return orders.stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
+    // Fetch retailer orders by statuses
+    @Override
+    public List<OrderDTO> getOrdersByRetailerIdAndStatus(String retailerId,List<OrderStatus> statuses) {
+
+        // Fetch matching orders from database
+        List<Order> orders = orderRepository
+                .findByRetailer_IdAndStatusIn(retailerId, statuses);
+
+        // Convert Order entities to DTOs
+        return orders.stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
+    // Fetch retailer orders for specific supplier
+    @Override
+    public List<OrderDTO> getOrdersByRetailerAndSupplier(String retailerId,String supplierId) {
+
+        // Fetch matching orders from database
+        List<Order> orders = orderRepository
+                .findByRetailer_IdAndSupplier_Id(
+                        retailerId,
+                        supplierId
+                );
+
+        // Convert Order entities to DTOs
+        return orders.stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
+    // Fetch supplier orders by statuses
+    @Override
+    public List<OrderDTO> getOrdersBySupplierIdAndStatus(String supplierId,List<OrderStatus> statuses) {
+
+        // Fetch matching orders from database
+        List<Order> orders = orderRepository
+                .findBySupplier_IdAndStatusIn(
+                        supplierId,
+                        statuses
+                );
+
+        // Convert Order entities to DTOs
+        return orders.stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
+    // Fetch supplier orders for specific retailer
+    @Override
+    public List<OrderDTO> getOrdersBySupplierAndRetailer(String supplierId,String retailerId) {
+
+        // Fetch matching orders from database
+        List<Order> orders = orderRepository
+                .findBySupplier_IdAndRetailer_Id(
+                        supplierId,
+                        retailerId
+                );
+
+        // Convert Order entities to DTOs
+        return orders.stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
+
+    // Fetch retailer order details by order ID
+    @Override
+    public OrderDTO getOrderById(String orderId) {
+
+        // Fetch order from database
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Order not found with ID: " + orderId
+                        )
+                );
+
+        // Convert entity to DTO
+        return convertToDTO(order);
     }
 
 }

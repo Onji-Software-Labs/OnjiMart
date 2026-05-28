@@ -108,7 +108,15 @@ public class ProductServiceImpl implements ProductService {
                             "SubCategory not found with id: " + productDTO.getSubCategoryId()));
         }
 
-        modelMapper.map(productDTO, product);
+        // modelMapper.map(productDTO, product);
+        product.setName(productDTO.getName());
+        product.setDescription(productDTO.getDescription());
+        product.setPrice(productDTO.getPrice());
+        product.setStockQuantity(productDTO.getStockQuantity());
+        product.setQuantityType(productDTO.getQuantityType());
+        product.setUnitValue(productDTO.getUnitValue());
+        product.setMinOrderQuantity(productDTO.getMinOrderQuantity());
+        product.setImageUrl(productDTO.getImageUrl());
 
         product.setCategory(category);
         product.setSubCategory(subCategory);

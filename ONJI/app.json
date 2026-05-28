@@ -7,7 +7,6 @@
     "icon": "./assets/images/icon.png",
     "scheme": "onji",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true
     },
@@ -16,7 +15,6 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true,
       "package": "com.hasthik.onjimart"
     },
     "web": {
@@ -29,15 +27,24 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
-          "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
       ],
       "expo-font",
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-image",
+      "expo-web-browser",
+      ["expo-build-properties",
+
+    {
+      "android": {
+        "usesCleartextTraffic": true
+      },
+      "ios": {}
+    }]
+  
     ],
+
     "experiments": {
       "typedRoutes": true
     },

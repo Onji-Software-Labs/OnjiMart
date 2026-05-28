@@ -1,7 +1,7 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemedText } from '@/components/ui/ThemedText';
 import axiosInstance from '@/lib/api/axiosConfig';
-import { storage } from '@/lib/storage';
+import { secureStorage } from '@/lib/secureStorage';
+import { localStorage } from '@/lib/localStorage';
 import { getDeviceId } from '@/lib/utils';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
@@ -47,15 +47,26 @@ export default function OTPVerification() {
     }
   }, [countdown, resendDisabled]);
   // useEffect to get the deviceId
+  // ---------------- DEVICE ID ----------------
   useEffect(() => {
     const fetchDeviceId = async () => {
-      const id = await getDeviceId();
-      setDeviceId(id);
-      console.log('Device ID for OTP verification:', deviceId);
+      console.log("📲 Fetching device ID...");
+
+      try {
+        const id = await getDeviceId();
+        console.log("📲 Device ID raw:", id);
+
+        setDeviceId(id);
+
+        console.log("📲 Device ID state set:", id);
+      } catch (err) {
+        console.log("❌ Device ID ERROR:", err);
+      }
     };
 
     fetchDeviceId();
   }, []);
+
 
   useEffect(() => {
     if (showSuccessMessage) {
@@ -96,7 +107,7 @@ export default function OTPVerification() {
   // Resend OTP
   const handleResendCode = async (isFirstTime = false) => {
     if (resendDisabled && !isFirstTime) return;
-    await storage.removeItem('otpSessionId'); // clear old OTP session
+    await secureStorage.removeItem('otpSessionId'); // clear old OTP session
 
     setCountdown(30);
     setResendDisabled(true);
@@ -117,77 +128,56 @@ export default function OTPVerification() {
 
     console.log('Sending OTP payload:', payload);
 
-    try {
+ try {
+      console.log("🌐 Calling send-otp API...");
+
       const response = await axiosInstance.post('/api/auth/send-otp', payload);
-      console.log('Full OTP Send Response:', JSON.stringify(response.data, null, 2));
+
+      console.log("📩 Response received:", response.data);
 
       const onboardingStatus = response.data?.userOnboardingStatus;
       const userType = response.data?.userType;
-
-      if (onboardingStatus !== undefined) {
-        await storage.setItem(
-          "userOnboardingStatus",
-          String(onboardingStatus)
-        );
-        console.log("✅ onboarding status saved:", onboardingStatus);
-      }
-   if (userType !== undefined) {
-        await storage.setItem(
-          "userType",
-          String(userType)
-        );
-        console.log("✅ user type saved:", userType);
-      }
-
       const userId = response.data?.userId;
 
+      console.log("💾 onboardingStatus:", onboardingStatus);
+      console.log("💾 userType:", userType);
+      console.log("💾 userId:", userId);
+
+      if (onboardingStatus !== undefined) {
+        await localStorage.setItem("userOnboardingStatus", String(onboardingStatus));
+      }
+
+      if (userType !== undefined) {
+        await localStorage.setItem("userType", String(userType));
+      }
+
       if (userId) {
-        await storage.setItem('userId', userId);
-        console.log('Stored User ID:', userId);
-      }
-      // ✅ DEV ONLY: orderId is OTP
-      if (__DEV__ && response.data?.orderId) {
-        const orderOtp = String(response.data.orderId);
-        setDevOtp(orderOtp);
-        console.log('DEV OTP (orderId):', orderOtp);
+        await secureStorage.setItem('userId', userId);
       }
 
-      // ── ADDED: Save userId from send-otp response ──
-      if (response.data.userId) {
-        await storage.setItem('userId', String(response.data.userId));
-        console.log('✅ userId saved from send-otp:', response.data.userId);
-      }
-      // ── END ADDED ──
+      const orderOtp = response.data?.orderId;
+      console.log("🧠 orderId (OTP session):", orderOtp);
 
-      // ✅ Handle different response structures
+      // if (__DEV__ && orderOtp) {
+      if (orderOtp) {
+        setDevOtp(String(orderOtp));
+      }
+
       const sessionId = response.data?.orderId;
 
       if (sessionId) {
         setOtpSessionId(String(sessionId));
-        console.log('OTP Session ID (orderId):', sessionId);
-      }
-
-      if (sessionId) {
-        setOtpSessionId(sessionId);
-        console.log('✅ OTP Session ID saved:', sessionId);
-        await storage.setItem('otpSessionId', sessionId);
+        await secureStorage.setItem('otpSessionId', String(sessionId));
+        console.log("✅ sessionId saved:", sessionId);
       } else {
-        console.warn('❌ No OTP sessionId found in response structure');
-
-        const storedSessionId = await storage.getItem('otpSessionId');
-        if (storedSessionId) {
-          setOtpSessionId(storedSessionId);
-          console.log('Using stored session ID as fallback:', storedSessionId);
-        } else {
-          const fallbackSessionId = Date.now().toString();
-          setOtpSessionId(fallbackSessionId);
-          console.log('Using generated fallback session ID:', fallbackSessionId);
-        }
+        console.log("⚠️ No sessionId found");
       }
 
       setShowSuccessMessage(true);
     } catch (error: any) {
-      console.error('Failed to send OTP:', error.response?.data || error.message);
+      console.log("❌ RESEND OTP FAILED");
+      console.log("❌ Error:", error.response?.data || error.message);
+
       setIsError(true);
       setErrorMessage('Failed to resend OTP. Please try again.');
     }
@@ -204,7 +194,7 @@ export default function OTPVerification() {
 
     let verificationSessionId = otpSessionId;
     if (!verificationSessionId) {
-      verificationSessionId = await storage.getItem('otpSessionId');
+      verificationSessionId = await secureStorage.getItem('otpSessionId');
       if (verificationSessionId) {
         setOtpSessionId(verificationSessionId);
         console.log('Using stored session ID for verification:', verificationSessionId);
@@ -244,43 +234,43 @@ export default function OTPVerification() {
         setErrorMessage('');
 
         // Save JWT token so axios interceptor can attach it to future requests
-        await AsyncStorage.setItem('token', response.data.jwtToken);
+        await secureStorage.setItem('token', response.data.jwtToken);
 
         // Clear stored session ID on success
-        await storage.removeItem('otpSessionId');
+        await secureStorage.removeItem('otpSessionId');
 
         const token = response.data.jwtToken;
 
-        await storage.setItem('token', token);
+        await secureStorage.setItem('token', token);
 
         // DO NOT overwrite userId here
-        const existingUserId = await storage.getItem('userId');
+        const existingUserId = await secureStorage.getItem('userId');
 
         console.log('User ID kept from OTP step:', existingUserId);
         // ── ADDED: Save jwtToken, refreshToken, phoneNumber and businessId ──
         if (response.data.jwtToken) {
-          await storage.setItem('jwtToken', response.data.jwtToken);
+          await secureStorage.setItem('jwtToken', response.data.jwtToken);
           console.log('✅ JWT Token saved');
         }
 
         if (response.data.refreshToken) {
-          await storage.setItem('refreshToken', response.data.refreshToken);
+          await secureStorage.setItem('refreshToken', response.data.refreshToken);
           console.log('✅ Refresh Token saved');
         }
 
         // ── ADDED: Save phoneNumber for profile matching ──
         if (response.data.phoneNumber) {
-          await storage.setItem('phoneNumber', response.data.phoneNumber);
+          await secureStorage.setItem('phoneNumber', response.data.phoneNumber);
           console.log('✅ phoneNumber saved:', response.data.phoneNumber);
         } else {
-          await storage.setItem('phoneNumber', normalizedPhoneNumber);
+          await secureStorage.setItem('phoneNumber', normalizedPhoneNumber);
           console.log('✅ phoneNumber saved from input:', normalizedPhoneNumber);
         }
         // ── END ADDED ──
 
-        const storedUserId = await storage.getItem('userId');
+        const storedUserId = await secureStorage.getItem('userId');
         if (storedUserId) {
-          await storage.setItem('businessId', storedUserId);
+          await secureStorage.setItem('businessId', storedUserId);
           console.log('✅ businessId saved from stored userId:', storedUserId);
         } else {
           console.warn('⚠️ No userId found in storage. Full login response:', JSON.stringify(response.data, null, 2));
@@ -294,7 +284,7 @@ export default function OTPVerification() {
 
         // fallback: if login API doesn't return it, use stored value from send-otp
         if (onboardingStatus === undefined) {
-          const storedStatus = await storage.getItem("userOnboardingStatus");
+          const storedStatus = await localStorage.getItem("userOnboardingStatus");
           onboardingStatus = storedStatus === "true";
           console.log("Using stored onboarding status:", onboardingStatus);
         }
@@ -302,7 +292,7 @@ export default function OTPVerification() {
        let userType = response.data?.userType;
 
         if (!userType) {
-          const storedType = await storage.getItem('userType');
+          const storedType = await localStorage.getItem('userType');
           userType = storedType;
         }
 
@@ -376,7 +366,8 @@ export default function OTPVerification() {
             {phoneNumber}
           </ThemedText>
 
-          {__DEV__ && devOtp && (
+          {/* {__DEV__ && devOtp && ( */}
+          { devOtp && (
             <ThemedText
               style={{
                 textAlign: 'center',

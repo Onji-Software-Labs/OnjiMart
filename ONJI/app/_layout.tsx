@@ -1,13 +1,11 @@
 import 'react-native-get-random-values';
-
+import * as SplashScreen from 'expo-splash-screen'; 
 import {
   DarkTheme,
   DefaultTheme,
   ThemeProvider,
 } from "@react-navigation/native";
-
 import { useFonts } from "expo-font";
-
 import {
   AlbertSans_400Regular,
   AlbertSans_700Bold,
@@ -15,7 +13,6 @@ import {
   AlbertSans_500Medium,
   AlbertSans_600SemiBold,
 } from "@expo-google-fonts/albert-sans";
-
 import {
   Inter_400Regular,
   Inter_700Bold,
@@ -23,14 +20,15 @@ import {
   Inter_500Medium,
   Inter_600SemiBold,
 } from "@expo-google-fonts/inter";
-
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import "react-native-reanimated";
 import "../global.css";
-
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useColorScheme } from "@/hooks/useColorScheme";
+import { useEffect } from 'react';
+
+SplashScreen.preventAutoHideAsync(); 
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -48,6 +46,12 @@ export default function RootLayout() {
     Inter_600SemiBold,
     SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
   });
+
+  useEffect(() => {
+    if (loaded) {
+      SplashScreen.hideAsync(); 
+    }
+  }, [loaded]);
 
   if (!loaded) {
     return null;

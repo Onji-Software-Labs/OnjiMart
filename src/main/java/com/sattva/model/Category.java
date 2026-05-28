@@ -33,5 +33,7 @@ public class Category {
     private List<SubCategory> subCategories = new ArrayList<>();
 
     @ManyToMany(mappedBy = "categories")
-    private Set<Supplier> suppliers; 
+    private Set<Supplier> suppliers;
+
+    private String imageUrl; // URL of product image
 }

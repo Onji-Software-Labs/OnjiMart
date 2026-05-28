@@ -1,5 +1,5 @@
 
-import { FontAwesome, MaterialCommunityIcons } from "@expo/vector-icons";
+import { FontAwesome, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import AntDesign from "@expo/vector-icons/AntDesign";
 import Entypo from "@expo/vector-icons/Entypo";
 import EvilIcons from "@expo/vector-icons/EvilIcons";
@@ -17,7 +17,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useEffect } from "react";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { secureStorage } from '@/lib/secureStorage';
 import axiosInstance from "@/lib/api/axiosConfig";
 import { useLocalSearchParams } from "expo-router";
 
@@ -74,7 +74,7 @@ const ConnectScreen = () => {
       useEffect(() => {
       const checkConnectionStatus = async () => {
         try {
-          const retailerId = await AsyncStorage.getItem("userId");
+          const retailerId = await secureStorage.getItem("userId");
 
           const response = await axiosInstance.get(
             "/api/connections/status",
@@ -104,7 +104,7 @@ const ConnectScreen = () => {
   const handlePress = async () => {
   try {
 
-    const retailerId = await AsyncStorage.getItem("userId");
+    const retailerId = await secureStorage.getItem("userId");
 
     console.log("Retailer:", retailerId);
     console.log("Supplier:", supplierId);
@@ -217,7 +217,7 @@ const ConnectScreen = () => {
                 </View>
 
                 <View style={styles.row}>
-                  <AntDesign name="checkcircleo" size={12} color="grey" />
+                  <Ionicons name="checkmark-circle-outline" size={12} color="grey" />
                   <Text style={styles.textGray}> GST: 03BOMPS0736L2ZM</Text>
                 </View>
 
