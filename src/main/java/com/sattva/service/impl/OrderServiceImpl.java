@@ -10,6 +10,7 @@ import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.sattva.dto.CreateOrderRequestDTO;
 import com.sattva.dto.OrderDTO;
 import com.sattva.dto.OrderItemDTO;
 import com.sattva.enums.OrderItemStatus;
@@ -55,10 +56,10 @@ public class OrderServiceImpl implements OrderService {
 
     @Transactional
     @Override
-    public OrderDTO createOrderFromCart(String cartId) {
+    public OrderDTO createOrderFromCart(CreateOrderRequestDTO request) {
         // Step 1: Fetch the cart by cartId
-        Cart cart = cartRepository.findById(cartId)
-                .orElseThrow(() -> new ResourceNotFoundException("Cart not found with id: " + cartId));
+        Cart cart = cartRepository.findById(request.getCartId())
+                .orElseThrow(() -> new ResourceNotFoundException("Cart not found with id: " + request.getCartId()));
 
         // Step 2: Create a new order and set its relationships
         Order order = new Order();
@@ -71,6 +72,13 @@ public class OrderServiceImpl implements OrderService {
             throw new InvalidInputException("Shop or Retailer information is missing in the cart");
         }
         order.setRetailer(shop.getRetailer()); // Set retailer of the order
+
+        // Set delivery details selected by retailer
+        order.setDeliveryDate(request.getDeliveryDate());
+
+        order.setDeliveryTimeSlot(
+                request.getDeliveryTimeSlot()
+        );
 
         // Set Order date and default status
         order.setOrderDate(LocalDateTime.now());
