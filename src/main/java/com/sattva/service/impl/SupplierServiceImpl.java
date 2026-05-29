@@ -329,22 +329,24 @@ public class SupplierServiceImpl implements SupplierService {
         }
         // Convert Retailer entity to RetailerDTO for API response
         private RetailerDTO convertToRetailerDTO(Retailer retailer) {
-
                 RetailerDTO dto = new RetailerDTO();
 
                 dto.setId(retailer.getId());
-                dto.setFullName(retailer.getUser().getFullName());
-                dto.setEmail(retailer.getUser().getEmail());
+                RetailerBusiness business = retailer.getRetailerBusinesses()
+                        .stream()
+                        .filter(RetailerBusiness::isActive)
+                        .findFirst()
+                        .orElse(null);
 
-                String pincodes = retailer.getRetailerBusinesses().stream()
-                .filter(RetailerBusiness::isActive)
-                .map(RetailerBusiness::getPincode)
-                .distinct()
-                .collect(Collectors.joining(", "));
-
-                dto.setPincode(pincodes);
-
-                return dto;
+                if (business != null) {
+                        dto.setFullName(business.getName());
+                        dto.setAddress(business.getAddress());
+                        dto.setCity(business.getCity());
+                        dto.setPincode(business.getPincode());
+                        dto.setContactNumber(business.getContactNumber());
+                }
+        dto.setEmail(retailer.getUser().getEmail());
+        return dto;
         }
 
         // Fetch all retailers connected to the supplier using accepted connections

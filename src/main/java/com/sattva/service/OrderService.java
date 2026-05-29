@@ -2,13 +2,14 @@ package com.sattva.service;
 
 import java.util.List;
 
+import com.sattva.dto.CreateOrderRequestDTO;
 import com.sattva.dto.OrderDTO;
 import com.sattva.dto.OrderItemDTO;
 import com.sattva.enums.OrderItemStatus;
 import com.sattva.enums.OrderStatus;
 
 public interface OrderService {
-    OrderDTO createOrderFromCart(String cartId);
+    OrderDTO createOrderFromCart(CreateOrderRequestDTO request);
     List<OrderDTO> getOrdersBySupplierId(String supplierId);
     OrderItemDTO updateOrderItemStatus(String orderId, String itemId, OrderItemStatus status);
     public OrderItemDTO fulfillOrderItem(String orderId, String itemId, Double unitPrice, Integer fulfilledQuantity);

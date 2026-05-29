@@ -13,22 +13,15 @@ import {
   ActivityIndicator,
   Alert,
   Linking,
+  Modal,
 } from "react-native";
 import { Ionicons, MaterialCommunityIcons, FontAwesome, Feather } from "@expo/vector-icons";
 import axiosInstance from "../../lib/api/axiosConfig";
 import { secureStorage } from "../../lib/secureStorage";
 import { localStorage } from "../../lib/localStorage";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 
-// const VegetablesImg = require("../../assets/images/vegetables.png");
-// const FruitsImg = require("../../assets/images/Fruits.png");
-// const LeafyImg = require("../../assets/images/Leafy.png");
-// const GroceriesImg = require("../../assets/images/Groceries.png");
 const PersonImg = require("../../assets/images/supplier.jpg");
-// const OnionImg = require("../../assets/images/Onion.png");
-// const TomatoImg = require("../../assets/images/tomato.png");
-
-// Static data — unchanged
 
 const days = [
   { day: "Sun", date: "Mar 24", available: true },
@@ -46,12 +39,6 @@ const timeSlots = [
   { label: "Evening", time: "3pm – 7pm", available: true },
 ];
 
-// const categories = [
-//   { label: "Vegetables", img: VegetablesImg },
-//   { label: "Fruits", img: FruitsImg },
-//   { label: "Leafy", img: LeafyImg },
-//   { label: "Groceries", img: GroceriesImg },
-// ];
 
 type Product = {
   id: string;
@@ -64,14 +51,14 @@ type Product = {
   description: string;
 };
 
-// TRUE DELTA MODE
-// API always receives exactly +1 or -1 per call — never an absolute quantity.
-// Rapid clicks while a request is in-flight accumulate into pendingDelta
-// and are flushed as one follow-up call once the current one resolves.
 
 export default function OrderSupplierScreen() {
   const router = useRouter();
-
+  const { supplierId, businessId, supplierName } = useLocalSearchParams<{
+    supplierId: string;
+    businessId: string;
+    supplierName: string;
+  }>();
   //  UI state 
   const [expanded, setExpanded] = useState(true);
   const [selectedDay, setSelectedDay] = useState("Thu");
@@ -81,31 +68,37 @@ export default function OrderSupplierScreen() {
   const [customKg, setCustomKg] = useState<Record<string, string>>({});
   const [savedItems, setSavedItems] = useState<any[]>([]);
   const [showSheet, setShowSheet] = useState(false);
-
+  const [activeSubcategory, setActiveSubcategory] = useState<string | null>(null);
   // API state 
   const [token, setToken] = useState<string | null>(null);
   const [shopId, setShopId] = useState<string>("");
-  const [supplierId, setSupplierId] = useState<string>("");
+
   const [apiCategories, setApiCategories] = useState<any[]>([]);
   const [apiSubcategories, setApiSubcategories] = useState<any[]>([]);
   const [apiProducts, setApiProducts] = useState<any[]>([]);
-  const [supplier, setSupplier] = useState<any>(null);
   const [cartId, setCartId] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
   const [isGeneratingInvoice, setIsGeneratingInvoice] = useState(false);
-
+  const [cartProducts, setCartProducts] = useState<any[]>([]);
   //  Refs 
   const cartRef = useRef<Record<string, number>>({});
 
   const syncQueueRef = useRef<Record<string, { pendingDelta: number; inFlight: boolean }>>({});
 
   const debounceRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
-
+  const [selectedImage, setSelectedImage] = useState<any>(null);
+  const [showImageViewer, setShowImageViewer] =
+    useState(false);
+  
   const shopIdRef = useRef<string>("");
   const supplierIdRef = useRef<string>("");
   const cartIdRef = useRef<string | null>(null);
   const tokenRef = useRef<string | null>(null);
   const isLoggedOutRef = useRef<boolean>(false);
+  const [cartProductsMap, setCartProductsMap] = useState<
+  Record<string, any>
+>({});
+
 
   useEffect(() => { shopIdRef.current = shopId; }, [shopId]);
   useEffect(() => { supplierIdRef.current = supplierId; }, [supplierId]);
@@ -135,289 +128,247 @@ export default function OrderSupplierScreen() {
     return true;
   }, []);
 
-  const fetchCartItems = useCallback(async (): Promise<void> => {
-    if (!isSessionValid()) return;
+const syncCart = async (productId: string, quantity: number) => {
+  // Clear any pending sync for this product
+  if (debounceRef.current[productId]) {
+    clearTimeout(debounceRef.current[productId]);
+  }
 
-    const currentShopId = shopIdRef.current;
-    const currentSuppId = supplierIdRef.current;
+  // Wait 800ms after last tap before hitting the API
+  debounceRef.current[productId] = setTimeout(async () => {
+    if (!isSessionValid()) return;
 
     try {
       const headers = await getAuthHeader();
-      console.log(`[fetchCartItems] GET items for shop=${currentShopId} supp=${currentSuppId}`);
 
-      const res = await axiosInstance.get(
-        `/api/carts/${currentShopId}/${currentSuppId}/items`,
-        { headers }
-      );
-
-      const cartData = res.data;
-
-      // Extract cartId if the response is an object
-      const newCartId = cartData?.id || cartData?.cartId;
-      if (newCartId && newCartId !== cartIdRef.current) {
-        setCartId(newCartId);
-        cartIdRef.current = newCartId;
-        await localStorage.setItem("cartId", newCartId);
-        console.log(`[fetchCartItems]  cartId from GET response: ${newCartId}`);
-      }
-
-      // Hydrate cart quantities — handles both response shapes
-      const itemsArray = Array.isArray(cartData)
-        ? cartData
-        : (cartData?.data || cartData?.items || []);
-
-      if (Array.isArray(itemsArray) && itemsArray.length > 0) {
-        const hydrated: Record<string, number> = {};
-        itemsArray.forEach((p: any) => {
-          const pid = String(p.productId || p.product?.id || p.id);
-          hydrated[pid] = p.quantity;
-        });
-        cartRef.current = hydrated;
-        setCart({ ...hydrated });
-        console.log(`[fetchCartItems]  hydrated ${itemsArray.length} items`);
+      if (!cartIdRef.current) {
+        const res = await axiosInstance.post(
+          `/api/carts/${shopIdRef.current}/${supplierIdRef.current}/add`,
+          null,
+          { params: { productId, quantity }, headers }
+        );
+        const newCartId = res.data?.id;
+        if (newCartId) {
+          cartIdRef.current = newCartId;
+          setCartId(newCartId);
+          localStorage.setItem("cartId", newCartId);
+        }
       } else {
-        cartRef.current = {};
-        setCart({});
-      }
-    } catch (err: any) {
-      console.log(`[fetchCartItems] ERROR:`, err?.response?.status, err?.message);
-    }
-  }, [getAuthHeader, isSessionValid]);
- 
-  const syncCartWithServer = useCallback(async (productId: string, delta: number): Promise<void> => {
-    if (!isSessionValid()) return;
-
-    const currentShopId = shopIdRef.current;
-    const currentSuppId = supplierIdRef.current;
-
-    const entry = syncQueueRef.current[productId];
-
-    if (entry?.inFlight) {
-      console.log(`[sync] Already in-flight for id=${productId} — skip`);
-      return;
-    }
-
-    if (!syncQueueRef.current[productId]) {
-      syncQueueRef.current[productId] = { pendingDelta: 0, inFlight: true };
-    } else {
-      syncQueueRef.current[productId].inFlight = true;
-    }
-
-    const quantityToSend = delta;
-    console.log(`[sync] POST id=${productId} quantityToSend=${quantityToSend} (delta mode)`);
-
-    try {
-      const headers = await getAuthHeader();
-
-      // FIXED: POST /add creates the cart automatically on first call.
-      // No separate /create call is made before or after this.
-      const res = await axiosInstance.post(
-        `/api/carts/${currentShopId}/${currentSuppId}/add`,
-        null,
-        { params: { productId: String(productId), quantity: Number(quantityToSend) }, headers }
-      );
-
-      console.log(`[sync] RESPONSE:`, res.data);
-
-      // FIXED: Capture cartId returned by /add on first call (cart auto-created by backend).
-      const newCartId = res.data?.id || res.data?.cartId;
-      if (newCartId && newCartId !== cartIdRef.current) {
-        setCartId(newCartId);
-        cartIdRef.current = newCartId;
-        await localStorage.setItem("cartId", newCartId);
-        console.log(`[sync]  cartId captured from /add response: ${newCartId}`);
-      }
-
-      // FIXED: After every successful Add, fetch items to keep UI consistent with backend.
-      await fetchCartItems();
-
-    } catch (err: any) {
-      console.log(`[sync] ERROR id=${productId}`, err?.response?.status, err?.response?.data ?? err?.message);
-
-    } finally {
-      if (syncQueueRef.current[productId]) {
-        syncQueueRef.current[productId].inFlight = false;
-      }
-
-      if (!isLoggedOutRef.current) {
-        const pendingDelta = syncQueueRef.current[productId]?.pendingDelta ?? 0;
-        if (pendingDelta !== 0) {
-          console.log(`[sync] FLUSH pendingDelta=${pendingDelta}`);
-          syncQueueRef.current[productId].pendingDelta = 0;
-          setTimeout(() => syncCartWithServer(productId, pendingDelta), 0);
+        if (quantity <= 0) {
+          await axiosInstance.delete(`/api/carts/${cartIdRef.current}/remove`, {
+            params: { productId },
+            headers,
+          });
+        } else {
+          await axiosInstance.put(`/api/carts/${cartIdRef.current}/update`, null, {
+            params: { productId, quantity },
+            headers,
+          });
         }
       }
+    } catch (err) {
+      console.log("[syncCart error]", err);
     }
-  }, [getAuthHeader, isSessionValid, fetchCartItems]);
+  }, 800); // ← 800ms debounce
+};
 
-  const scheduleSync = useCallback((productId: string, delta: number): void => {
-    if (!syncQueueRef.current[productId]) {
-      syncQueueRef.current[productId] = { pendingDelta: delta, inFlight: false };
-    } else {
-      syncQueueRef.current[productId].pendingDelta += delta;
-    }
+const add = useCallback((product: any): void => {
 
-    console.log(`[scheduleSync] id=${productId} delta=${delta} pendingDelta=${syncQueueRef.current[productId].pendingDelta}`);
+  if (!isSessionValid()) return;
 
-    if (debounceRef.current[productId]) {
-      clearTimeout(debounceRef.current[productId]);
-    }
+  const strId = String(product.id);
 
-    debounceRef.current[productId] = setTimeout(() => {
-      const e = syncQueueRef.current[productId];
-      if (!e) return;
+  const prevQty = cartRef.current[strId] ?? 0;
 
-      if (e.inFlight) {
-        console.log(`[scheduleSync] debounce fired inFlight=true — deferred to flush`);
-        return;
-      }
+  const newQty = prevQty + 1;
 
-      const deltaToSend = e.pendingDelta;
-      if (deltaToSend === 0) return;
-      e.pendingDelta = 0;
-      syncCartWithServer(productId, deltaToSend);
-    }, 500);
-  }, [syncCartWithServer]);
+  // Save full product locally
+  setCartProductsMap((prev) => ({
+    ...prev,
+    [strId]: product,
+  }));
 
-  const add = useCallback((id: any): void => {
-    if (!isSessionValid()) return;
+  cartRef.current = {
+    ...cartRef.current,
+    [strId]: newQty,
+  };
 
-    const strId = String(id);
-    const prevQty = cartRef.current[strId] ?? 0;
-    const newQty = prevQty + 1;
+  setCart({ ...cartRef.current });
 
-    console.log(`[add] id=${strId} ${prevQty} → ${newQty}`);
+  syncCart(strId, newQty);
 
-    cartRef.current = { ...cartRef.current, [strId]: newQty };
-    setCart({ ...cartRef.current });
+}, [syncCart, isSessionValid]);
 
-    // FIXED: quantity=1 always — cart created automatically by POST /add on first call
-    scheduleSync(strId, +1);
-  }, [scheduleSync, isSessionValid]);
+ const remove = useCallback((id: any): void => {
+  if (!isSessionValid()) return;
 
-  const remove = useCallback((id: any): void => {
-    if (!isSessionValid()) return;
+  const strId = String(id);
 
-    const strId = String(id);
-    const prevQty = cartRef.current[strId] ?? 0;
+  const prevQty = cart[strId] ?? 0;
 
-    // FIXED: Block remove if item not in cart — no API call for non-existent items.
-    if (prevQty <= 0) {
-      console.log(`[remove] id=${strId} not in cart or already 0 — no-op`);
-      return;
-    }
+  if (prevQty <= 0) return;
 
-    const newQty = prevQty - 1;
+  const newQty = prevQty - 1;
 
-    console.log(`[remove] id=${strId} ${prevQty} → ${newQty}`);
+  console.log(`[remove] id=${strId} ${prevQty} → ${newQty}`);
 
-    if (newQty === 0) {
-      const updated = { ...cartRef.current };
-      delete updated[strId];
-      cartRef.current = updated;
-      setCart({ ...cartRef.current });
-    } else {
-      cartRef.current = { ...cartRef.current, [strId]: newQty };
-      setCart({ ...cartRef.current });
-    }
+  if (newQty <= 0) {
+    const updated = { ...cart };
+    delete updated[strId];
+    setCart(updated);
+  } else {
+    setCart((prev) => ({
+      ...prev,
+      [strId]: newQty,
+    }));
+  }
 
-    scheduleSync(strId, -1);
-  }, [scheduleSync, isSessionValid]);
+  syncCart(strId, newQty);
+
+}, [cart, syncCart, isSessionValid]);
 
   const deleteItem = useCallback((id: any): void => {
     const strId = String(id);
-    const updated = { ...cartRef.current };
+    const updated = { ...cart };
     delete updated[strId];
-    cartRef.current = updated;
-    setCart({ ...cartRef.current });
+    setCart(updated);
   }, []);
 
   const toggleSave = useCallback((id: any) =>
     setSavedItems((p) => p.includes(id) ? p.filter((i) => i !== id) : [...p, id]),
     []);
-
   const ensureCartExists = useCallback(async (): Promise<void> => {
-    if (!isSessionValid()) return;
+  if (!isSessionValid()) return;
 
-    const currentShopId = shopIdRef.current;
-    const currentSuppId = supplierIdRef.current;
+  const currentShopId = shopIdRef.current;
+  const currentSuppId = supplierIdRef.current;
 
-    // Restore cartId from storage before any network call
-    if (!cartIdRef.current) {
-      const stored = await localStorage.getItem("cartId");
-      if (stored) {
-        cartIdRef.current = stored;
-        setCartId(stored);
-        console.log(`[ensureCart] cartId restored from storage: ${stored}`);
-      }
-    }
+  try {
+    const headers = await getAuthHeader();
 
-    // FIXED: cart persistence issue after logout (STRICT RESET)
-    // If no cartId exists locally (e.g., after logout/fresh login), we DO NOT fetch.
-    // The cart will be created automatically on the user's first Add.
-    if (!cartIdRef.current) {
-      console.log("[ensureCart] No local cartId found (fresh login) — skipping auto-fetch. Cart will be initialized on first Add.");
-      cartRef.current = {};
-      setCart({});
-      return;
-    }
+    console.log(
+      `[ensureCart] GET items for shop=${currentShopId} supp=${currentSuppId}`
+    );
 
-    try {
-      const headers = await getAuthHeader();
+    // ALWAYS fetch supplier cart from backend
+    const res = await axiosInstance.get(
+      `/api/carts/${currentShopId}/${currentSuppId}/items`,
+      { headers }
+    );
 
-      console.log(`[ensureCart] GET items for shop=${currentShopId} supp=${currentSuppId}`);
-      const res = await axiosInstance.get(
-        `/api/carts/${currentShopId}/${currentSuppId}/items`,
-        { headers }
+    const cartData = res.data;
+
+    // Restore cartId from backend response
+    const newCartId =
+      cartData?.id ||
+      cartData?.cartId;
+
+    if (newCartId && newCartId !== cartIdRef.current) {
+      setCartId(newCartId);
+
+      cartIdRef.current = newCartId;
+
+      await localStorage.setItem(
+        "cartId",
+        newCartId
       );
 
-      const cartData = res.data;
-
-      const newCartId = cartData?.id || cartData?.cartId;
-      if (newCartId && newCartId !== cartIdRef.current) {
-        setCartId(newCartId);
-        cartIdRef.current = newCartId;
-        await localStorage.setItem("cartId", newCartId);
-        console.log(`[ensureCart]  cartId from GET response: ${newCartId}`);
-      }
-
-      const itemsArray = Array.isArray(cartData)
-        ? cartData
-        : (cartData?.data || cartData?.items || []);
-
-      if (Array.isArray(itemsArray) && itemsArray.length > 0) {
-        const hydrated: Record<string, number> = {};
-        itemsArray.forEach((p: any) => {
-          const pid = String(p.productId || p.product?.id || p.id);
-          hydrated[pid] = p.quantity;
-        });
-        cartRef.current = hydrated;
-        setCart({ ...hydrated });
-        console.log(`[ensureCart]  hydrated ${itemsArray.length} items`);
-      } else {
-        cartRef.current = {};
-        setCart({});
-      }
-
-    } catch (err: any) {
-      const status = err?.response?.status;
-      console.log(`[ensureCart] GET error status=${status}`);
-
-      if (status === 404) {
-        // FIXED: No /create call. Cart will be auto-created by POST /add on first Add.
-        // This is the correct backend behavior — no separate create endpoint exists.
-        console.log("[ensureCart] No cart yet — waiting for first Add action to create it via POST /add");
-        cartRef.current = {};
-        setCart({});
-        // FIXED: Clear stale cartId from storage so add() doesn't use a dead ID
-        cartIdRef.current = null;
-        setCartId(null);
-        await localStorage.setItem("cartId", "");
-      } else {
-        console.log(`[ensureCart] Unexpected error:`, err?.message);
-      }
+      console.log(
+        `[ensureCart] cartId restored: ${newCartId}`
+      );
     }
-  }, [getAuthHeader, isSessionValid]);
+
+    // Support multiple response shapes
+    const itemsArray = Array.isArray(cartData)
+      ? cartData
+      : (cartData?.data ||
+         cartData?.items ||
+         []);
+
+    if (
+      Array.isArray(itemsArray) &&
+      itemsArray.length > 0
+    ) {
+
+      const hydrated: Record<string, number> = {};
+
+      itemsArray.forEach((p: any) => {
+
+        const pid = String(
+          p.productId ||
+          p.product?.id ||
+          p.id
+        );
+
+        hydrated[pid] = p.quantity;
+      });
+
+      // Restore quantities
+      cartRef.current = hydrated;
+
+      setCart(hydrated);
+
+      // Restore preview cart items
+      setCartProducts(itemsArray);
+
+      console.log(
+        `[ensureCart] hydrated ${itemsArray.length} items`
+      );
+
+    } else {
+
+      // Empty cart
+      cartRef.current = {};
+
+      setCart({});
+
+      setCartProducts([]);
+
+      console.log("[ensureCart] empty cart");
+    }
+
+  } catch (err: any) {
+
+    const status = err?.response?.status;
+
+    console.log(
+      `[ensureCart] GET error status=${status}`
+    );
+
+    if (status === 404) {
+
+      console.log(
+        "[ensureCart] No cart found for this supplier"
+      );
+
+      cartRef.current = {};
+
+      setCart({});
+
+      setCartProducts([]);
+
+      cartIdRef.current = null;
+
+      setCartId(null);
+
+      await localStorage.setItem(
+        "cartId",
+        ""
+      );
+
+    } else {
+
+      console.log(
+        `[ensureCart] Unexpected error:`,
+        err?.message
+      );
+    }
+  }
+
+}, [
+  getAuthHeader,
+  isSessionValid
+    ]);
 
   const handleLogout = useCallback(async (): Promise<void> => {
     isLoggedOutRef.current = true;
@@ -442,8 +393,6 @@ export default function OrderSupplierScreen() {
     setCart({});
     setCartId(null);
     setShopId("");
-    setSupplierId("");
-    setSupplier(null);
     setApiCategories([]);
     setApiSubcategories([]);
     setApiProducts([]);
@@ -451,9 +400,7 @@ export default function OrderSupplierScreen() {
     console.log("[logout]  Session cleared — navigating to login");
     router.replace("/(auth)/login" as any);
   }, [router]);
-  
-  // INIT
-  
+
   useEffect(() => {
     const initApp = async () => {
       try {
@@ -529,10 +476,8 @@ export default function OrderSupplierScreen() {
     initApp();
   }, []);
 
-  // FIXED: ensureCartExists no longer calls /create — safe to call on every login.
-  //  On 404 it simply logs and waits for first Add action.
   useEffect(() => {
-    if (!supplierId || !shopIdRef.current || !token) return;
+    if ( !shopIdRef.current || !token) return;
     fetchCategories();
     ensureCartExists();
   }, [supplierId, token]);
@@ -564,58 +509,46 @@ export default function OrderSupplierScreen() {
   };
 
   useEffect(() => {
-    if (!supplierId || !activeCategory || !token) return;
-    const go = async () => {
-      if (!isSessionValid()) return;
-      try {
-        const headers = await getAuthHeader();
-        const res = await axiosInstance.get(
-          `/suppliers/${supplierId}/categories/${activeCategory}/subcategories`,
-          { headers }
-        );
-        const data = res.data?.data || res.data;
-        setApiSubcategories(data || []);
-        if (Array.isArray(data) && data.length > 0) {
-          fetchProducts(String(data[0].id || data[0]._id));
-        } else {
-          setApiProducts([]);
-        }
-      } catch (err: any) {
-        console.log("ERROR: fetchSubcategories:", err?.response?.status, err?.message);
-      }
-    };
-    go();
-  }, [supplierId, activeCategory, token]);
+  if (!activeCategory || !token) return;
 
-  
-  const handleGenerateInvoice = async () => {
-    if (!isSessionValid()) {
-      Alert.alert("Session Expired", "Please log in again.");
-      return;
-    }
-    if (!cartIdRef.current) {
-      Alert.alert("Cart Empty", "Please add items to cart before checking out.");
-      return;
-    }
+  const go = async () => {
+    if (!isSessionValid()) return;
+
     try {
-      setIsGeneratingInvoice(true);
       const headers = await getAuthHeader();
-      await axiosInstance.post(`/api/orders/submit/${cartIdRef.current}`, null, { headers });
-      Alert.alert("Order Placed! ✅", "Your cart has been successfully checked out.");
-      cartRef.current = {};
-      setCart({});
-      setCartId(null);
-      cartIdRef.current = null;
-      await localStorage.setItem("cartId", "");
+
+      const res = await axiosInstance.get(
+        `/suppliers/${supplierId}/categories/${activeCategory}/subcategories`,
+        { headers }
+      );
+
+      const data = res.data?.data || res.data;
+
+      setApiSubcategories(data || []);
+
+      if (Array.isArray(data) && data.length > 0) {
+        const firstSubId = String(data[0].id || data[0]._id);
+
+        setActiveSubcategory(firstSubId);
+
+        fetchProducts(firstSubId);
+      } else {
+        setApiProducts([]);
+      }
     } catch (err: any) {
-      console.log("ERROR: checkout:", err?.response?.status, err?.message);
-      Alert.alert("Error", "Failed to checkout. Please try again.");
-    } finally {
-      setIsGeneratingInvoice(false);
+      console.log(
+        "ERROR: fetchSubcategories:",
+        err?.response?.status,
+        err?.message
+      );
     }
   };
 
-const displayProducts: Product[] = apiProducts.map((p, idx) => ({
+  go();
+  }, [supplierId, activeCategory, token]);
+
+
+  const displayProducts: Product[] = apiProducts.map((p, idx) => ({
   id: String(p.productId || p.id || idx),
   name: p.name || `Product ${idx + 1}`,
   price: p.price ?? 0,
@@ -626,18 +559,19 @@ const displayProducts: Product[] = apiProducts.map((p, idx) => ({
   unit: p.quantityType === 'COUNT' ? 'pcs' : 'kg',
   stock: p.stockQuantity ?? 0,
   description: p.description ?? '',
-}));
+  }));
 
-const displayCategories = apiCategories.map((apiCat) => ({
+  const displayCategories = apiCategories.map((apiCat) => ({
   id: String(apiCat.id || apiCat.categoryId || apiCat._id),
   displayName: apiCat.name || apiCat.displayName || "Category",
   img: apiCat.imageUrl && apiCat.imageUrl.startsWith('http')
     ? { uri: apiCat.imageUrl }
     : null, // ← fallback if no image from API
-}));
-  const cartItems = displayProducts.filter((p) => (cartRef.current[p.id] || 0) > 0);
+  }));
 
-  if (isInitializing || !supplier) {
+  // const cartItems = displayProducts.filter((p) => (cart[p.id] || 0) > 0);
+
+  if (isInitializing) {
     return (
       <View style={[styles.safe, { justifyContent: "center", alignItems: "center" }]}>
         <ActivityIndicator size="large" color="#2E7D32" />
@@ -645,18 +579,17 @@ const displayCategories = apiCategories.map((apiCat) => ({
     );
   }
 
-  
   // UI — layout and styles completely unchanged from original
   
   return (
     <View style={styles.safe}>
-      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-      <ScrollView contentContainerStyle={styles.scroll}>
-
+      <StatusBar barStyle="dark-content" backgroundColor="#a92727" />
+      
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={22} color="#2E7D32" />
         </TouchableOpacity>
 
+      <ScrollView contentContainerStyle={styles.scroll}>
         <Text style={styles.sectionLabel}>Business Information</Text>
         <View style={styles.outerCard}>
           <View style={styles.innerCard}>
@@ -667,11 +600,11 @@ const displayCategories = apiCategories.map((apiCat) => ({
               </View>
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.businessName}>{supplier?.name || "Sunways trading"}</Text>
-              <Text style={styles.personName}>{supplier?.city || "Aslam"}</Text>
+              <Text style={styles.businessName}>{supplierName|| "Sunways trading"}</Text>
+              <Text style={styles.personName}>{supplierName || "Aslam"}</Text>
               <View style={styles.locationRow}>
                 <Ionicons name="location-outline" size={12} color="#2E7D32" />
-                <Text style={styles.locationText}>{supplier?.address || "Ambalpady, udupi"}</Text>
+                <Text style={styles.locationText}>{supplierName || "Ambalpady, udupi"}</Text>
               </View>
             </View>
             <View style={styles.rightCol}>
@@ -698,7 +631,7 @@ const displayCategories = apiCategories.map((apiCat) => ({
               </View>
               <TouchableOpacity
                 style={styles.callBtn}
-                onPress={() => supplier?.contactNumber && Linking.openURL(`tel:${supplier.contactNumber}`)}
+                onPress={() => supplierName && Linking.openURL(`tel:${supplierName}`)}
               >
                 <Ionicons name="call" size={20} color="#fff" />
               </TouchableOpacity>
@@ -755,8 +688,9 @@ const displayCategories = apiCategories.map((apiCat) => ({
             </TouchableOpacity>
           ))}
         </View>
+        <View style={styles.categoryBox}>
 
-        <Text style={styles.subtitle}>Browse Items</Text>
+      <Text style={styles.sectionTitle}>Browse by Category</Text>
         <View style={styles.categoryRow}>
           {displayCategories.map((cat) => (
             <TouchableOpacity 
@@ -779,8 +713,38 @@ const displayCategories = apiCategories.map((apiCat) => ({
   {activeCategory === cat.id && <View style={styles.categoryUnderline} />}
 </TouchableOpacity>
           ))}
-        </View>
+        </View></View>
+        <View style={styles.subcategoryBox}>
 
+        <Text style={styles.sectionTitle}>Related Options</Text>
+        <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.subcategoryRow}
+        >
+        {apiSubcategories.map((sub: any) => {
+        const subId = String(sub.id || sub._id);
+
+        return (
+          <TouchableOpacity
+            key={subId}
+            onPress={() => {
+          setActiveSubcategory(subId);
+          fetchProducts(subId);
+        }}
+        style={[
+          styles.subcategoryItem,
+          activeSubcategory === subId &&
+            styles.subcategoryItemActive,
+        ]}
+      >
+        <Text style={styles.subcategoryText}>
+          {sub.name}
+        </Text>
+      </TouchableOpacity>
+    );
+  })}
+</ScrollView></View>
         <View style={styles.searchRow}>
           <View style={styles.searchBox}>
             <TextInput placeholder='search "apple"' style={styles.searchInput} placeholderTextColor="#999" />
@@ -793,129 +757,293 @@ const displayCategories = apiCategories.map((apiCat) => ({
           </View>
         </View>
 
-        <FlatList
-          data={displayProducts}
-          numColumns={2}
-          scrollEnabled={false}
-          extraData={cart}
-          columnWrapperStyle={{ justifyContent: "space-between" }}
-          keyExtractor={(item) => String(item.id)}
-          renderItem={({ item }) => {
-            const qty = cartRef.current[String(item.id)] || 0;
-            const itemExistsInCart = qty > 0; // FIXED: used to block +/- until item added
+<FlatList
+  data={displayProducts}
+  numColumns={2}
+  scrollEnabled={false}
+  extraData={cart}
+  columnWrapperStyle={{ justifyContent: "space-between" }}
+  keyExtractor={(item) => String(item.id)}
+  renderItem={({ item }) => {
+    const qty = cart[String(item.id)] || 0;
 
-            console.log("UI qty:", item.id, cartRef.current[String(item.id)]);
-            return (
-              <View style={styles.productCard}>
-                <TouchableOpacity style={styles.plusBtn} onPress={() => add(item.id)}>
-                  <Ionicons name="add-circle-outline" size={22} color="#666" />
-                </TouchableOpacity>
-                <View style={styles.imgBox}>
-                  <Image source={item.image} style={styles.productImg} />
-                </View>
-<Text style={styles.minQty}>
-  Min quantity: {item.minOrderQuantity} {item.unit}
-</Text>
 
-<Text style={styles.productName}>{item.name}</Text>
+    return (
+      <View style={styles.productCard}>
 
-{item.description ? (
-  <Text style={styles.productSub}>{item.description}</Text>
-) : null}
-
-{item.stock === 0 && (
-  <Text style={{ color: 'red', fontSize: 11 }}>Out of stock</Text>
-)}
-
-<Text style={styles.productPrice}>
-  ₹{item.price}/{item.unit}
-</Text>
-                {qty === 0 ? (
-                  <TouchableOpacity style={styles.addBtn} onPress={() => add(item.id)}>
-                    <Text style={styles.addBtnText}>Add</Text>
-                  </TouchableOpacity>
-                ) : (
-                  <View style={styles.qtyRow}>
-                    {/* FIXED: Block remove if item not in cart — guard prevents API call for non-existent items */}
-                    <TouchableOpacity onPress={() => {
-                      if (!itemExistsInCart) return; // FIXED: block — item must exist in cart
-                      remove(item.id);
-                    }}>
-                      <Text style={styles.qtyBtn}>—</Text>
-                    </TouchableOpacity>
-                    <Text style={styles.qtyText}>{qty} × 20kg</Text>
-                    {/* FIXED: Block add (increment) if item not in cart via initial Add button */}
-                    <TouchableOpacity onPress={() => {
-                      if (!itemExistsInCart) return; // FIXED: block — item must exist in cart
-                      add(item.id);
-                    }}>
-                      <Text style={styles.qtyBtn}>+</Text>
-                    </TouchableOpacity>
-                  </View>
-                )}
-              </View>
-            );
+        {/* IMAGE CLICKABLE */}
+        <TouchableOpacity
+          style={styles.imgBox}
+          onPress={() => {
+            setSelectedImage(item.image);
+            setShowImageViewer(true);
           }}
-        />
+        >
+      <Image
+  source={item.image}
+  style={styles.productImg}
+/>
+        </TouchableOpacity>
+
+        <Text style={styles.minQty}>
+          Min quantity: {item.minOrderQuantity} {item.unit}
+        </Text>
+
+        <Text style={styles.productName}>
+          {item.name}
+        </Text>
+
+        {item.description ? (
+          <Text style={styles.productSub}>
+            {item.description}
+          </Text>
+        ) : null}
+
+        {item.stock === 0 && (
+          <Text style={{ color: "red", fontSize: 11 }}>
+            Out of stock
+          </Text>
+        )}
+
+        <Text style={styles.productPrice}>
+          ₹{item.price}/{item.unit}
+        </Text>
+
+        {qty === 0 ? (
+
+          <TouchableOpacity
+            style={styles.addBtn}
+            onPress={() => add(item)}
+          >
+            <Text style={styles.addBtnText}>
+              Add
+            </Text>
+          </TouchableOpacity>
+
+        ) : (
+
+          <View style={styles.qtyRow}>
+
+            <TouchableOpacity
+              onPress={() => remove(item.id)}
+            >
+              <Text style={styles.qtyBtn}>
+                —
+              </Text>
+            </TouchableOpacity>
+
+            <Text style={styles.qtyText}>
+              {qty} × {item.unit}
+            </Text>
+
+            <TouchableOpacity
+              onPress={() => add(item)}
+            >
+              <Text style={styles.qtyBtn}>
+                +
+              </Text>
+            </TouchableOpacity>
+
+          </View>
+
+        )}
+
+      </View>
+    );
+  }}
+/>
+
+{/* FULLSCREEN IMAGE MODAL */}
+<Modal
+  visible={showImageViewer}
+  transparent
+  animationType="fade"
+>
+
+  <View style={styles.imageModalOverlay}>
+
+    <TouchableOpacity
+      style={styles.closeBtn}
+      onPress={() => setShowImageViewer(false)}
+    >
+      <Ionicons
+        name="close"
+        size={30}
+        color="#fff"
+      />
+    </TouchableOpacity>
+
+    <Image
+      source={selectedImage}
+      style={styles.fullscreenImage}
+      resizeMode="contain"
+    />
+
+  </View>
+
+</Modal>
       </ScrollView>
 
-      {showSheet && cartItems.length > 0 && (
+      {showSheet && cartProducts.length > 0 && (
         <View style={styles.cartSheet}>
           <View style={styles.caretHandle}>
             <TouchableOpacity style={styles.caretBtn} onPress={() => setShowSheet(false)}>
               <Ionicons name="chevron-up" size={20} color="#fff" />
             </TouchableOpacity>
           </View>
-          <ScrollView>
-            {cartItems.map((item) => {
-              const kg = customKg[String(item.id)] || "";
-              const totalPrice = kg
-                ? (item.price * parseFloat(kg)).toFixed(0)
-                : (item.price * (cartRef.current[String(item.id)] || 0) * 20).toFixed(0);
-              return (
-                <View key={String(item.id)} style={styles.cartItemRow}>
-                  <View style={styles.cartItemImgBox}>
-                    <Image source={item.image} style={styles.cartItemImg} />
-                  </View>
-                  <View style={styles.cartItemInfo}>
-                    <Text style={styles.cartItemName}>{item.name}</Text>
-                    <Text style={styles.cartItemPrice}>₹{item.price}/kg</Text>
-                  </View>
-                  <View style={styles.customKgBox}>
-                    <View style={styles.customKgInputRow}>
-                      <TextInput
-                        style={styles.customKgInput}
-                        value={kg}
-                        onChangeText={(val) => setCustomKg((p) => ({ ...p, [String(item.id)]: val }))}
-                        placeholder="Custom"
-                        placeholderTextColor="#333"
-                        keyboardType="numeric"
-                      />
-                      <Feather name="edit-2" size={12} color="#444" />
-                      <Text style={styles.customKgText}> Kg</Text>
-                    </View>
-                    {kg ? <Text style={styles.totalPrice}>₹{totalPrice}</Text> : null}
-                  </View>
-                  <TouchableOpacity style={styles.cartAction} onPress={() => toggleSave(item.id)}>
-                    <Feather name="bookmark" size={18} color={savedItems.includes(item.id) ? "#2E7D32" : "#444"} />
-                    <Text style={styles.cartActionText}>Save for later</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.cartAction} onPress={() => deleteItem(item.id)}>
-                    <Feather name="trash-2" size={18} color="#444" />
-                    <Text style={styles.cartActionText}>Delete</Text>
-                  </TouchableOpacity>
-                </View>
-              );
-            })}
-          </ScrollView>
+  <ScrollView>
+
+  {Object.entries(cart).map(([productId, qty]) => {
+
+    const item = cartProductsMap[productId];
+
+    if (!item) return null;
+
+    const kg = customKg[productId] || "";
+
+    const totalPrice = kg
+      ? (item.price * parseFloat(kg)).toFixed(0)
+      : (
+          item.price *
+          Number(qty) *
+          20
+        ).toFixed(0);
+
+    return (
+
+      <View
+        key={productId}
+        style={styles.cartItemRow}
+      >
+
+        <View style={styles.cartItemImgBox}>
+
+         <TouchableOpacity
+  onPress={() => {
+    setSelectedImage(item.image);
+    setShowImageViewer(true);
+  }}
+>
+
+  <Image
+    source={item.image}
+    style={styles.cartItemImg}
+  />
+
+</TouchableOpacity>
+
+        </View>
+
+        <View style={styles.cartItemInfo}>
+
+          <Text style={styles.cartItemName}>
+            {item.name}
+          </Text>
+
+          <Text style={styles.cartItemPrice}>
+            ₹{item.price}/{item.unit}
+          </Text>
+
+        </View>
+
+        <View style={styles.customKgBox}>
+
+          <View style={styles.customKgInputRow}>
+
+            <TextInput
+              style={styles.customKgInput}
+              value={kg}
+              onChangeText={(val) =>
+                setCustomKg((p) => ({
+                  ...p,
+                  [productId]: val,
+                }))
+              }
+              placeholder="Custom"
+              placeholderTextColor="#333"
+              keyboardType="numeric"
+            />
+
+            <Feather
+              name="edit-2"
+              size={12}
+              color="#444"
+            />
+
+            <Text style={styles.customKgText}>
+              {" "}Kg
+            </Text>
+
+          </View>
+
+          {kg ? (
+            <Text style={styles.totalPrice}>
+              ₹{totalPrice}
+            </Text>
+          ) : null}
+
+        </View>
+
+        <TouchableOpacity
+          style={styles.cartAction}
+          onPress={() => toggleSave(productId)}
+        >
+
+          <Feather
+            name="bookmark"
+            size={18}
+            color={
+              savedItems.includes(productId)
+                ? "#2E7D32"
+                : "#444"
+            }
+          />
+
+          <Text style={styles.cartActionText}>
+            Save for later
+          </Text>
+
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.cartAction}
+          onPress={() => deleteItem(productId)}
+        >
+
+          <Feather
+            name="trash-2"
+            size={18}
+            color="#444"
+          />
+
+          <Text style={styles.cartActionText}>
+            Delete
+          </Text>
+
+        </TouchableOpacity>
+
+      </View>
+    );
+
+  })}
+
+</ScrollView>
         </View>
       )}
 
       <View style={styles.cartBar}>
-        <TouchableOpacity style={styles.previewCart} onPress={() => setShowSheet(!showSheet)}>
-          {cartItems.length > 0 ? (
+        <TouchableOpacity
+          style={styles.previewCart}
+          onPress={() => {
+            if (Object.values(cartProductsMap).length === 0) {
+              Alert.alert("Cart is empty", "Add some products first!");
+              return;
+            }
+            setShowSheet(!showSheet);
+          }}>
+          {Object.values(cartProductsMap).length > 0 ? (
             <View style={styles.thumbsRow}>
-              {cartItems.slice(0, 3).map((item, idx) => (
+              {Object.values(cartProductsMap).slice(0, 3).map((item, idx) => (
                 <Image key={idx} source={item.image} style={[styles.thumbImg, { marginLeft: idx > 0 ? -10 : 0 }]} />
               ))}
             </View>
@@ -925,12 +1053,29 @@ const displayCategories = apiCategories.map((apiCat) => ({
           <Text style={styles.previewText}>Preview cart</Text>
           <Ionicons name={showSheet ? "chevron-up" : "chevron-down"} size={18} color="#2E7D32" />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.checkoutBtn} onPress={handleGenerateInvoice}>
-          {isGeneratingInvoice
-            ? <ActivityIndicator color="#fff" />
-            : <Text style={styles.checkoutText}>Checkout →</Text>
-          }
-        </TouchableOpacity>
+<TouchableOpacity
+  style={styles.checkoutBtn}
+
+  onPress={() => {
+      console.log('cartId:', cartIdRef.current); // check this in your terminal
+  if (!cartIdRef.current) {
+    console.log('No cartId yet!');
+    return;
+  }
+    router.push({
+      pathname: "/(retailer)/checkout",
+      params: {
+ cart: JSON.stringify({
+        supplierId: supplierId,
+        supplierName: supplierName,
+        items: cartProducts,        // ← already in your state
+      }),      },
+    });
+  }}
+>
+<Text style={styles.checkoutText}>Checkout </Text>
+          
+     </TouchableOpacity>
       </View>
     </View>
   );
@@ -938,8 +1083,8 @@ const displayCategories = apiCategories.map((apiCat) => ({
 // ── STYLES COMPLETELY UNCHANGED ────────────────────────────────
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#fff", paddingTop: Platform.OS === "ios" ? 55 : StatusBar.currentHeight },
-  scroll: { padding: 16, paddingBottom: 220 },
-  backBtn: { marginBottom: 12 },
+  scroll: { padding: 15, paddingBottom: 220 },
+  backBtn: {  paddingHorizontal: 20, paddingVertical: 5, paddingTop: 0, marginTop: -15,  },
   sectionLabel: { fontSize: 12, color: "#888", marginBottom: 8 },
   outerCard: { backgroundColor: "#F3EEFF", borderRadius: 16, borderWidth: 1, borderColor: "#E0D0F5", padding: 16, marginBottom: 12 },
   innerCard: { backgroundColor: "#fff", borderRadius: 12, borderWidth: 1, borderColor: "#E0D0F5", padding: 12, flexDirection: "row", alignItems: "center" },
@@ -1032,4 +1177,63 @@ const styles = StyleSheet.create({
   previewText: { flex: 1, color: "#2E7D32", fontWeight: "600", fontSize: 13 },
   checkoutBtn: { flex: 1, backgroundColor: "#2E7D32", borderRadius: 30, alignItems: "center", justifyContent: "center", paddingVertical: 14 },
   checkoutText: { color: "#fff", fontWeight: "700", fontSize: 14 },
+  subcategoryRow: {
+  flexDirection: 'row',
+  marginTop: 12,
+  marginBottom: 10,
+  flexWrap: 'wrap',
+},
+
+subcategoryItem: {
+  paddingHorizontal: 14,
+  paddingVertical: 8,
+  backgroundColor: '#F1F1F1',
+  borderRadius: 20,
+  marginRight: 10,
+  marginBottom: 10,
+},
+
+subcategoryItemActive: {
+  backgroundColor: '#2E7D32',
+  
+},
+
+subcategoryText: {
+  color: '#000000',
+  fontSize: 14,
+},
+categoryBox: {
+  marginTop: 10,
+  marginBottom: 15,
+},
+
+subcategoryBox: {
+  marginBottom: 20,
+},
+
+sectionTitle: {
+  fontSize: 15,
+  fontWeight: '600',
+  color: '#111',
+  marginBottom: 10,
+  letterSpacing: 0.1,
+},
+imageModalOverlay: {
+  flex: 1,
+  backgroundColor: "rgba(0,0,0,0.95)",
+  justifyContent: "center",
+  alignItems: "center",
+},
+
+closeBtn: {
+  position: "absolute",
+  top: 50,
+  right: 20,
+  zIndex: 10,
+},
+
+fullscreenImage: {
+  width: "90%",
+  height: "80%",
+},
 });
