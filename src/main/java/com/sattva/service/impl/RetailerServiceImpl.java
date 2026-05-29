@@ -153,6 +153,23 @@ public class RetailerServiceImpl implements RetailerService {
                 })
                 .collect(Collectors.toList());
 
+                // Fetch accepted connections for this retailer
+                List<Connection> acceptedConnections =
+                        connectionRepository.findByRetailerIdAndStatus(
+                                retailerId,
+                                ConnectionStatus.ACCEPTED
+                        );
+
+                // Extract connected supplier IDs
+                List<String> connectedSupplierIds = acceptedConnections.stream()
+                        .map(Connection::getSupplierId)
+                        .collect(Collectors.toList());
+
+                // Remove already connected suppliers
+                suppliers = suppliers.stream()
+                        .filter(supplier -> !connectedSupplierIds.contains(supplier.getId()))
+                        .collect(Collectors.toList());
+
         return suppliers.stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
@@ -195,6 +212,7 @@ public class RetailerServiceImpl implements RetailerService {
                 ));
 
         user.setUserType(UserType.valueOf(dto.getUserType().toUpperCase()));
+        user.setUserOnboardingStatus(true);
         userRepository.save(user);
 
         if (retailer.getRetailerBusinesses() != null && !retailer.getRetailerBusinesses().isEmpty()) {
@@ -226,10 +244,6 @@ public class RetailerServiceImpl implements RetailerService {
 
         Retailer savedRetailer = retailerRepository.save(retailer);
 
-        if (!user.isUserOnboardingStatus()) {
-            user.setUserOnboardingStatus(true);
-            userRepository.save(user);
-        }
 
         return modelMapper.map(savedRetailer, RetailerDTO.class);
     }

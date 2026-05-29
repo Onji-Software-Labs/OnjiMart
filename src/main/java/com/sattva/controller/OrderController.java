@@ -2,6 +2,7 @@ package com.sattva.controller;
 
 import com.sattva.dto.OrderDTO;
 import com.sattva.dto.OrderItemDTO;
+import com.sattva.dto.CreateOrderRequestDTO;
 import com.sattva.enums.OrderItemStatus;
 import com.sattva.enums.OrderStatus;
 import com.sattva.service.OrderService;
@@ -23,10 +24,10 @@ public class OrderController {
 
     // Endpoint for retailer to create an order from a cart
 //    @PreAuthorize("hasRole('ROLE_RETAILER')")
-    @PostMapping("/submit/{cartId}")
-    public ResponseEntity<OrderDTO> createOrderFromCart(@PathVariable String cartId) {
+    @PostMapping("/submit")
+    public ResponseEntity<OrderDTO> createOrderFromCart(@RequestBody CreateOrderRequestDTO request) {
         // Create the order from the cart
-        OrderDTO order = orderService.createOrderFromCart(cartId);
+        OrderDTO order = orderService.createOrderFromCart(request);
         return ResponseEntity.ok(order);
     }
 
@@ -62,9 +63,19 @@ public class OrderController {
         OrderItemDTO updatedItem = orderService.fulfillOrderItem(orderId, itemId, unitPrice, fulfilledQuantity);
         return ResponseEntity.ok(updatedItem);
     }
+    // Endpoint for retailer to view all orders
+    @GetMapping("/retailer/{retailerId}")
+    public ResponseEntity<List<OrderDTO>> getAllOrdersByRetailer(
+            @PathVariable String retailerId) {
+
+        List<OrderDTO> orders =
+                orderService.getOrdersByRetailerId(retailerId);
+
+        return ResponseEntity.ok(orders);
+    }
 
     // Endpoint for retailer to view orders by filter
-    @GetMapping("/retailer/{retailerId}")
+    @GetMapping("/retailer/{retailerId}/filter")
     public ResponseEntity<List<OrderDTO>> getOrdersByRetailer(
             @PathVariable String retailerId,
             @RequestParam String filter) {
@@ -95,12 +106,25 @@ public class OrderController {
         return ResponseEntity.ok(orders);
     }
 
-    // Endpoint for retailer to view orders for specific supplier by filter
+    // Endpoint for retailer to view orders for specific supplier
     @GetMapping("/retailer/{retailerId}/supplier/{supplierId}")
     public ResponseEntity<List<OrderDTO>> getOrdersByRetailerAndSupplier(
             @PathVariable String retailerId,
-            @PathVariable String supplierId,
-            @RequestParam String filter) {
+            @PathVariable String supplierId) {
+
+        // Fetch retailer orders for specific supplier
+        List<OrderDTO> orders =
+                orderService.getOrdersByRetailerAndSupplier(
+                        retailerId,
+                        supplierId
+                );
+
+        return ResponseEntity.ok(orders);
+    }
+
+    // Endpoint for supplier to view orders by filter
+    @GetMapping("/supplier/{supplierId}/filter")
+    public ResponseEntity<List<OrderDTO>> getOrdersBySupplierAndStatus(@PathVariable String supplierId,@RequestParam String filter) {
 
         List<OrderStatus> statuses;
 
@@ -118,12 +142,27 @@ public class OrderController {
             throw new IllegalArgumentException("Invalid filter value");
         }
 
-        // Fetch retailer orders for specific supplier
+        // Fetch supplier orders
         List<OrderDTO> orders =
-                orderService.getOrdersByRetailerAndSupplierAndStatus(
-                        retailerId,
+                orderService.getOrdersBySupplierIdAndStatus(
                         supplierId,
                         statuses
+                );
+
+        return ResponseEntity.ok(orders);
+    }
+
+    // Endpoint for supplier to view orders for specific retailer
+    @GetMapping("/supplier/{supplierId}/retailer/{retailerId}")
+    public ResponseEntity<List<OrderDTO>> getOrdersBySupplierAndRetailer(
+            @PathVariable String supplierId,
+            @PathVariable String retailerId) {
+
+        // Fetch supplier orders for specific retailer
+        List<OrderDTO> orders =
+                orderService.getOrdersBySupplierAndRetailer(
+                        supplierId,
+                        retailerId
                 );
 
         return ResponseEntity.ok(orders);

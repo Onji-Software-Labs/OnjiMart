@@ -1,6 +1,7 @@
 package com.sattva.dto;
 
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.Set;
 
 import org.springframework.stereotype.Service;
@@ -33,6 +34,10 @@ public class OrderDTO {
     private String retailerName; // Name of the retailer
 
     private LocalDateTime orderDate; // Date when the order was placed
+
+    private LocalDate deliveryDate; // Delivery date selected by retailer
+
+    private String deliveryTimeSlot; // Delivery time slot selected by retailer
 
     private OrderStatus status; // Order status (e.g., NEW, PROCESSING, COMPLETED)
 
