@@ -1,5 +1,4 @@
 import RadioInput from "@/components/auth/RadioInput";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Formik } from "formik";
 import React, { useState, useEffect } from "react";
 import {
@@ -39,7 +38,7 @@ const PersonalProfile = () => {
     // Read the phone number saved during OTP verification
     useEffect(() => {
         const loadPhone = async () => {
-            const stored = await AsyncStorage.getItem('phoneNumber');
+            const stored = await localStorage.getItem('phoneNumber');
             if (stored) {
                 // Strip +91 prefix — the input shows "+91" as a label already
                 const digits = stored.startsWith('+91') ? stored.slice(3) : stored;
