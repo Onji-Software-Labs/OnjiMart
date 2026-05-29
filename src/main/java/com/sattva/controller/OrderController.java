@@ -2,6 +2,7 @@ package com.sattva.controller;
 
 import com.sattva.dto.OrderDTO;
 import com.sattva.dto.OrderItemDTO;
+import com.sattva.dto.CreateOrderRequestDTO;
 import com.sattva.enums.OrderItemStatus;
 import com.sattva.enums.OrderStatus;
 import com.sattva.service.OrderService;
@@ -23,10 +24,10 @@ public class OrderController {
 
     // Endpoint for retailer to create an order from a cart
 //    @PreAuthorize("hasRole('ROLE_RETAILER')")
-    @PostMapping("/submit/{cartId}")
-    public ResponseEntity<OrderDTO> createOrderFromCart(@PathVariable String cartId) {
+    @PostMapping("/submit")
+    public ResponseEntity<OrderDTO> createOrderFromCart(@RequestBody CreateOrderRequestDTO request) {
         // Create the order from the cart
-        OrderDTO order = orderService.createOrderFromCart(cartId);
+        OrderDTO order = orderService.createOrderFromCart(request);
         return ResponseEntity.ok(order);
     }
 
