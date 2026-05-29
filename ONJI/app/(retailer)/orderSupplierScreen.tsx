@@ -452,17 +452,21 @@ const add = useCallback((product: any): void => {
           console.log(`[init]  cartId restored from storage: ${storedCartId}`);
         }
 
-        // const headers = await getAuthHeader();
-        // const res = await axiosInstance.get("/api/supplier-business/all", { headers });
-        // const data = res.data?.data || res.data;
+        const headers = await getAuthHeader();
+        const res = await axiosInstance.get("/api/supplier-business/all", { headers });
+        const data = res.data?.data || res.data;
 
-        // if (Array.isArray(data) && data.length > 0) {
-        //   const first = data[0];
-        //   const sid = String(first.supplierId || first.id || first._id);
-        //   setSupplierId(sid);
-        //   supplierIdRef.current = sid;
-        //   setSupplier(first);
-        // }
+        if (Array.isArray(data) && data.length > 0) {
+          const first = data[0];
+          const sid = String(first.supplierId || first.id || first._id);
+          setSupplierId(sid);
+          supplierIdRef.current = sid;
+
+          await localStorage.setItem("supplierId", sid);
+          await localStorage.setItem("supplierName", first.name ?? "Supplier");
+
+          setSupplier(first);
+        }
       } catch (err: any) {
         console.log("ERROR: initApp:", err?.message);
       } finally {
@@ -1076,7 +1080,6 @@ const add = useCallback((product: any): void => {
     </View>
   );
 }
-
 // ── STYLES COMPLETELY UNCHANGED ────────────────────────────────
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#fff", paddingTop: Platform.OS === "ios" ? 55 : StatusBar.currentHeight },
