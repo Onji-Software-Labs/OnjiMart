@@ -37,7 +37,7 @@ const ConnectScreen = () => {
   console.log("SupplierId:", supplierId);
   console.log("BusinessId:", businessId);
 
-  const [isConnected, setIsConnected] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<string>("NONE");
   const [supplier, setSupplier] = useState<Supplier | null>(null);
 
   const [products, setProducts] = useState<any[]>([]);
@@ -128,7 +128,7 @@ const modalAnim = useRef(new Animated.Value(0)).current;
 
           const status = response?.data?.status;
 
-          setIsConnected(status === "ACCEPTED" || status === "PENDING");
+          setConnectionStatus(status || "NONE");
 
         } catch (error) {
           console.log("Status check error:", error);
@@ -149,7 +149,7 @@ const modalAnim = useRef(new Animated.Value(0)).current;
     console.log("Retailer:", retailerId);
     console.log("Supplier:", supplierId);
 
-    if (!isConnected) {
+    if (connectionStatus === "NONE" || connectionStatus === "REJECTED") {
 
       await axiosInstance.post("/api/connections/connect", null, {
         params: {
@@ -160,9 +160,9 @@ const modalAnim = useRef(new Animated.Value(0)).current;
 
       console.log("Connect success");
 
-      setIsConnected(true);
+      setConnectionStatus("PENDING");
 
-    } else {
+    } else if (connectionStatus === "PENDING") {
 
       await axiosInstance.delete("/api/connections/cancel", {
         params: {
@@ -171,7 +171,16 @@ const modalAnim = useRef(new Animated.Value(0)).current;
         },
       });
 
-      setIsConnected(false);
+      setConnectionStatus("NONE");
+    } else if (connectionStatus === "ACCEPTED") {
+      router.push({
+        pathname: "/(retailer)/orderSupplierScreen",
+        params: {
+          supplierId: supplierId,
+          businessId: businessId,
+          supplierName: supplier?.name || ''
+        }
+      });
     }
 
   } catch (error) {
@@ -485,39 +494,49 @@ const closeProductModal = () => {
               </View>
             </View>
 
-            {/* Button */}
-            <TouchableOpacity
-              onPress={handlePress}
-              onPressIn={handlePressIn}
-              onPressOut={handlePressOut}
-            >
-              {!isConnected ? (
-                <Animated.View
-                  style={[
-                    styles.connectButton,
-                    { transform: [{ scale: connectScale }] },
-                  ]}
-                >
-                  <Text style={styles.connectText}>Connect</Text>
-                  <MaterialCommunityIcons
-                    name="account-plus"
-                    size={20}
-                    color="#0F9D58"
-                  />
-                </Animated.View>
-              ) : (
-                <Animated.View
-                  style={[
-                    styles.connectButton,
-                    { borderColor: "#D1D5DB", transform: [{ scale: connectScale }] },
-                  ]}
-                >
-                  <Text style={styles.cancelText}>Cancel</Text>
-                  <Entypo name="cross" size={20} color="#6B7280" />
-                </Animated.View>
-              )}
-            </TouchableOpacity>
-          </View>
+          {/* Button */}
+              <TouchableOpacity
+                onPress={handlePress}
+                onPressIn={handlePressIn}
+                onPressOut={handlePressOut}
+              >
+                {!connectionStatus || connectionStatus === "NONE" || connectionStatus === "REJECTED" ? (
+                  <Animated.View
+                    style={[
+                      styles.connectButton,
+                      { transform: [{ scale: connectScale }] },
+                    ]}
+                  >
+                    <Text style={styles.connectText}>Connect</Text>
+                    <MaterialCommunityIcons
+                      name="account-plus"
+                      size={20}
+                      color="#0F9D58"
+                    />
+                  </Animated.View>
+                ) : connectionStatus === "PENDING" ? (
+                  <Animated.View
+                    style={[
+                      styles.connectButton,
+                      { borderColor: "#D1D5DB", transform: [{ scale: connectScale }] },
+                    ]}
+                  >
+                    <Text style={styles.cancelText}>Cancel</Text>
+                    <Entypo name="cross" size={20} color="#6B7280" />
+                  </Animated.View>
+                ) : (
+                  <Animated.View
+                    style={[
+                      styles.connectButton,
+                      { borderColor: "#0F9D58", backgroundColor: "#EAF5EA", transform: [{ scale: connectScale }] },
+                    ]}
+                  >
+                    <Text style={styles.connectText}>Order</Text>
+                    <Feather name="arrow-right" size={16} color="#0F9D58" />
+                  </Animated.View>
+                )}
+              </TouchableOpacity>
+            </View>
         </View>
       </View>
 
