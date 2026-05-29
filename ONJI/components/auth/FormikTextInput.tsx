@@ -7,6 +7,7 @@ interface viewProps {
   placeholder: string;
   keyboardType: "numeric" | "default";
   fieldName: string;
+  onChangeText?: (text: string) => void;
 }
 
 const FormikTextInput = ({
@@ -14,6 +15,7 @@ const FormikTextInput = ({
   placeholder,
   fieldName,
   keyboardType,
+  onChangeText,
 }: viewProps) => {
   const [field, meta, helpers] = useField(name);
 
@@ -31,7 +33,7 @@ const FormikTextInput = ({
           placeholderTextColor={"#AAB2B8"}
           style={{borderColor: meta.error ? "#AAB2B8" : "#4CAF50" }}
           value={field.value}
-          onChangeText={helpers.setValue}
+          onChangeText={onChangeText ?? helpers.setValue}
           keyboardType={keyboardType}
         ></TextInput>
 
