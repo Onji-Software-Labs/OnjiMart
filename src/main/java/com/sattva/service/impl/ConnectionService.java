@@ -62,9 +62,17 @@ public class ConnectionService {
                     return conn;
                 });
     }
-    // Fetch allgit commit -m "Add API to fetch pending connection requests for supplier notifications" pending connection requests for a supplier (used for notifications)
+    /// Fetch all pending connection requests for a supplier (used for notifications)~
     public List<Connection> getPendingRequests(String supplierId) {
         return repo.findBySupplierIdAndStatus(supplierId, ConnectionStatus.PENDING);
+    }
+
+    // Fetch all pending connection requests for a retailer
+    public List<Connection> getPendingRequestsForRetailer(String retailerId) {
+        return repo.findByRetailerIdAndStatus(
+                retailerId,
+                ConnectionStatus.PENDING
+        );
     }
 
 }
