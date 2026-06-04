@@ -53,4 +53,14 @@ public class ConnectionController {
         public ResponseEntity<List<Connection>> getPendingRequests(@PathVariable String supplierId) {
             return ResponseEntity.ok(service.getPendingRequests(supplierId));
     }
+
+    // Fetch all pending connection requests for a retailer (notifications)
+    @GetMapping("/retailer/{retailerId}/requests")
+    public ResponseEntity<List<Connection>> getPendingRequestsForRetailer(
+            @PathVariable String retailerId) {
+
+        return ResponseEntity.ok(
+                service.getPendingRequestsForRetailer(retailerId)
+        );
+    }
 }
