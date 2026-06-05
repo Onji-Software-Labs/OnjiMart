@@ -16,7 +16,8 @@ public class ConnectionService {
     @Autowired
     private ConnectionRepository repo;
 
-    public Connection connect(String retailerId, String supplierId) {
+    // Create a connection request and track who initiated it
+    public Connection connect(String retailerId, String supplierId, String initiatedBy) {
 
         Optional<Connection> existing = repo.findByRetailerIdAndSupplierId(retailerId, supplierId);
         if (existing.isPresent()) {
@@ -26,6 +27,8 @@ public class ConnectionService {
         Connection conn = new Connection();
         conn.setRetailerId(retailerId);
         conn.setSupplierId(supplierId);
+        // Store who initiated the connection request
+        conn.setInitiatedBy(initiatedBy);
         conn.setStatus(ConnectionStatus.PENDING);
         return repo.save(conn);
     }
@@ -62,16 +65,28 @@ public class ConnectionService {
                     return conn;
                 });
     }
-    /// Fetch all pending connection requests for a supplier (used for notifications)~
-    public List<Connection> getPendingRequests(String supplierId) {
-        return repo.findBySupplierIdAndStatus(supplierId, ConnectionStatus.PENDING);
+    // Fetch pending requests sent by retailers to a supplier
+    // public List<Connection> getPendingRequests(String supplierId) {
+    //     return repo.findBySupplierIdAndStatus(supplierId, ConnectionStatus.PENDING);
+    // }
+
+    // Fetch pending requests sent by retailers to a supplier
+    public List<Connection> getPendingRequests(String supplierId) {return repo.findBySupplierIdAndStatusAndInitiatedBy(supplierId,
+                ConnectionStatus.PENDING,
+                "RETAILER");
     }
 
     // Fetch all pending connection requests for a retailer
+    // public List<Connection> getPendingRequestsForRetailer(String retailerId) {
+    //     return repo.findByRetailerIdAndStatus(retailerId,ConnectionStatus.PENDING);
+    // }
+
+   // Fetch pending requests sent by suppliers to a retailer
     public List<Connection> getPendingRequestsForRetailer(String retailerId) {
-        return repo.findByRetailerIdAndStatus(
+        return repo.findByRetailerIdAndStatusAndInitiatedBy(
                 retailerId,
-                ConnectionStatus.PENDING
+                ConnectionStatus.PENDING,
+                "SUPPLIER"
         );
     }
 

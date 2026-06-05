@@ -17,9 +17,10 @@ public class ConnectionController {
     @Autowired
     private ConnectionService service;
 
+    // Create a connection request and capture who initiated it
     @PostMapping("/connect")
-    public Connection connect(@RequestParam String retailerId, @RequestParam String supplierId) {
-        return service.connect(retailerId, supplierId);
+    public Connection connect(@RequestParam String retailerId, @RequestParam String supplierId,@RequestParam String initiatedBy) {
+        return service.connect(retailerId, supplierId, initiatedBy);
     }
 
     @DeleteMapping("/cancel")
