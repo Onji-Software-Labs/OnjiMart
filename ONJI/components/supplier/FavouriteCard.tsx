@@ -5,7 +5,7 @@ import { AntDesign, FontAwesome5, MaterialCommunityIcons } from '@expo/vector-ic
 const CARD_MARGIN = 8;
 const SCROLL_PADDING = 24;
 
-export default function FavouriteCard({ data, onConnect, onOrder, connected, style }: any) { // ✅ added onOrder
+export default function FavouriteCard({ data, onConnect, onOrder, connectionStatus, style }: any) { // ✅ added onOrder
   const [screenData, setScreenData] = useState(Dimensions.get('window'));
 
   useEffect(() => {
@@ -65,14 +65,29 @@ export default function FavouriteCard({ data, onConnect, onOrder, connected, sty
 
         {data.showConnect && (
           <TouchableOpacity
-            style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: '#10B981', backgroundColor: connected ? '#10B981' : 'white', marginLeft: data.showOrder ? 8 : 0 }}
+            style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: '#10B981', backgroundColor: connectionStatus === 'PENDING' || connectionStatus === 'ACCEPTED' ? '#10B981' : 'white', marginLeft: data.showOrder ? 8 : 0 }}
             onPress={onConnect}
           >
-            <FontAwesome5 name="user-plus" size={16} color={connected ? 'white' : '#10B981'} style={{ marginRight: 8 }} />
-            <Text style={{ textAlign: 'center', fontWeight: '500', fontSize: 16, color: connected ? 'white' : '#10B981' }}>Connect</Text>
+            {connectionStatus === 'PENDING' ? (
+              <>
+                <Text style={{ textAlign: 'center', fontWeight: '500', fontSize: 16, color: '#6B7280', marginRight: 8 }}>Cancel</Text>
+                <AntDesign name="close" size={16} color="#6B7280" />
+              </>
+            ) : connectionStatus === 'ACCEPTED' ? (
+              <>
+                <Text style={{ textAlign: 'center', fontWeight: '500', fontSize: 16, color: 'white', marginRight: 8 }}>Connected</Text>
+                <AntDesign name="check" size={16} color="white" />
+              </>
+            ) : (
+              <>
+                <FontAwesome5 name="user-plus" size={16} color="#10B981" style={{ marginRight: 8 }} />
+                <Text style={{ textAlign: 'center', fontWeight: '500', fontSize: 16, color: '#10B981' }}>Connect</Text>
+              </>
+            )}
           </TouchableOpacity>
         )}
       </View>
     </View>
   );
 }
+

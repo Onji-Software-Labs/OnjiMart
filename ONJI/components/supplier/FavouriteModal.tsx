@@ -11,22 +11,19 @@ interface FavouriteModalProps {
   visible: boolean;
   onClose: () => void;
   favourites: INewSupplier[];   // ← only the suppliers the user hearted
+  connectionStatuses?: Record<string, string>;
+  onConnect?: (id: string) => void;
 }
 
-export default function FavouriteModal({ visible, onClose, favourites }: FavouriteModalProps) {
+export default function FavouriteModal({ visible, onClose, favourites, connectionStatuses, onConnect }: FavouriteModalProps) {
   const router = useRouter();
-  const [connectedIds, setConnectedIds] = useState<string[]>([]);
-  const [orderedIds, setOrderedIds] = useState<string[]>([]);
+  
 
   if (!visible) return null;
 
   const handleConnect = (id: string) => {
-    setConnectedIds(prev => {
-      if (prev.includes(id)) return prev.filter(cid => cid !== id);
-      setOrderedIds(o => [...o, id]);
-      return [...prev, id];
-    });
-  };
+  onConnect?.(id);
+};
 
   const handleOrder = () => {
     onClose();
@@ -65,7 +62,9 @@ export default function FavouriteModal({ visible, onClose, favourites }: Favouri
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
             {favourites.map((item) => {
               const cardKey = item.id;
-              const isNowConnected = orderedIds.includes(cardKey);
+
+              const status =
+                connectionStatuses?.[cardKey] || 'NONE';
               return (
                 <FavouriteCard
                   key={cardKey}
@@ -78,10 +77,10 @@ export default function FavouriteModal({ visible, onClose, favourites }: Favouri
                     reviews: item.reviews,
                     activeOrder: false,
                     lastActive: '',
-                    showOrder: isNowConnected,
-                    showConnect: !isNowConnected,
+                    showOrder: false,
+                    showConnect: true,
                   }}
-                  connected={connectedIds.includes(cardKey)}
+                  connectionStatus={status}
                   onConnect={() => handleConnect(cardKey)}
                   onOrder={handleOrder}
                   style={{ marginBottom: CARD_MARGIN }}
@@ -94,3 +93,4 @@ export default function FavouriteModal({ visible, onClose, favourites }: Favouri
     </View>
   );
 }
+

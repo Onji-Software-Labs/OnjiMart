@@ -2,8 +2,16 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { FontAwesome5, AntDesign, Ionicons, Feather } from '@expo/vector-icons';
 import { INewSupplier } from '@/app/(supplier)/(tabs)/Vendor';
-const MyVendorCard = ({ supplier }: { supplier: INewSupplier }) => {
-  const [isFavorite, setIsFavorite] = useState(false);
+
+const MyVendorCard = ({
+  supplier,
+  isFavourite,
+  onToggleFavourite,
+}: {
+  supplier: INewSupplier;
+  isFavourite: boolean;
+  onToggleFavourite: (id: string) => void;
+}) => {
 
   return (
     <View className="bg-white rounded-2xl p-3 mb-3 border border-gray-100 shadow-sm">
@@ -24,15 +32,17 @@ const MyVendorCard = ({ supplier }: { supplier: INewSupplier }) => {
           </View>
         </View>
 
-        <TouchableOpacity onPress={() => setIsFavorite(!isFavorite)} className="p-1">
-          {isFavorite ? (
+        <TouchableOpacity
+          onPress={() => onToggleFavourite(supplier.id)}
+          className="p-1"
+        >
+          {isFavourite ? (
             <AntDesign name="heart" size={18} color="#EF4444" />
           ) : (
             <Ionicons name="heart-outline" size={18} color="#9CA3AF" />
           )}
         </TouchableOpacity>
       </View>
-
       <View className="flex-row justify-between items-center mt-3">
         <View className="flex-row items-center">
           <Feather name="clock" size={12} color="#9CA3AF" />

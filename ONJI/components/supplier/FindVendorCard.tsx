@@ -5,13 +5,13 @@ import { INewSupplier } from '@/app/(supplier)/(tabs)/Vendor';
 
 const FindVendorCard = ({
   supplier,
-  isConnected,
+  connectionStatus,
   isFavourite,
   onConnect,
   onToggleFavourite,
 }: {
   supplier: INewSupplier;
-  isConnected: boolean;
+  connectionStatus: string;
   isFavourite: boolean;
   onConnect: (id: string) => void;
   onToggleFavourite: (id: string) => void;
@@ -46,10 +46,15 @@ const FindVendorCard = ({
         onPress={() => onConnect(supplier.id)}
         className="flex-row items-center px-3 py-1.5 rounded-lg border border-gray-300 bg-white"
       >
-        {isConnected ? (
+        {connectionStatus === 'PENDING' ? (
           <>
             <Text className="text-gray-500 text-xs font-medium mr-1">Cancel</Text>
             <AntDesign name="close" size={13} color="#6B7280" />
+          </>
+        ) : connectionStatus === 'ACCEPTED' ? (
+          <>
+            <Text className="text-gray-700 text-xs font-medium mr-1">Connected</Text>
+            <MaterialCommunityIcons name="checkbox-marked" size={14} color="#10B981" />
           </>
         ) : (
           <>
@@ -63,3 +68,4 @@ const FindVendorCard = ({
 );
 
 export default FindVendorCard;
+
