@@ -71,6 +71,7 @@ export default function FavouriteModal({ visible, onClose, favourites, connectio
                   data={{
                     id: item.id,
                     name: item.name,
+                    phoneNumber: item.contactNumber,
                     person: item.description,
                     distance: item.location,
                     rating: item.rating,

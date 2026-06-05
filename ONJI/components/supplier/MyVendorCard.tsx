@@ -52,9 +52,15 @@ const MyVendorCard = ({
           <TouchableOpacity className="mr-4">
             <Feather name="phone" size={16} color="#6B7280" />
           </TouchableOpacity>
-          <TouchableOpacity className="flex-row items-center bg-green-500 px-3 py-1.5 rounded-lg">
-            <Text className="text-white font-medium text-xs mr-1">Connected</Text>
-            <Ionicons name="arrow-forward" size={13} color="white" />
+          <TouchableOpacity className="flex-row items-center bg-green-50 px-4 py-2 rounded-lg border border-green-100">
+            <Text className="text-green-600 font-medium text-sm mr-2">
+              Connected
+            </Text>
+            <Ionicons
+              name="arrow-forward"
+              size={16}
+              color="#10B981"
+            />
           </TouchableOpacity>
         </View>
       </View>

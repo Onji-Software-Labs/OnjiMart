@@ -39,7 +39,7 @@ export default function FavouriteCard({ data, onConnect, onOrder, connectionStat
         <Image source={require('../../assets/images/fav_avatar.png')} style={{ width: 56, height: 56, borderRadius: 28 }} />
       </View>
       <Text style={{ fontWeight: 'bold', fontSize: 16, color: '#111827', marginBottom: 2 }} numberOfLines={1} ellipsizeMode="tail">{data.name}</Text>
-      <Text style={{ fontSize: 12, color: '#6B7280', marginBottom: 2 }}>{data.person}</Text>
+      <Text style={{ fontSize: 12, color: '#6B7280', marginBottom: 2 }}> {data.phoneNumber || 'No phone number'}</Text>
       <Text style={{ fontSize: 12, color: '#9CA3AF', marginBottom: 6 }}>{data.distance}</Text>
       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6, justifyContent: 'space-between' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -65,7 +65,21 @@ export default function FavouriteCard({ data, onConnect, onOrder, connectionStat
 
         {data.showConnect && (
           <TouchableOpacity
-            style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: '#10B981', backgroundColor: connectionStatus === 'PENDING' || connectionStatus === 'ACCEPTED' ? '#10B981' : 'white', marginLeft: data.showOrder ? 8 : 0 }}
+          style={{
+            flex: 1,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            paddingVertical: 8,
+            borderRadius: 8,
+            borderWidth: 1,
+            borderColor:
+              connectionStatus === 'PENDING'
+                ? '#D1D5DB'
+                : '#10B981',
+            backgroundColor: 'white',
+            marginLeft: data.showOrder ? 8 : 0
+          }}
             onPress={onConnect}
           >
             {connectionStatus === 'PENDING' ? (
@@ -75,8 +89,18 @@ export default function FavouriteCard({ data, onConnect, onOrder, connectionStat
               </>
             ) : connectionStatus === 'ACCEPTED' ? (
               <>
-                <Text style={{ textAlign: 'center', fontWeight: '500', fontSize: 16, color: 'white', marginRight: 8 }}>Connected</Text>
-                <AntDesign name="check" size={16} color="white" />
+                <Text
+                  style={{
+                    textAlign: 'center',
+                    fontWeight: '500',
+                    fontSize: 16,
+                    color: '#10B981',
+                    marginRight: 8
+                  }}
+                >
+                  Connected
+                </Text>
+                <AntDesign name="arrow-right" size={16} color="#10B981" />
               </>
             ) : (
               <>

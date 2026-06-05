@@ -23,6 +23,7 @@ export interface INewSupplier {
   rating: number;
   reviews: number;
   credit: boolean;
+  contactNumber?: string;
 }
 
 /*
@@ -151,6 +152,7 @@ export default function Dashboard() {
       name: r.name,
       description: r.address || '',
       location: r.city || '',
+      contactNumber: r.contactNumber || '',
       rating: 4.5,
       reviews: 6,
       credit: false,
