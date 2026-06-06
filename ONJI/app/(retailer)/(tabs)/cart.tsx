@@ -27,6 +27,7 @@ import { secureStorage } from "@/lib/secureStorage";
 
 
 import { useFocusEffect } from "@react-navigation/native";
+import { useLocalSearchParams } from "expo-router";
 
 // Enable LayoutAnimation on Android
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -158,9 +159,16 @@ type FilterChip = "This week" | "Recent" | "This Month" | "Custom Date";
 // ─────────────────────────────────────────────────────────────
 
 export default function CartScreen() {
+  const { tab } = useLocalSearchParams<{ tab?: string }>();
   const [activeTab, setActiveTab] = useState<"cart" | "orders">("cart");
   const [orderStatusTab, setOrderStatusTab] = useState<"active" | "delivered">("active");
   const [cartData, setCartData] = useState<SupplierCart[]>([]);
+
+  useEffect(() => {
+    if (tab === "orders") {
+      setActiveTab("orders");
+    }
+  }, [tab]);
 
 const [ordersData, setOrdersData] = useState<Order[]>([]);
 const [ordersLoading, setOrdersLoading] = useState(false);

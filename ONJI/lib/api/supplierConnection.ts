@@ -1,7 +1,7 @@
 import axiosInstance from './axiosConfig';
 import { secureStorage } from '@/lib/secureStorage';
 
-export type ConnectionStatus = 'NONE' | 'PENDING' | 'ACCEPTED' | 'REJECTED';
+export type ConnectionStatus = 'NONE' | 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'RECEIVED_PENDING';
 
 export const getSupplierConnectionStatus = async (
   retailerId: string
@@ -16,6 +16,11 @@ export const getSupplierConnectionStatus = async (
       },
     });
 
+    const status = res?.data?.status;
+    const initiatedBy = res?.data?.initiatedBy;
+    if (status === 'PENDING' && initiatedBy === 'RETAILER') {
+      return 'RECEIVED_PENDING';
+    }
     return (res?.data?.status as ConnectionStatus) ?? 'NONE';
   } catch {
     return 'NONE';
@@ -38,6 +43,7 @@ export const sendSupplierConnectionRequest = async (
     params: {
       retailerId,
       supplierId,
+      initiatedBy: 'SUPPLIER',
     },
   });
 };

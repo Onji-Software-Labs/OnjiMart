@@ -185,7 +185,7 @@ const handleTabSwitch = (tab: 'find' | 'my') => {
       const retailerId = await secureStorage.getItem('userId');
       if (current === 'NONE' || current === 'REJECTED') {
         await axiosInstance.post('/api/connections/connect', null, {
-          params: { retailerId, supplierId: id },
+          params: { retailerId, supplierId: id, initiatedBy: 'RETAILER' },
         });
         // ✅ update map immediately so both lists update
         setConnectionStatuses(prev => ({ ...prev, [id]: 'PENDING' }));
@@ -194,6 +194,11 @@ const handleTabSwitch = (tab: 'find' | 'my') => {
           params: { retailerId, supplierId: id },
         });
         setConnectionStatuses(prev => ({ ...prev, [id]: 'NONE' }));
+      } else if (current === 'RECEIVED_PENDING') {
+        await axiosInstance.post('/api/connections/accept', null, {
+          params: { retailerId, supplierId: id },
+        });
+        setConnectionStatuses(prev => ({ ...prev, [id]: 'ACCEPTED' }));
       }
     } catch (err) {
       console.log('Connection error:', err);
