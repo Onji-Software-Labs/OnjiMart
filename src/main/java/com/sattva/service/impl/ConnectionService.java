@@ -21,8 +21,16 @@ public class ConnectionService {
 
         Optional<Connection> existing = repo.findByRetailerIdAndSupplierId(retailerId, supplierId);
         if (existing.isPresent()) {
-            return existing.get();
+            Connection conn = existing.get();
+
+        // Auto-accept connection when both retailer and supplier send requests to each other
+        if (conn.getStatus() == ConnectionStatus.PENDING) {
+            conn.setStatus(ConnectionStatus.ACCEPTED);
+            return repo.save(conn);
         }
+
+        return conn;
+    }
 
         Connection conn = new Connection();
         conn.setRetailerId(retailerId);
