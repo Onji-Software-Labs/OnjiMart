@@ -62,8 +62,8 @@ const handlePress = () => {
         businessId: supplier.businessId,
       },
     });
-  } else if (connectionStatus === 'PENDING') {
-    // ✅ cancel directly
+  } else if (connectionStatus === 'PENDING' || connectionStatus === 'RECEIVED_PENDING') {
+    // ✅ cancel or accept directly
     onConnect(supplier.id);
   }
 };
@@ -187,6 +187,8 @@ const handlePress = () => {
     <Text style={styles.connectButtonText}>
       {connectionStatus === 'PENDING'
         ? 'Cancel'
+        : connectionStatus === 'RECEIVED_PENDING'
+        ? 'Accept'
         : connectionStatus === 'ACCEPTED'
         ? 'Order'
         : 'Connect'}
@@ -194,6 +196,8 @@ const handlePress = () => {
 
     {connectionStatus === 'PENDING' ? (
       <AntDesign name="close" size={14} color="#6B7280" />
+    ) : connectionStatus === 'RECEIVED_PENDING' ? (
+      <AntDesign name="check" size={14} color="#34D399" />
     ) : connectionStatus === 'ACCEPTED' ? (
       <AntDesign name="arrow-right" size={16} color="#34D399" />    ) : (
       <MaterialCommunityIcons name="account-plus" size={18} color="#34D399" />

@@ -1,6 +1,7 @@
 package com.sattva.model;
 
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -25,6 +26,7 @@ import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
+
 @Entity
 @Table(name = "orders")
 @Getter
@@ -71,6 +73,14 @@ public class Order {
 
     @Column(name = "modified_user_id", nullable = false)
     private String modifiedUserId;
+
+    // Delivery date selected by retailer during checkout
+    @Column(name = "delivery_date")
+    private LocalDate deliveryDate;
+
+    // Delivery time slot selected by retailer (Morning / Afternoon / Evening)
+    @Column(name = "delivery_time_slot")
+    private String deliveryTimeSlot;
 
     // Callback methods for setting dates and user IDs
     @PrePersist

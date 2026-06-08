@@ -19,6 +19,16 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { useEffect, useCallback} from "react";
+import { ActivityIndicator, RefreshControl } from "react-native";
+import axiosInstance from "@/lib/api/axiosConfig";
+import { localStorage } from "@/lib/localStorage";
+import { secureStorage } from "@/lib/secureStorage";
+
+
+import { useFocusEffect } from "@react-navigation/native";
+import { useLocalSearchParams } from "expo-router";
+
 // Enable LayoutAnimation on Android
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -29,11 +39,17 @@ if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental
 // ─────────────────────────────────────────────────────────────
 
 interface CartItem {
-  itemId: string;
-  emoji: string;
+  id: string;
+  productId: string;
+  productName: string;
+  requestedQuantity: number;
+  unitPrice: number;
+  totalPrice: number;
+  status: string;
 }
 
 interface SupplierCart {
+  cartId: string;
   supplierId: string;
   supplierName: string;
   ownerName: string;
@@ -70,36 +86,6 @@ const PLACEHOLDER_AVATAR = require("../../../assets/images/3davatar.png");
 // ─────────────────────────────────────────────────────────────
 // DUMMY DATA
 // ─────────────────────────────────────────────────────────────
-
-const dummyCart: SupplierCart[] = [
-  {
-    supplierId: "1",
-    supplierName: "Sunways trading",
-    ownerName: "Aslam",
-    avatarUri: PLACEHOLDER_AVATAR,
-    totalItems: 18,
-    totalQty: 240,
-    items: Array.from({ length: 9 }, (_, i) => ({ itemId: `${i}`, emoji: "🧅" })),
-  },
-  {
-    supplierId: "2",
-    supplierName: "Reliance trading",
-    ownerName: "Ashok",
-    avatarUri: PLACEHOLDER_AVATAR,
-    totalItems: 18,
-    totalQty: 240,
-    items: Array.from({ length: 9 }, (_, i) => ({ itemId: `${i}`, emoji: "🧅" })),
-  },
-  {
-    supplierId: "3",
-    supplierName: "More Mart",
-    ownerName: "John",
-    avatarUri: PLACEHOLDER_AVATAR,
-    totalItems: 12,
-    totalQty: 180,
-    items: Array.from({ length: 9 }, (_, i) => ({ itemId: `${i}`, emoji: "🍅" })),
-  },
-];
 
 const dummyOrders: Order[] = [
   {
@@ -173,14 +159,195 @@ type FilterChip = "This week" | "Recent" | "This Month" | "Custom Date";
 // ─────────────────────────────────────────────────────────────
 
 export default function CartScreen() {
+  const { tab } = useLocalSearchParams<{ tab?: string }>();
   const [activeTab, setActiveTab] = useState<"cart" | "orders">("cart");
   const [orderStatusTab, setOrderStatusTab] = useState<"active" | "delivered">("active");
-  const [cartData, setCartData] = useState(dummyCart);
+  const [cartData, setCartData] = useState<SupplierCart[]>([]);
+
+  useEffect(() => {
+    if (tab === "orders") {
+      setActiveTab("orders");
+    }
+  }, [tab]);
+
+const [ordersData, setOrdersData] = useState<Order[]>([]);
+const [ordersLoading, setOrdersLoading] = useState(false);
+const [ordersError, setOrdersError] = useState<string | null>(null);
+
   const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
   const [activeChip, setActiveChip] = useState<FilterChip | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const filteredOrders = dummyOrders.filter((item) => item.status === orderStatusTab);
+const filteredOrders = ordersData.filter(
+  (item) => item.status === orderStatusTab
+);
+
+  const [cartLoading, setCartLoading] = useState(false);
+  const [cartError, setCartError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchCart = useCallback(async () => {
+  try {
+    setCartLoading(true);
+    setCartError(null);
+
+    const shopId = await localStorage.getItem("shopId");
+    const supplierId = await localStorage.getItem("supplierId");
+
+    if (!shopId || !supplierId) {
+      setCartData([]);
+      return;
+    }
+
+    let itemsRes;
+    try {
+      itemsRes = await axiosInstance.get(`/api/carts/${shopId}/${supplierId}/items`);
+    } catch (err: any) {
+      if (err?.response?.status === 404) {
+        setCartData([]);
+        return;
+      }
+      throw err;
+    }
+
+    const items = Array.isArray(itemsRes.data)
+  ? itemsRes.data.filter(
+      (i: any) => (i.quantity ?? i.requestedQuantity ?? 0) > 0
+    )
+  : [];
+
+    if (items.length === 0) {
+      setCartData([]);
+      return;
+    }
+
+    const cartId = await localStorage.getItem("cartId");
+
+    const cart: SupplierCart = {
+      cartId: cartId ?? shopId,
+      supplierId,
+      supplierName: await localStorage.getItem("supplierName") ?? "Supplier",
+      ownerName: "",
+      avatarUri: PLACEHOLDER_AVATAR,
+      totalItems: items.length,
+      totalQty: items.reduce(
+        (sum: number, i: any) => sum + (i.quantity ?? i.requestedQuantity ?? 0),
+        0
+      ),
+      items: items.map((i: any) => ({
+        id: i.id,
+        productId: i.productId,
+        productName: i.productName,
+        requestedQuantity: i.quantity ?? i.requestedQuantity ?? 0,
+        unitPrice: i.price ?? i.unitPrice ?? 0,
+        totalPrice: i.totalPrice ?? 0,
+        status: i.status ?? "",
+      })),
+    };
+
+    setCartData([cart]);
+  } catch (err) {
+    setCartError("Failed to load cart. Please try again.");
+  } finally {
+    setCartLoading(false);
+    setRefreshing(false);
+  }
+}, []);
+
+const fetchOrders = useCallback(async () => {
+  try {
+    setOrdersLoading(true);
+    setOrdersError(null);
+
+    const retailerId = await secureStorage.getItem("userId");
+    
+    //ID for testing
+    //const retailerId = "769814f3-7a8a-43f3-b5e8-7892212da0cc";
+    
+    console.log("CALLING ORDERS API...");
+    console.log("Retailer ID:", retailerId);
+
+    if (!retailerId) {
+      setOrdersData([]);
+      return;
+    }
+
+    const response = await axiosInstance.get(
+      `/api/orders/retailer/${retailerId}`
+    );
+
+    //console.log("Orders response:", response.data);
+    console.log(
+  "Orders response:",
+  JSON.stringify(response.data, null, 2)
+);
+
+    const data = Array.isArray(response.data)
+      ? response.data
+      : [];
+
+    const formattedOrders: Order[] = data.map((order: any) => ({
+      id: order.id,
+      supplierName: order.supplierName ?? "Supplier",
+      avatarUri: PLACEHOLDER_AVATAR,
+
+      totalOrdersCompleted: order.items?.length ?? 0,
+
+      amount: `₹${
+        order.items?.reduce(
+          (sum: number, item: any) => sum + (item.totalPrice ?? 0),
+          0
+        ) ?? 0
+      }`,
+
+      latestOrderId: `#${order.id.slice(0, 8)}`,
+
+      status: order.completed === true
+        ? "delivered"
+        : "active",
+
+      date: new Date(order.orderDate).toLocaleDateString(),
+
+      time: new Date(order.orderDate).toLocaleTimeString(),
+
+      previousOrders: [],
+    }));
+
+    setOrdersData(formattedOrders);
+
+  } catch (err: any) {
+    console.log(
+      "Orders API failed:",
+      err?.response?.data
+    );
+
+    setOrdersError("Failed to load orders");
+  } finally {
+    setOrdersLoading(false);
+  }
+}, []);
+
+    useFocusEffect(
+    useCallback(() => {
+      console.log("Fetching latest cart...");
+      fetchCart();
+    }, [])
+  );
+
+  useEffect(() => {
+    fetchCart();
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === "orders") {
+      fetchOrders();
+    }
+  }, [activeTab]);
+
+    const onRefresh = () => {
+      setRefreshing(true);
+      fetchCart();
+    };
 
   // ── TOGGLE ACCORDION ──
   const toggleAccordion = (orderId: string) => {
@@ -197,8 +364,31 @@ export default function CartScreen() {
   };
 
   // ── REMOVE CART ──
-  const removeSupplier = (supplierId: string) => {
-    setCartData((prev) => prev.filter((item) => item.supplierId !== supplierId));
+    const removeSupplier = async (cartId: string) => {
+  try {
+    await axiosInstance.delete(`/api/carts/${cartId}/remove`);
+
+    fetchCart();
+
+  } catch (err) {
+    console.log("Failed to remove cart:", err);
+  }
+};
+
+    const handleCheckout = async (cartId: string) => {
+    try {
+      await axiosInstance.post(`/api/orders/submit/${cartId}`);
+
+      setCartData((prev) =>
+        prev.filter((item) => item.cartId !== cartId)
+      );
+
+      fetchCart();
+
+      console.log("Order placed successfully");
+    } catch (err) {
+      console.log("Checkout failed:", err);
+    }
   };
 
   // ─────────────────────────────────────────────────────────────
@@ -240,7 +430,7 @@ export default function CartScreen() {
               {item.ownerName}
             </Text>
           </View>
-          <TouchableOpacity onPress={() => removeSupplier(item.supplierId)}>
+          <TouchableOpacity onPress={() => removeSupplier(item.cartId)}>
             <Feather name="x" size={22} color="#15803D" />
           </TouchableOpacity>
         </View>
@@ -248,22 +438,24 @@ export default function CartScreen() {
         {/* ITEMS GRID */}
         <View style={{ flexDirection: "row", flexWrap: "wrap", marginBottom: 18 }}>
           {visibleItems.map((cartItem, index) => (
-            <View
-              key={index}
-              style={{
-                width: 58,
-                height: 58,
-                borderRadius: 14,
-                borderWidth: 1.5,
-                borderColor: "#15803D",
-                alignItems: "center",
-                justifyContent: "center",
-                marginRight: 10,
-                marginBottom: 10,
-                backgroundColor: "#fff",
-              }}
-            >
-              <Text style={{ fontSize: 28 }}>{cartItem.emoji}</Text>
+            <View key={index} style={{
+              width: 58, height: 58, borderRadius: 14,
+              borderWidth: 1.5, borderColor: "#15803D",
+              alignItems: "center", justifyContent: "center",
+              marginRight: 10, marginBottom: 10, backgroundColor: "#fff",
+            }}>
+              <Text
+                numberOfLines={2}
+                style={{
+                  fontSize: 10,
+                  color: "#15803D",
+                  fontWeight: "600",
+                  textAlign: "center",
+                  paddingHorizontal: 4,
+                }}
+              >
+                {cartItem.productName}
+              </Text>
             </View>
           ))}
           {remaining > 0 && (
@@ -307,6 +499,7 @@ export default function CartScreen() {
 
           <TouchableOpacity
             activeOpacity={0.8}
+            onPress={() => handleCheckout(item.cartId)}
             style={{
               backgroundColor: "#2E7D32",
               paddingHorizontal: 22,
@@ -401,17 +594,40 @@ export default function CartScreen() {
             marginBottom: 18,
           }}
         >
-          <View>
-            <Text style={{ fontSize: 11, color: "#9CA3AF" }}>Latest Order Id</Text>
-            <View style={{ flexDirection: "row", alignItems: "center", marginTop: 4 }}>
-              <Text style={{ fontSize: 14, fontWeight: "700", color: "#111827" }}>
-                {item.latestOrderId}
+          <View style={{ flex: 1, marginRight: 10 }}>
+              <Text style={{ fontSize: 11, color: "#9CA3AF" }}>
+                Latest Order Id
               </Text>
-              <TouchableOpacity style={{ marginLeft: 8 }}>
-                <MaterialCommunityIcons name="content-copy" size={16} color="#9CA3AF" />
-              </TouchableOpacity>
+
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  marginTop: 4,
+                }}
+              >
+                <Text
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                  style={{
+                    flex: 1,
+                    fontSize: 14,
+                    fontWeight: "700",
+                    color: "#111827",
+                  }}
+                >
+                  {item.latestOrderId}
+                </Text>
+
+                <TouchableOpacity style={{ marginLeft: 8 }}>
+                  <MaterialCommunityIcons
+                    name="content-copy"
+                    size={16}
+                    color="#9CA3AF"
+                  />
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
           <Text style={{ color: "#15803D", fontSize: 26, fontWeight: "700" }}>
             {item.amount}
           </Text>
@@ -426,6 +642,7 @@ export default function CartScreen() {
           }}
         >
           <TouchableOpacity
+            onPress={() => console.log("Order clicked", item.id)}
             style={{
               flex: 1,
               backgroundColor: "#2E7D32",
@@ -622,15 +839,82 @@ export default function CartScreen() {
       </View>
 
       {/* CART TAB */}
-      {activeTab === "cart" ? (
-        <FlatList
-          data={cartData}
-          renderItem={renderCartCard}
-          keyExtractor={(item) => item.supplierId}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ padding: 20, paddingBottom: 120 }}
-        />
-      ) : (
+        {activeTab === "cart" ? (
+          cartLoading ? (
+            <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+              <ActivityIndicator size="large" color="#15803D" />
+            </View>
+          ) : cartError ? (
+            <View
+              style={{
+                flex: 1,
+                justifyContent: "center",
+                alignItems: "center",
+                padding: 20,
+              }}
+            >
+              <Text
+                style={{
+                  color: "#EF4444",
+                  textAlign: "center",
+                  marginBottom: 16,
+                }}
+              >
+                {cartError}
+              </Text>
+
+              <TouchableOpacity
+                onPress={fetchCart}
+                style={{
+                  backgroundColor: "#15803D",
+                  paddingHorizontal: 24,
+                  paddingVertical: 12,
+                  borderRadius: 10,
+                }}
+              >
+                <Text style={{ color: "#fff", fontWeight: "600" }}>
+                  Retry
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <FlatList
+              data={cartData}
+              renderItem={renderCartCard}
+              keyExtractor={(item) => item.cartId}
+              ListEmptyComponent={
+                <View style={{ alignItems: "center", marginTop: 80 }}>
+                  <MaterialCommunityIcons
+                    name="cart-outline"
+                    size={64}
+                    color="#D1D5DB"
+                  />
+                  <Text
+                    style={{
+                      color: "#9CA3AF",
+                      marginTop: 16,
+                      fontSize: 16,
+                    }}
+                  >
+                    Your cart is empty
+                  </Text>
+                </View>
+              }
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{
+                padding: 20,
+                paddingBottom: 120,
+              }}
+              refreshControl={
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={onRefresh}
+                  colors={["#15803D"]}
+                />
+              }
+            />
+          )
+        ) : (
         // ORDERS TAB
         <ScrollView
           showsVerticalScrollIndicator={false}

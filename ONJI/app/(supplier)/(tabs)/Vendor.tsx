@@ -9,6 +9,10 @@ import FindVendorCard from '@/components/supplier/FindVendorCard';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback } from 'react';
 import axiosInstance from '../../../lib/api/axiosConfig';
+import { localStorage } from '../../../lib/localStorage';
+import {
+  getSupplierConnectionStatus
+} from '../../../lib/api/supplierConnection';
 
 export interface INewSupplier {
   id: string;
@@ -19,7 +23,10 @@ export interface INewSupplier {
   rating: number;
   reviews: number;
   credit: boolean;
+  contactNumber?: string;
 }
+
+/*
 
 // Static mock data for "Find new Vendors" tab
 const MOCK_ALL_VENDORS: INewSupplier[] = [
@@ -43,6 +50,7 @@ const MOCK_MY_VENDORS: INewSupplier[] = [
   { id: 'm6', businessId: 'b6', name: 'Sunway trading', description: 'Random kaka', location: '3 kms away, Udupi', rating: 4.5, reviews: 6, credit: false },
 ];
 
+*/
 
 export default function Dashboard() {
   // Navigation State for the top tabs
@@ -55,11 +63,27 @@ export default function Dashboard() {
   const [isSortModalVisible, setIsSortModalVisible] = useState(false);
   const [selectedSort, setSelectedSort] = useState<string | null>(null);
   const [isFavouriteModalVisible, setIsFavouriteModalVisible] = useState(false);
-  const [connectedIds, setConnectedIds] = useState<string[]>([]);
+  const [connectionStatuses, setConnectionStatuses] = useState<Record<string, string>>({});
   const [favouriteIds, setFavouriteIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    const loadFavs = async () => {
+      const savedFavs = await localStorage.getItem(
+        'supplierFavouriteIds'
+      );
+
+      if (savedFavs) {
+        setFavouriteIds(JSON.parse(savedFavs));
+      }
+    };
+
+    loadFavs();
+  }, []);
 
   const [myVendors, setMyVendors] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+
+  const [allVendors, setAllVendors] = useState<INewSupplier[]>([]);
 
   const fetchMyVendors = useCallback(async () => {
     try {
@@ -76,7 +100,37 @@ export default function Dashboard() {
       */
      console.log("API RESPONSE:", response.data);
      const accepted = response.data;
-      setMyVendors(accepted);
+
+      console.log('MY VENDORS RESPONSE:', accepted);
+
+      const mappedVendors = accepted.map((r: any) => ({
+        id: r.id,
+        businessId: '',
+        name: r.fullName || 'Unknown',
+        description: r.address || '',
+        location: r.city || r.pincode || '',
+        rating: 4.5,
+        reviews: 6,
+        credit: false,
+      }));
+
+      setMyVendors(mappedVendors);
+      // mark fetched vendors as accepted in connectionStatuses
+      setConnectionStatuses(prev => {
+        const next = { ...prev } as Record<string, string>;
+
+        accepted.forEach((s: any) => {
+          const id =
+            s.id ||
+            s.retailerId ||
+            s.supplierId ||
+            s.supplier?.id;
+
+          if (id) next[id] = 'ACCEPTED';
+        });
+
+        return next;
+      });
     } catch (err) {
       console.log('Failed to fetch vendors:', err);
     } finally {
@@ -84,11 +138,70 @@ export default function Dashboard() {
     }
   }, []);
 
+  const fetchAllVendors = useCallback(async () => {
+  try {
+    const response = await axiosInstance.get(
+      '/api/retailer-business/all'
+    );
+
+    console.log('ALL VENDORS RESPONSE:', response.data);
+
+    const vendors = response.data.map((r: any) => ({
+      id: r.retailerId,
+      businessId: r.businessId,
+      name: r.name,
+      description: r.address || '',
+      location: r.city || '',
+      contactNumber: r.contactNumber || '',
+      rating: 4.5,
+      reviews: 6,
+      credit: false,
+    }));
+
+    const statuses: Record<string, string> = {};
+
+    for (const vendor of vendors) {
+      try {
+        const status = await getSupplierConnectionStatus(vendor.id);
+
+        console.log(
+          'STATUS:',
+          vendor.name,
+          vendor.id,
+          status
+        );
+
+        statuses[vendor.id] = status;
+      } catch (err) {
+        console.log(
+          'STATUS ERROR:',
+          vendor.name,
+          vendor.id,
+          err
+        );
+
+        statuses[vendor.id] = 'NONE';
+      }
+    }
+
+    setConnectionStatuses(prev => ({
+      ...prev,
+      ...statuses,
+    }));
+
+    setAllVendors(vendors);
+
+  } catch (err) {
+    console.log('Failed to fetch retailers:', err);
+  }
+}, []);
+
   useFocusEffect(
-    useCallback(() => {
-      fetchMyVendors();
-    }, [fetchMyVendors])
-  );
+  useCallback(() => {
+    fetchMyVendors();
+    fetchAllVendors();
+  }, [fetchMyVendors, fetchAllVendors])
+);
 
   // Filter state
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
@@ -138,22 +251,56 @@ export default function Dashboard() {
 
   const hasActiveFilters = selectedCategories.length > 0 || creditProvided !== null || selectedFilters.length > 0 || selectedQuantity !== '';
 
-  const handleConnect = (id: string) => {
-    setConnectedIds(prev =>
-      prev.includes(id) ? prev.filter(cid => cid !== id) : [...prev, id]
+  const handleConnect = async (id: string) => {
+      try {
+        const current = (connectionStatuses[id] as any) || 'NONE';
+        if (current === 'PENDING') {
+          const { cancelSupplierConnectionRequest } =
+            await import('../../../lib/api/supplierConnection');
+
+          await cancelSupplierConnectionRequest(id);
+
+          setConnectionStatuses(prev => ({ ...prev, [id]: 'NONE' }));
+        } else if (current === 'NONE' || current === 'REJECTED') {
+          const { sendSupplierConnectionRequest } =
+            await import('../../../lib/api/supplierConnection');
+
+          await sendSupplierConnectionRequest(id);
+
+          setConnectionStatuses(prev => ({ ...prev, [id]: 'PENDING' }));
+        } else if (current === 'RECEIVED_PENDING') {
+          const supplierId = await secureStorage.getItem('userId');
+          await axiosInstance.post('/api/connections/accept', null, {
+            params: { retailerId: id, supplierId },
+          });
+          setConnectionStatuses(prev => ({ ...prev, [id]: 'ACCEPTED' }));
+        }
+      } catch (err) {
+        console.log('Connection action failed', err);
+      }
+    };
+
+  const handleToggleFav = async (id: string) => {
+    const newFavs = favouriteIds.includes(id)
+      ? favouriteIds.filter(fid => fid !== id)
+      : [...favouriteIds, id];
+
+    setFavouriteIds(newFavs);
+
+    await localStorage.setItem(
+      'supplierFavouriteIds',
+      JSON.stringify(newFavs)
     );
   };
 
-  const handleToggleFav = (id: string) => {
-    setFavouriteIds(prev =>
-      prev.includes(id) ? prev.filter(fid => fid !== id) : [...prev, id]
-    );
-  };
-
-  const favouriteSuppliers = MOCK_ALL_VENDORS.filter(s => favouriteIds.includes(s.id));
+const favouriteSuppliers = allVendors.filter(
+  s => favouriteIds.includes(s.id)
+);
 
   // Decide which list to show based on the active tab
-  const activeList = activeTab === 'find' ? MOCK_ALL_VENDORS : myVendors;
+  const activeList = activeTab === 'find'
+  ? allVendors
+  : myVendors;
 
   // Filter the chosen list by search query
   const filteredSuppliers = activeTab === 'find'
@@ -268,13 +415,17 @@ export default function Dashboard() {
           activeTab === 'find' ? (
             <FindVendorCard
               supplier={item}
-              isConnected={connectedIds.includes(item.id)}
+              connectionStatus={connectionStatuses[item.id] || 'NONE'}
               isFavourite={favouriteIds.includes(item.id)}
               onConnect={handleConnect}
               onToggleFavourite={handleToggleFav}
             />
           ) : (
-            <MyVendorCard supplier={item} />
+            <MyVendorCard
+              supplier={item}
+              isFavourite={favouriteIds.includes(item.id)}
+              onToggleFavourite={handleToggleFav}
+            />
           )
         }
         contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 120 }}
@@ -422,7 +573,10 @@ export default function Dashboard() {
         visible={isFavouriteModalVisible}
         onClose={() => setIsFavouriteModalVisible(false)}
         favourites={favouriteSuppliers}
+        connectionStatuses={connectionStatuses}
+        onConnect={handleConnect}
       />
     </View>
   );
 }
+

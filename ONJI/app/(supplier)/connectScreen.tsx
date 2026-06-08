@@ -115,6 +115,7 @@ const ConnectScreen = () => {
         params: {
           retailerId,
           supplierId: supplierId,
+          initiatedBy: 'SUPPLIER',
         },
       });
 

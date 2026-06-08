@@ -9,6 +9,10 @@ import {
 import { useRouter } from "expo-router";
 import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useState, useCallback } from "react";
+import { useFocusEffect } from "expo-router";
+import { secureStorage } from '@/lib/secureStorage';
+import axiosInstance from '@/lib/api/axiosConfig';
 
 export default function RetailerHomeScreen() {
   const router = useRouter();
@@ -16,6 +20,29 @@ export default function RetailerHomeScreen() {
   
   const { width } = useWindowDimensions();
   const isWeb = Platform.OS === 'web';
+
+  const [notificationCount, setNotificationCount] = useState(0);
+
+  useFocusEffect(
+    useCallback(() => {
+      const fetchNotificationCount = async () => {
+        try {
+          const retailerId = await secureStorage.getItem("userId");
+          if (!retailerId) return;
+
+          const response = await axiosInstance.get(
+            `/api/connections/retailer/${retailerId}/requests`
+          );
+
+          setNotificationCount(response.data ? response.data.length : 0);
+        } catch (error) {
+          console.error("Error fetching notification count:", error);
+        }
+      };
+
+      fetchNotificationCount();
+    }, [])
+  );
 
     // dynamic measurements
   const horizontalPadding = 16;
@@ -73,14 +100,50 @@ export default function RetailerHomeScreen() {
               <Text style={styles.storeAddress}>udupi, ambagilu 56101</Text>
             </View>
             <View style={styles.headerRight}>
-              <TouchableOpacity style={styles.greenCircleButton}
+              <TouchableOpacity style={{
+                width: 44,
+                height: 44,
+                borderRadius: 22,
+                backgroundColor: notificationCount > 0 ? '#E8F5E9' : '#F3F4F6',
+                borderWidth: 1.5,
+                borderColor: notificationCount > 0 ? '#2E7D32' : '#D1D5DB',
+                justifyContent: 'center',
+                alignItems: 'center',
+                position: 'relative',
+              }}
                 onPress={() => router.push("/(retailer)/notifications")}
               > 
-                <Ionicons name="notifications-outline" size={22} color="#2E7D32" />
-                <View style={styles.notifDot} />
+                <Ionicons name="notifications-outline" size={22} color={notificationCount > 0 ? '#2E7D32' : '#9CA3AF'} />
+                {notificationCount > 0 && (
+                  <View style={{
+                    position: 'absolute',
+                    top: -4,
+                    right: -4,
+                    minWidth: 18,
+                    height: 18,
+                    borderRadius: 9,
+                    backgroundColor: '#2E7D32',
+                    borderWidth: 1.5,
+                    borderColor: '#FFFFFF',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    paddingHorizontal: 4,
+                  }}>
+                    <Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '700' }}>{notificationCount}</Text>
+                  </View>
+                )}
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.greenCircleButton}
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 22,
+                  backgroundColor: '#E8F5E9',
+                  borderWidth: 1.5,
+                  borderColor: '#2E7D32',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}
                 onPress={() => router.push("/(retailer)/profile")}
               >
                 <Ionicons name="person-outline" size={22} color="#2E7D32" />
@@ -286,7 +349,6 @@ const styles = StyleSheet.create({
   storeAddress: { fontSize: 12, color: "#555", marginTop: 1 },
   headerRight: { flexDirection: "row", alignItems: "center", gap: 10 },
   greenCircleButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: "#C8E6C9", justifyContent: "center", alignItems: "center", position: "relative" },
-  notifDot: { position: "absolute", top: 8, right: 8, width: 10, height: 10, borderRadius: 5, backgroundColor: "#2E7D32", borderWidth: 1.5, borderColor: "#C8E6C9" },
 
   /* Search */
   searchBarWrapper: { backgroundColor: "#fff", paddingHorizontal: 16, paddingVertical: 10 },
