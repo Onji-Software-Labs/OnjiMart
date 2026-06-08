@@ -82,6 +82,7 @@ public class SupplierServiceImpl implements SupplierService {
                     .city(existingBusiness.getCity())
                     .pincode(existingBusiness.getPincode())
                     .contactNumber(existingBusiness.getContactNumber())
+                    .profilePicture(existingBusiness.getProfilePicture())  // ← ADD THIS
                     .isActive(existingBusiness.isActive())
                     .supplierId(supplier.getId())
                     .categoryIds(
@@ -105,6 +106,7 @@ public class SupplierServiceImpl implements SupplierService {
                 .city(dto.getCity())
                 .pincode(dto.getPincode())
                 .contactNumber(dto.getContactNumber())
+                .profilePicture(dto.getProfilePicture())  // ← ADD THIS
                 .isActive(true)
                 .build();
 
@@ -155,6 +157,7 @@ public class SupplierServiceImpl implements SupplierService {
                 .pincode(business.getPincode())
                 .contactNumber(business.getContactNumber())
                 .isActive(business.isActive())
+                .profilePicture(business.getProfilePicture())  // ← ADD THIS
                 .supplierId(savedSupplier.getId())
                 .categoryIds(savedCategoryIds)        // ← included in response
                 .subCategoryIds(savedSubCategoryIds)  // ← included in response
@@ -212,8 +215,10 @@ public class SupplierServiceImpl implements SupplierService {
         business.setCity(dto.getCity());
         business.setPincode(dto.getPincode());
         business.setContactNumber(dto.getContactNumber());
+        business.setProfilePicture(dto.getProfilePicture());  // ← ADD THIS
 
-        supplierBusinessRepository.save(business);
+
+            supplierBusinessRepository.save(business);
 
         Supplier supplier = business.getSupplier();
         updateSupplierCategoriesAndSubCategories(supplier, dto.getCategoryIds(), dto.getSubCategoryIds());

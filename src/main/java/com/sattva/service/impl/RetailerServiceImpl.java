@@ -226,6 +226,7 @@ public class RetailerServiceImpl implements RetailerService {
                     .city(existingBusiness.getCity())
                     .pincode(existingBusiness.getPincode())
                     .contactNumber(existingBusiness.getContactNumber())
+                    .profilePicture(existingBusiness.getProfilePicture())  // ← ADD THIS
                     .build();
         }
 
@@ -237,6 +238,7 @@ public class RetailerServiceImpl implements RetailerService {
                 .address(dto.getAddress())
                 .pincode(dto.getPincode())
                 .contactNumber(dto.getContactNumber())
+                .profilePicture(dto.getProfilePicture())  // ← ADD THIS
                 .isActive(true)
                 .build();
 
@@ -292,6 +294,7 @@ public class RetailerServiceImpl implements RetailerService {
         business.setAddress(dto.getAddress());
         business.setPincode(dto.getPincode());
         business.setContactNumber(dto.getContactNumber());
+        business.setProfilePicture(dto.getProfilePicture());  // ← ADD THIS
 
         Retailer retailer = business.getRetailer();
         updateRetalierCategories(retailer, dto.getCategoryIds());

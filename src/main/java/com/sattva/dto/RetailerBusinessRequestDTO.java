@@ -20,6 +20,7 @@ public class RetailerBusinessRequestDTO {
     private String city;
     private String pincode;
     private String contactNumber;
+    private String profilePicture;
 
     private List<String> categoryIds;
     private String userType;

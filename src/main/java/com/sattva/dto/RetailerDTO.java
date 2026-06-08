@@ -18,5 +18,6 @@ public class RetailerDTO {
     private String address;
     private String city;
     private String contactNumber;
+    private String profilePicture;
     private List<String> categoryIds;
 }
