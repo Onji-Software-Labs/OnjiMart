@@ -307,7 +307,7 @@ export default function Dashboard() {
   const [selectedAddress, setSelectedAddress] = useState('Mandavi palace');
   const [showAddressDropdown, setShowAddressDropdown] = useState(false);
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
-  const [hasNotifications, setHasNotifications] = useState(false);
+  const [notificationCount, setNotificationCount] = useState(0);
 
   useFocusEffect(
     useCallback(() => {
@@ -320,7 +320,7 @@ export default function Dashboard() {
             `/api/connections/supplier/${supplierId}/requests`
           );
           
-          setHasNotifications(response.data && response.data.length > 0);
+          setNotificationCount(response.data ? response.data.length : 0);
         } catch (error) {
           console.error("Error fetching notification status:", error);
         }
@@ -562,35 +562,44 @@ export default function Dashboard() {
               width: isWeb ? 44 : 40,
               height: isWeb ? 44 : 40,
               borderRadius: isWeb ? 22 : 20,
-              backgroundColor: '#F3F4F6',
+              backgroundColor: notificationCount > 0 ? '#E8F5E9' : '#F3F4F6',
+              borderWidth: 1.5,
+              borderColor: notificationCount > 0 ? '#2E7D32' : '#D1D5DB',
               alignItems: 'center',
               justifyContent: 'center',
               marginRight: 8,
             }}>
-              <Ionicons name="notifications-outline" size={isWeb ? 24 : 20} color="#374151" />
-              {hasNotifications && (
+              <Ionicons name="notifications-outline" size={isWeb ? 24 : 20} color={notificationCount > 0 ? '#2E7D32' : '#9CA3AF'} />
+              {notificationCount > 0 && (
                 <View style={{
                   position: 'absolute',
-                  top: 8,
-                  right: 8,
-                  width: 10,
-                  height: 10,
-                  borderRadius: 5,
+                  top: -4,
+                  right: -4,
+                  minWidth: 18,
+                  height: 18,
+                  borderRadius: 9,
                   backgroundColor: '#2E7D32',
                   borderWidth: 1.5,
-                  borderColor: '#F3F4F6'
-                }} />
+                  borderColor: '#FFFFFF',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  paddingHorizontal: 4,
+                }}>
+                  <Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '700' }}>{notificationCount}</Text>
+                </View>
               )}
             </TouchableOpacity>
             <TouchableOpacity style={{
               width: isWeb ? 44 : 40,
               height: isWeb ? 44 : 40,
               borderRadius: isWeb ? 22 : 20,
-              backgroundColor: '#F3F4F6',
+              backgroundColor: '#E8F5E9',
+              borderWidth: 1.5,
+              borderColor: '#2E7D32',
               alignItems: 'center',
               justifyContent: 'center'
             }}>
-              <Ionicons name="person-outline" size={isWeb ? 24 : 20} color="#374151" />
+              <Ionicons name="person-outline" size={isWeb ? 24 : 20} color="#2E7D32" />
             </TouchableOpacity>
           </View>
         </View>

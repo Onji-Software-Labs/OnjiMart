@@ -1,7 +1,7 @@
 import axiosInstance from './axiosConfig';
 import { secureStorage } from '@/lib/secureStorage';
 
-export type ConnectionStatus = 'NONE' | 'PENDING' | 'ACCEPTED' | 'REJECTED';
+export type ConnectionStatus = 'NONE' | 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'RECEIVED_PENDING';
 
 export const getConnectionStatus = async (supplierId: string): Promise<ConnectionStatus> => {
   try {
@@ -9,7 +9,12 @@ export const getConnectionStatus = async (supplierId: string): Promise<Connectio
     const res = await axiosInstance.get('/api/connections/status', {
       params: { retailerId, supplierId },
     });
-    return (res?.data?.status as ConnectionStatus) ?? 'NONE';
+    const status = res?.data?.status;
+    const initiatedBy = res?.data?.initiatedBy;
+    if (status === 'PENDING' && initiatedBy === 'SUPPLIER') {
+      return 'RECEIVED_PENDING';
+    }
+    return (status as ConnectionStatus) ?? 'NONE';
   } catch {
     return 'NONE';
   }
@@ -18,7 +23,7 @@ export const getConnectionStatus = async (supplierId: string): Promise<Connectio
 export const sendConnectionRequest = async (supplierId: string): Promise<void> => {
   const retailerId = await secureStorage.getItem('userId');
   await axiosInstance.post('/api/connections/connect', null, {
-    params: { retailerId, supplierId },
+    params: { retailerId, supplierId, initiatedBy: 'RETAILER' },
   });
 };
 

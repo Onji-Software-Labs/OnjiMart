@@ -90,6 +90,17 @@ const FindVendorCard = ({
                 color="#6B7280"
               />
             </>
+          ) : connectionStatus === 'RECEIVED_PENDING' ? (
+            <>
+              <Text className="text-green-600 font-semibold mr-2">
+                Accept
+              </Text>
+              <AntDesign
+                name="check"
+                size={14}
+                color="#34D399"
+              />
+            </>
           ) : connectionStatus === 'ACCEPTED' ? (
             <>
               <Text className="text-green-600 font-medium mr-2">

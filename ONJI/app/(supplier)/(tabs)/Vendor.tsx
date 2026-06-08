@@ -255,20 +255,26 @@ export default function Dashboard() {
       try {
         const current = (connectionStatuses[id] as any) || 'NONE';
         if (current === 'PENDING') {
-    const { cancelSupplierConnectionRequest } =
-      await import('../../../lib/api/supplierConnection');
+          const { cancelSupplierConnectionRequest } =
+            await import('../../../lib/api/supplierConnection');
 
-    await cancelSupplierConnectionRequest(id);
+          await cancelSupplierConnectionRequest(id);
 
-    setConnectionStatuses(prev => ({ ...prev, [id]: 'NONE' }));
-  } else if (current === 'NONE' || current === 'REJECTED') {
-    const { sendSupplierConnectionRequest } =
-      await import('../../../lib/api/supplierConnection');
+          setConnectionStatuses(prev => ({ ...prev, [id]: 'NONE' }));
+        } else if (current === 'NONE' || current === 'REJECTED') {
+          const { sendSupplierConnectionRequest } =
+            await import('../../../lib/api/supplierConnection');
 
-    await sendSupplierConnectionRequest(id);
+          await sendSupplierConnectionRequest(id);
 
-    setConnectionStatuses(prev => ({ ...prev, [id]: 'PENDING' }));
-  }
+          setConnectionStatuses(prev => ({ ...prev, [id]: 'PENDING' }));
+        } else if (current === 'RECEIVED_PENDING') {
+          const supplierId = await secureStorage.getItem('userId');
+          await axiosInstance.post('/api/connections/accept', null, {
+            params: { retailerId: id, supplierId },
+          });
+          setConnectionStatuses(prev => ({ ...prev, [id]: 'ACCEPTED' }));
+        }
       } catch (err) {
         console.log('Connection action failed', err);
       }
