@@ -9,6 +9,7 @@ export interface CreateRetailerPayload {
   pincode: string;
   contactNumber?: string;
   userType: string;
+  profileImageUrl?: string;
 }
 
 export const createRetailerBusiness = async (payload: CreateRetailerPayload) => {

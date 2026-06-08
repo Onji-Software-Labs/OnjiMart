@@ -17,7 +17,7 @@ export interface BusinessSupplier {
   businessName?: string;
   rating?: number;
   userType: string;
-
+  profileImageUrl?: string;
 }
 
 export const createSupplierBusiness = async (payload: BusinessSupplier) => {

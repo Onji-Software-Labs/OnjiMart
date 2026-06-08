@@ -2,6 +2,7 @@ import FormikTextInput from '@/components/auth/FormikTextInput';
 import { createRetailerBusiness} from '@/lib/api/retailer';
 import { createSupplierBusiness, getCategories, getSubCategories } from '@/lib/api/supplier';
 import { secureStorage } from '@/lib/secureStorage';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import AntDesign from '@expo/vector-icons/AntDesign';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Formik, FormikProps } from 'formik';
@@ -131,6 +132,9 @@ const BusinessScreen = () => {
         return;
       }
 
+      // Read the Cloudinary URL saved during profile image upload
+      const profileImageUrl = (await AsyncStorage.getItem('profileImage')) ?? '';
+
       const Retailer = {
         retailerId: retailerId,
         name: values.businessName,
@@ -139,6 +143,7 @@ const BusinessScreen = () => {
         pincode: values.pinCode,
         contactNumber: values.businessPhoneNumber,
         userType: paramState.radioState,
+        profileImageUrl,
       };
 
       const Supplier = {
@@ -151,6 +156,7 @@ const BusinessScreen = () => {
         categoryIds: selectedCategoryIds,       
         subCategoryIds: selectedSubCategoryIds, 
         userType: paramState.radioState,
+        profileImageUrl,
       };
 
       await secureStorage.setItem('userType', paramState.radioState); 
