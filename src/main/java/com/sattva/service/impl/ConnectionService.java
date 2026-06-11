@@ -98,4 +98,25 @@ public class ConnectionService {
         );
     }
 
+    // Fetch all connection records for a retailer-supplier pair
+    public List<Connection> getAllConnections(
+            String retailerId,
+            String supplierId) {
+
+        return repo.findAllByRetailerIdAndSupplierId(
+                retailerId,
+                supplierId);
+    }
+
+    // Delete all connection records for a retailer-supplier pair
+    public void deleteAllConnections(String retailerId,String supplierId) {
+
+        List<Connection> connections =
+                repo.findAllByRetailerIdAndSupplierId(
+                        retailerId,
+                        supplierId);
+
+        repo.deleteAll(connections);
+    }
+
 }

@@ -64,4 +64,28 @@ public class ConnectionController {
                 service.getPendingRequestsForRetailer(retailerId)
         );
     }
+
+    // endpoint to view all connection records
+    // for a specific retailer and supplier pair
+    @GetMapping("/all")
+    public ResponseEntity<List<Connection>> getAllConnections(
+            @RequestParam String retailerId,
+            @RequestParam String supplierId) {
+
+        return ResponseEntity.ok(
+                service.getAllConnections(
+                        retailerId,
+                        supplierId));
+    }
+
+    // for a specific retailer and supplier pair
+    @DeleteMapping("/delete-all")
+    public ResponseEntity<String> deleteAllConnections(
+            @RequestParam String retailerId,
+            @RequestParam String supplierId) {
+
+        service.deleteAllConnections(retailerId, supplierId);
+
+        return ResponseEntity.ok("All duplicate connections removed");
+    }
 }
