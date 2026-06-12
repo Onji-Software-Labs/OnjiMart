@@ -24,9 +24,16 @@ public class ConnectionService {
             Connection conn = existing.get();
 
         // Auto-accept connection when both retailer and supplier send requests to each other
-        if (conn.getStatus() == ConnectionStatus.PENDING) {
+       if (conn.getStatus() == ConnectionStatus.PENDING) {
+
+        // Accept only when the opposite party sends the request
+        if (!conn.getInitiatedBy().equalsIgnoreCase(initiatedBy)) {
             conn.setStatus(ConnectionStatus.ACCEPTED);
             return repo.save(conn);
+        }
+
+        // Same user sent request again, keep it pending
+        return conn;
         }
 
         return conn;
