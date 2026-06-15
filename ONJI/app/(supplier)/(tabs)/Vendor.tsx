@@ -60,7 +60,14 @@ export default function Dashboard() {
 
   const [myVendors, setMyVendors] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-
+  
+  const handleTabSwitch = (tab: 'find' | 'my') => {
+  setActiveTab(tab);
+  setSearchQuery('');
+  setSelectedFilters([]);
+  setIsFilterModalVisible(false);
+  setIsSortModalVisible(false);
+};
   const fetchMyVendors = useCallback(async () => {
     try {
       setIsLoading(true);
@@ -170,27 +177,43 @@ export default function Dashboard() {
       <SafeAreaView className="bg-white">
         <View className="px-4 pt-2">
           
-          {/* Top Tabs (Updated to switch states) */}
-          <View className="bg-gray-100 rounded-lg p-1 mb-4">
-            <View className="flex-row">
-              <Pressable 
-                className={`flex-1 py-2.5 px-4 rounded-md ${activeTab === 'find' ? 'bg-white shadow-sm' : ''}`}
-                onPress={() => setActiveTab('find')}
-              >
-                <Text className={`text-center font-medium ${activeTab === 'find' ? 'text-green-600' : 'text-gray-500'}`}>
-                  Find new Vendors
-                </Text>
-              </Pressable>
-              <Pressable 
-                className={`flex-1 py-2.5 px-4 rounded-md ${activeTab === 'my' ? 'bg-white shadow-sm' : ''}`}
-                onPress={() => setActiveTab('my')}
-              >
-                <Text className={`text-center font-medium ${activeTab === 'my' ? 'text-green-600' : 'text-gray-500'}`}>
-                  My Vendors
-                </Text>
-              </Pressable>
-            </View>
-          </View>
+      {/* Tab toggle — same pill style as Cart screen */}
+      <View style={{
+        backgroundColor: '#E5E7EB',
+        borderRadius: 20,
+        flexDirection: 'row',
+        padding: 4,
+        marginBottom: 16,
+      }}>
+        <TouchableOpacity
+onPress={() => handleTabSwitch('find')}
+          style={{
+            flex: 1,
+            backgroundColor: activeTab === 'find' ? '#fff' : 'transparent',
+            paddingVertical: 14,
+            borderRadius: 16,
+            alignItems: 'center',
+          }}
+        >
+          <Text style={{ color: activeTab === 'find' ? '#15803D' : '#4B5563', fontWeight: '600', fontSize: 16 }}>
+            Find new vendors
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => handleTabSwitch('my')}
+          style={{
+            flex: 1,
+            backgroundColor: activeTab === 'my' ? '#fff' : 'transparent',
+            paddingVertical: 14,
+            borderRadius: 16,
+            alignItems: 'center',
+          }}
+        >
+          <Text style={{ color: activeTab === 'my' ? '#15803D' : '#4B5563', fontWeight: '600', fontSize: 16 }}>
+            My Vendors
+          </Text>
+        </TouchableOpacity>
+      </View>
 
           {/* Search & Actions */}
           <View className="flex-row items-center justify-between mb-4">
