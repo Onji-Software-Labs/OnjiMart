@@ -127,8 +127,13 @@ const modalAnim = useRef(new Animated.Value(0)).current;
           );
 
           const status = response?.data?.status;
+          const initiatedBy = response?.data?.initiatedBy;
 
-          setConnectionStatus(status || "NONE");
+          if (status === "PENDING" && initiatedBy === "SUPPLIER") {
+            setConnectionStatus("RECEIVED_PENDING");
+          } else {
+            setConnectionStatus(status || "NONE");
+          }
 
         } catch (error) {
           console.log("Status check error:", error);
@@ -155,6 +160,7 @@ const modalAnim = useRef(new Animated.Value(0)).current;
         params: {
           retailerId,
           supplierId: supplierId,
+          initiatedBy: 'RETAILER',
         },
       });
 
@@ -172,6 +178,16 @@ const modalAnim = useRef(new Animated.Value(0)).current;
       });
 
       setConnectionStatus("NONE");
+    } else if (connectionStatus === "RECEIVED_PENDING") {
+
+      await axiosInstance.post("/api/connections/accept", null, {
+        params: {
+          retailerId,
+          supplierId: supplierId,
+        },
+      });
+
+      setConnectionStatus("ACCEPTED");
     } else if (connectionStatus === "ACCEPTED") {
       router.push({
         pathname: "/(retailer)/orderSupplierScreen",
@@ -523,6 +539,16 @@ const closeProductModal = () => {
                   >
                     <Text style={styles.cancelText}>Cancel</Text>
                     <Entypo name="cross" size={20} color="#6B7280" />
+                  </Animated.View>
+                ) : connectionStatus === "RECEIVED_PENDING" ? (
+                  <Animated.View
+                    style={[
+                      styles.connectButton,
+                      { borderColor: "#0F9D58", transform: [{ scale: connectScale }] },
+                    ]}
+                  >
+                    <Text style={styles.connectText}>Accept</Text>
+                    <Entypo name="check" size={20} color="#0F9D58" />
                   </Animated.View>
                 ) : (
                   <Animated.View

@@ -17,9 +17,10 @@ public class ConnectionController {
     @Autowired
     private ConnectionService service;
 
+    // Create a connection request and capture who initiated it
     @PostMapping("/connect")
-    public Connection connect(@RequestParam String retailerId, @RequestParam String supplierId) {
-        return service.connect(retailerId, supplierId);
+    public Connection connect(@RequestParam String retailerId, @RequestParam String supplierId,@RequestParam String initiatedBy) {
+        return service.connect(retailerId, supplierId, initiatedBy);
     }
 
     @DeleteMapping("/cancel")
@@ -52,5 +53,39 @@ public class ConnectionController {
     @GetMapping("/supplier/{supplierId}/requests")
         public ResponseEntity<List<Connection>> getPendingRequests(@PathVariable String supplierId) {
             return ResponseEntity.ok(service.getPendingRequests(supplierId));
+    }
+
+    // Fetch all pending connection requests for a retailer (notifications)
+    @GetMapping("/retailer/{retailerId}/requests")
+    public ResponseEntity<List<Connection>> getPendingRequestsForRetailer(
+            @PathVariable String retailerId) {
+
+        return ResponseEntity.ok(
+                service.getPendingRequestsForRetailer(retailerId)
+        );
+    }
+
+    // endpoint to view all connection records
+    // for a specific retailer and supplier pair
+    @GetMapping("/all")
+    public ResponseEntity<List<Connection>> getAllConnections(
+            @RequestParam String retailerId,
+            @RequestParam String supplierId) {
+
+        return ResponseEntity.ok(
+                service.getAllConnections(
+                        retailerId,
+                        supplierId));
+    }
+
+    // for a specific retailer and supplier pair
+    @DeleteMapping("/delete-all")
+    public ResponseEntity<String> deleteAllConnections(
+            @RequestParam String retailerId,
+            @RequestParam String supplierId) {
+
+        service.deleteAllConnections(retailerId, supplierId);
+
+        return ResponseEntity.ok("All duplicate connections removed");
     }
 }

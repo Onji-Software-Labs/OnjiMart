@@ -16,6 +16,9 @@ public class Connection {
 
     private String supplierId;
 
+    // Tracks who initiated the connection request (RETAILER or SUPPLIER)
+    private String initiatedBy;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private ConnectionStatus status; // e.g., PENDING, ACCEPTED, CANCELED
@@ -33,6 +36,10 @@ public class Connection {
 
     public String getSupplierId() {
         return supplierId;
+    }
+
+    public String getInitiatedBy() {
+        return initiatedBy;
     }
 
     public ConnectionStatus getStatus() {
@@ -54,6 +61,10 @@ public class Connection {
 
     public void setSupplierId(String supplierId) {
         this.supplierId = supplierId;
+    }
+
+    public void setInitiatedBy(String initiatedBy) {
+        this.initiatedBy = initiatedBy;
     }
 
     public void setStatus(ConnectionStatus status) {

@@ -129,18 +129,21 @@ public class OrderController {
         List<OrderStatus> statuses;
 
         // Map UI filter to backend statuses
-        if (filter.equalsIgnoreCase("ACTIVE")) {
+        if (filter.equalsIgnoreCase("NEW")) {
             statuses = Arrays.asList(
-                    OrderStatus.NEW,
-                    OrderStatus.PROCESSING
+                    OrderStatus.NEW
             );
-        } else if (filter.equalsIgnoreCase("DELIVERED")) {
-            statuses = Arrays.asList(
-                    OrderStatus.COMPLETED
-            );
-        } else {
-            throw new IllegalArgumentException("Invalid filter value");
-        }
+            } else if (filter.equalsIgnoreCase("ACTIVE")) {
+                statuses = Arrays.asList(
+                        OrderStatus.PROCESSING
+                );
+            } else if (filter.equalsIgnoreCase("DELIVERED")) {
+                statuses = Arrays.asList(
+                        OrderStatus.COMPLETED
+                );
+            } else {
+                throw new IllegalArgumentException("Invalid filter value");
+            }
 
         // Fetch supplier orders
         List<OrderDTO> orders =

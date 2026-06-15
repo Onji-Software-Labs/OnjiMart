@@ -16,16 +16,27 @@ public class ConnectionService {
     @Autowired
     private ConnectionRepository repo;
 
-    public Connection connect(String retailerId, String supplierId) {
+    // Create a connection request and track who initiated it
+    public Connection connect(String retailerId, String supplierId, String initiatedBy) {
 
         Optional<Connection> existing = repo.findByRetailerIdAndSupplierId(retailerId, supplierId);
         if (existing.isPresent()) {
-            return existing.get();
+            Connection conn = existing.get();
+
+        // Auto-accept connection when both retailer and supplier send requests to each other
+        if (conn.getStatus() == ConnectionStatus.PENDING) {
+            conn.setStatus(ConnectionStatus.ACCEPTED);
+            return repo.save(conn);
         }
+
+        return conn;
+    }
 
         Connection conn = new Connection();
         conn.setRetailerId(retailerId);
         conn.setSupplierId(supplierId);
+        // Store who initiated the connection request
+        conn.setInitiatedBy(initiatedBy);
         conn.setStatus(ConnectionStatus.PENDING);
         return repo.save(conn);
     }
@@ -62,9 +73,50 @@ public class ConnectionService {
                     return conn;
                 });
     }
-    // Fetch allgit commit -m "Add API to fetch pending connection requests for supplier notifications" pending connection requests for a supplier (used for notifications)
-    public List<Connection> getPendingRequests(String supplierId) {
-        return repo.findBySupplierIdAndStatus(supplierId, ConnectionStatus.PENDING);
+    // Fetch pending requests sent by retailers to a supplier
+    // public List<Connection> getPendingRequests(String supplierId) {
+    //     return repo.findBySupplierIdAndStatus(supplierId, ConnectionStatus.PENDING);
+    // }
+
+    // Fetch pending requests sent by retailers to a supplier
+    public List<Connection> getPendingRequests(String supplierId) {return repo.findBySupplierIdAndStatusAndInitiatedBy(supplierId,
+                ConnectionStatus.PENDING,
+                "RETAILER");
+    }
+
+    // Fetch all pending connection requests for a retailer
+    // public List<Connection> getPendingRequestsForRetailer(String retailerId) {
+    //     return repo.findByRetailerIdAndStatus(retailerId,ConnectionStatus.PENDING);
+    // }
+
+   // Fetch pending requests sent by suppliers to a retailer
+    public List<Connection> getPendingRequestsForRetailer(String retailerId) {
+        return repo.findByRetailerIdAndStatusAndInitiatedBy(
+                retailerId,
+                ConnectionStatus.PENDING,
+                "SUPPLIER"
+        );
+    }
+
+    // Fetch all connection records for a retailer-supplier pair
+    public List<Connection> getAllConnections(
+            String retailerId,
+            String supplierId) {
+
+        return repo.findAllByRetailerIdAndSupplierId(
+                retailerId,
+                supplierId);
+    }
+
+    // Delete all connection records for a retailer-supplier pair
+    public void deleteAllConnections(String retailerId,String supplierId) {
+
+        List<Connection> connections =
+                repo.findAllByRetailerIdAndSupplierId(
+                        retailerId,
+                        supplierId);
+
+        repo.deleteAll(connections);
     }
 
 }
