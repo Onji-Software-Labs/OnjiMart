@@ -20,7 +20,7 @@ public class SupplierBusiness {
     @JoinColumn(name = "supplier_id", nullable = false)
     private Supplier supplier;
 
-    private String name;       
+    private String name;
     private String street;
     private String city;
     private String address;
@@ -28,5 +28,8 @@ public class SupplierBusiness {
 
     private String contactNumber;
 
+    private String profilePicture;
+
     private boolean isActive;
+
 }

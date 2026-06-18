@@ -22,6 +22,7 @@ public class SupplierBusinessRequestDTO {
     private String city;
     private String pincode;
     private String contactNumber;
+    private String profilePicture;
 
     private List<String> categoryIds;
     private List<String> subCategoryIds;
