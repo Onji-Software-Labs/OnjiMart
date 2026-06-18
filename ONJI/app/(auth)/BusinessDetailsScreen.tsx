@@ -1,6 +1,6 @@
 import axiosInstance from '@/lib/api/axiosConfig';
 import { secureStorage } from '@/lib/secureStorage';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Formik, FormikProps } from 'formik';
 import React, { useEffect, useRef, useState } from 'react';
 import { Dimensions, Image, Pressable, Text, TextInput, View } from 'react-native';
@@ -34,6 +34,8 @@ const formSchema = Yup.object({
 
 export function BusinessDetailsScreen() {
   const [radioState, setRadioState] = useState('Supplier');
+  const { profileImageUrl } = useLocalSearchParams<{ profileImageUrl: string }>();
+
   const handlePress = ({ label }: { label: string }) => {
     setRadioState(label);
   };
@@ -67,6 +69,7 @@ export function BusinessDetailsScreen() {
         dateEntered: '2025-07-16T18:13:56.652Z',
         dateModified: '2025-07-16T18:13:56.652Z',
         onboardingStatus: true,
+        profileImageUrl: profileImageUrl ?? '',
       });
       console.log(
         'Role: ' + role + 'Name : ' + values.fullName + '\nResponse : ',
