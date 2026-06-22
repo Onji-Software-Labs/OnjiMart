@@ -341,7 +341,7 @@ export default function OrderRequestScreen() {
         <TouchableOpacity
           onPress={() => {
               console.log("BUTTON PRESSED");
-              router.push("/(supplier)/orderDetails");
+              router.push("../orderDetails");
             }
           }
           style={{
@@ -371,7 +371,7 @@ export default function OrderRequestScreen() {
           <TouchableOpacity
             onPress={() => {
               console.log("ACTIVE BUTTON PRESSED");
-              router.push("/(supplier)/orderDetails");
+              router.push("../orderDetails");
             }}
             style={{
               flex: 1,
