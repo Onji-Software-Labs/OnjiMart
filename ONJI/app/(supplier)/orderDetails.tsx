@@ -1055,6 +1055,9 @@ export default function OrderDetails() {
 
             <TouchableOpacity
            disabled={disableActions}
+           onPress={()=>{
+                router.push("./orderConfirm");
+            }}
             style={{
             flex:1,
             backgroundColor:
