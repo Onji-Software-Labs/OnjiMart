@@ -167,8 +167,12 @@ public class OrderServiceImpl implements OrderService {
         if (order.getSupplier() != null &&
                 order.getSupplier().getUser() != null) {
 
-            dto.setSupplierName(
-                    order.getSupplier().getUser().getFullName());
+            if (order.getSupplier().getBusinesses() != null &&
+                !order.getSupplier().getBusinesses().isEmpty()) {
+
+                dto.setSupplierName(
+                        order.getSupplier().getBusinesses().get(0).getName());
+                }
 
             dto.setSupplierPhoneNumber(
             order.getSupplier().getUser().getPhoneNumber());
@@ -178,9 +182,12 @@ public class OrderServiceImpl implements OrderService {
         if (order.getRetailer() != null &&
                 order.getRetailer().getUser() != null) {
 
-            dto.setRetailerName(
-                    order.getRetailer().getUser().getFullName()
-            );
+           if (order.getRetailer().getRetailerBusinesses() != null &&
+                !order.getRetailer().getRetailerBusinesses().isEmpty()) {
+
+                dto.setRetailerName(
+                        order.getRetailer().getRetailerBusinesses().get(0).getName());
+                }
 
             dto.setRetailerPhoneNumber(
             order.getRetailer().getUser().getPhoneNumber());
