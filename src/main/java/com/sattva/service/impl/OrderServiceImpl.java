@@ -11,6 +11,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.sattva.dto.CreateOrderRequestDTO;
+import com.sattva.dto.EditOrderItemRequestDTO;
+import com.sattva.dto.EditOrderRequestDTO;
 import com.sattva.dto.OrderDTO;
 import com.sattva.dto.OrderItemDTO;
 import com.sattva.enums.OrderItemStatus;
@@ -389,5 +391,70 @@ public class OrderServiceImpl implements OrderService {
         // Convert entity to DTO
         return convertToDTO(order);
     }
+
+        // Saves edited quantities and prices for all order items
+        // before the supplier confirms the order.
+        @Override
+        @Transactional
+        public OrderDTO editOrder(String orderId,
+                                EditOrderRequestDTO request) {
+
+        // Fetch the order
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Order not found with ID: " + orderId
+                        ));
+
+        // Update each edited order item
+        for (EditOrderItemRequestDTO editedItem : request.getItems()) {
+
+                // Fetch the order item
+                OrderItem orderItem = orderItemRepository.findById(editedItem.getItemId())
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Order item not found with ID: " + editedItem.getItemId()
+                                ));
+                                
+                // Validate that the order item belongs to the given order
+                if (!orderItem.getOrder().getId().equals(orderId)) {
+                        throw new InvalidInputException(
+                                "Order item does not belong to the given order."
+                        );
+                }
+
+                // Check if the order item is still editable
+                if (!orderItem.isEditable()) {
+                        throw new InvalidInputException(
+                                "This order item can no longer be edited."
+                        );
+                }
+
+
+                // Update fulfilled quantity
+                if (editedItem.getFulfilledQuantity() != null) {
+                orderItem.setFulfilledQuantity(editedItem.getFulfilledQuantity());
+                }
+
+                // Update unit price
+                if (editedItem.getUnitPrice() != null) {
+                orderItem.setUnitPrice(editedItem.getUnitPrice());
+                }
+
+                // Recalculate total price
+                orderItem.setTotalPrice(
+                        orderItem.getUnitPrice() * orderItem.getFulfilledQuantity()
+                );
+
+                // Save updated order item
+                orderItemRepository.save(orderItem);
+        }
+
+        // Save updated order
+        // orderRepository.save(order);
+
+        // Return updated order
+        return convertToDTO(order);
+        }
 
 }
