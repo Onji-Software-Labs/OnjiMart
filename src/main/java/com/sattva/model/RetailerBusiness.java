@@ -26,6 +26,8 @@ public class RetailerBusiness {
     private String address;
     private String pincode;
     private String contactNumber;
+
+    private String profilePicture;
     private boolean isActive;
 
 }

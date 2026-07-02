@@ -44,5 +44,18 @@ public class OrderDTO {
     private boolean isCompleted; // Indicates if the order is completed
 
     private Set<OrderItemDTO> items; // List of items in the order
+
+    // Supplier Details
+    private String supplierPhoneNumber;
+
+    // Retailer Details
+    private String retailerPhoneNumber;
+    private String retailerAddress;
+
+    // Order Summary
+    private Integer totalOrderItems;
+    private Double subtotal;
+    private Double taxAmount;
+    private Double grandTotal;
 }
 

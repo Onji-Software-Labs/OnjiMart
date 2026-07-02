@@ -23,6 +23,8 @@ public class SupplierBusinessResponseDTO {
     // Supplier fields
     private String supplierId;
 
+    private String profilePicture;
+
     // Category & Subcategory IDs
     private Set<String> categoryIds;
     private Set<String> subCategoryIds;

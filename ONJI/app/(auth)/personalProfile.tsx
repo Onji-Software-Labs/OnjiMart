@@ -1,7 +1,11 @@
 import RadioInput from "@/components/auth/RadioInput";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as ImagePicker from "expo-image-picker";
+import { uploadImageToCloudinary } from "@/lib/api/cloudinary";
 import { Formik } from "formik";
 import React, { useState, useEffect } from "react";
 import {
+    ActivityIndicator,
     Dimensions,
     Image,
     Pressable,
@@ -34,19 +38,58 @@ const formSchema = yup.object().shape({
 const PersonalProfile = () => {
     const [radioState, setRadioState] = useState("Supplier");
     const [savedPhone, setSavedPhone] = useState('');
+    const [profileImage, setProfileImage] = useState<string | null>(null);
+    const [isUploading, setIsUploading] = useState(false);
 
-    // Read the phone number saved during OTP verification
+    // Load saved phone + profile image on mount
     useEffect(() => {
-        const loadPhone = async () => {
-            const stored = await localStorage.getItem('phoneNumber');
+        const loadData = async () => {
+            const stored = await AsyncStorage.getItem('phoneNumber');
             if (stored) {
-                // Strip +91 prefix — the input shows "+91" as a label already
                 const digits = stored.startsWith('+91') ? stored.slice(3) : stored;
                 setSavedPhone(digits);
             }
+            const savedImage = await AsyncStorage.getItem('profileImage');
+            if (savedImage) {
+                setProfileImage(savedImage);
+            }
         };
-        loadPhone();
+        loadData();
     }, []);
+
+    // Pick image from device gallery and upload to Cloudinary
+    const pickImage = async () => {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+            Alert.alert('Permission needed', 'Please allow access to your photo library to set a profile picture.');
+            return;
+        }
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ['images'],
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.8,
+        });
+        if (!result.canceled && result.assets[0]) {
+            const localUri = result.assets[0].uri;
+            // Show local preview immediately for better UX
+            setProfileImage(localUri);
+            setIsUploading(true);
+            try {
+                const cloudUrl = await uploadImageToCloudinary(localUri);
+                // Replace local URI with the permanent Cloudinary URL
+                setProfileImage(cloudUrl);
+                await AsyncStorage.setItem('profileImage', cloudUrl);
+            } catch (error) {
+                Alert.alert('Upload failed', 'Could not upload profile picture. Please try again.');
+                // Revert to no image if upload fails
+                setProfileImage(null);
+                await AsyncStorage.removeItem('profileImage');
+            } finally {
+                setIsUploading(false);
+            }
+        }
+    };
 
     const handlePress = ({ label }: { label: string }) => {
         setRadioState(label);
@@ -56,11 +99,12 @@ const PersonalProfile = () => {
         console.log(
             "name : " + values.fullName + "   number : " + values.phoneNumber
         );
-        const name=values.fullName
-        const number=values.phoneNumber
+        const name = values.fullName;
+        const number = values.phoneNumber;
+        const profileImageUrl = profileImage ?? '';
         router.push({
-            pathname:"/(auth)/BusinessDetailsScreen",
-            params:{name,number,radioState}
+            pathname: "/(auth)/BusinessDetailsScreen",
+            params: { name, number, radioState, profileImageUrl },
         });
     };
     return (
@@ -88,16 +132,26 @@ const PersonalProfile = () => {
                             Profile Picture
                         </Text>
                         <View className="mx-auto mt-3">
-                            <View className="border-none rounded-full">
+                            <View className="border-none rounded-full overflow-hidden" style={{ width: 100, height: 100 }}>
                                 <Image
-                                    source={require("../../assets/images/3d_avatar_1.png")}
+                                    source={
+                                        profileImage
+                                            ? { uri: profileImage }
+                                            : require("../../assets/images/3d_avatar_1.png")
+                                    }
+                                    style={{ width: 100, height: 100, borderRadius: 50 }}
                                 ></Image>
                             </View>
                         </View>
                         <Pressable 
-                        onPress={()=>console.log("Image is editable")}
+                        onPress={pickImage}
+                        disabled={isUploading}
                         >
-                        <Text className="text-text-action font-primarysemibold mx-auto mt-3">Edit</Text>
+                        {isUploading ? (
+                            <ActivityIndicator size="small" color="#4CAF50" style={{ marginTop: 12 }} />
+                        ) : (
+                            <Text className="text-text-action font-primarysemibold mx-auto mt-3">Edit</Text>
+                        )}
                         </Pressable>
                         <View className="flex-1 ">
                             <View className="mt-5">

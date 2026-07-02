@@ -163,23 +163,69 @@ public class OrderServiceImpl implements OrderService {
 
         OrderDTO dto = modelMapper.map(order, OrderDTO.class);
 
-        // Set supplier name
+        //Supplier Details
         if (order.getSupplier() != null &&
                 order.getSupplier().getUser() != null) {
 
-            dto.setSupplierName(
-                    order.getSupplier().getUser().getFullName()
-            );
+            if (order.getSupplier().getBusinesses() != null &&
+                !order.getSupplier().getBusinesses().isEmpty()) {
+
+                dto.setSupplierName(
+                        order.getSupplier().getBusinesses().get(0).getName());
+                }
+
+            dto.setSupplierPhoneNumber(
+            order.getSupplier().getUser().getPhoneNumber());
         }
 
-        // Set retailer name
+        //Retailer Details
         if (order.getRetailer() != null &&
                 order.getRetailer().getUser() != null) {
 
-            dto.setRetailerName(
-                    order.getRetailer().getUser().getFullName()
-            );
+           if (order.getRetailer().getRetailerBusinesses() != null &&
+                !order.getRetailer().getRetailerBusinesses().isEmpty()) {
+
+                dto.setRetailerName(
+                        order.getRetailer().getRetailerBusinesses().get(0).getName());
+                }
+
+            dto.setRetailerPhoneNumber(
+            order.getRetailer().getUser().getPhoneNumber());
         }
+
+        //Retailer Address
+        if (order.getShop() != null) {
+
+                String retailerAddress =
+                order.getShop().getStreet() + ", " +
+                order.getShop().getCity() + ", " +
+                order.getShop().getState() + " - " +
+                order.getShop().getPincode();
+
+                dto.setRetailerAddress(retailerAddress);
+        }
+        //Total Order Items
+        int totalOrderItems = order.getItems()
+                .stream()
+                .mapToInt(OrderItem::getRequestedQuantity)
+                .sum();
+
+        dto.setTotalOrderItems(totalOrderItems);
+
+        //Order Summary Calculations
+        double subtotal = order.getItems()
+                .stream()
+                .mapToDouble(OrderItem::getTotalPrice)
+                .sum();
+
+        double taxAmount = subtotal * 0.05; // GST 5%
+
+        double grandTotal = subtotal + taxAmount;
+
+        dto.setSubtotal(subtotal);
+        dto.setTaxAmount(taxAmount);
+        dto.setGrandTotal(grandTotal);
+
 
         return dto;
     }
