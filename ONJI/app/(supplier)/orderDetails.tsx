@@ -7,23 +7,61 @@ import {
   TextInput,
   StatusBar,
   Switch,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { Image } from "react-native";
+import { useLocalSearchParams } from "expo-router";
+import { useEffect } from "react";
+import axiosInstance from "@/lib/api/axiosConfig";
 
 const AVATAR = require("../../assets/images/3davatar.png");
 import { useState } from "react";
 
 export default function OrderDetails() {
 
+    const { orderId } = useLocalSearchParams();
+    console.log("ORDER ID:", orderId);
+    const [order, setOrder] = useState<any>(null);
+    const [loading, setLoading] = useState(true);
+
     const [isEditing, setIsEditing] = useState(false);
     const [showEditedOrder, setShowEditedOrder] = useState(false);
     const [hasEditedOrder, setHasEditedOrder] = useState(false);
     const disableActions = hasEditedOrder && !showEditedOrder;
+
+    const fetchOrderDetails = async () => {
+    try {
+        const res = await axiosInstance.get(
+        `/api/orders/${orderId}`
+        );
+
+        console.log("ORDER DETAILS");
+        console.log(res.data);
+
+        setOrder(res.data);
+
+        setItems(
+        res.data.items.map((item: any) => ({
+            id: item.id,
+            name: item.productName,
+            quantity: String(item.requestedQuantity),
+            price: String(item.unitPrice),
+            emoji: "📦",
+        }))
+        );
+    } catch (err) {
+        console.log(err);
+    } finally {
+        setLoading(false);
+    }
+    };
+
     
-    const [items, setItems] = useState([
+    const [items, setItems] = useState<any[]>([
     {
         id: 1,
         name: "Roma Tomatoes",
@@ -55,22 +93,58 @@ export default function OrderDetails() {
         items.map(item => ({ ...item }))
     );
 
-    const currentItems =
-    isEditing || showEditedOrder
-        ? items
-        : oldItems;
+    useEffect(() => {
+    if (orderId) {
+        fetchOrderDetails();
+    }
+    }, [orderId]);
 
-    const subtotal = currentItems.reduce(
-    (sum, item) =>
-        sum + Number(item.price) * Number(item.quantity),
-    0
+    if (loading) {
+    return (
+        <SafeAreaView
+        style={{
+            flex: 1,
+            justifyContent: "center",
+            alignItems: "center",
+        }}
+        >
+        <Text>Loading...</Text>
+        </SafeAreaView>
     );
+    }
 
-    const gst = Math.round(subtotal * 0.05);
-    const grandTotal = subtotal + gst;
+    console.log("ORDER STATE");
+    console.log(order);
 
+    const orderDate = order?.orderDate
+    ? new Date(order.orderDate)
+    : null;
+
+    const formattedDate = orderDate
+    ? orderDate.toLocaleDateString("en-US", {
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+        })
+    : "-";
+
+    const formattedTime = orderDate
+    ? orderDate.toLocaleTimeString("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+        })
+    : "-";
+
+    const handleFulfillOrder = () => {
+        router.push("./orderConfirm");
+    };
 
   return (
+    <KeyboardAvoidingView
+    style={{ flex: 1 }}
+    behavior={Platform.OS === "ios" ? "padding" : "height"}
+  >
     <SafeAreaView
       style={{
         flex: 1,
@@ -82,13 +156,7 @@ export default function OrderDetails() {
         backgroundColor="#F8F9F6"
       />
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{
-          paddingBottom: 30,
-        }}
-      >
-        {/* HEADER */}
+      {/* HEADER */}
 
         <View
         style={{
@@ -127,9 +195,20 @@ export default function OrderDetails() {
         style={{
             height: 1,
             backgroundColor: "#E5E7EB",
-            marginBottom: 16,
         }}
         />
+
+      <ScrollView
+        style={{ flex: 1 }}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+        contentContainerStyle={{
+            paddingTop: 18,
+            paddingBottom: 40,
+        }}
+    >
+        
 
         {/* CONTENT START */}
 
@@ -182,7 +261,7 @@ export default function OrderDetails() {
                     color: "#111827",
                     }}
                 >
-                    #INV-992841
+                    #{order?.id?.slice(0, 8).toUpperCase()}
                 </Text>
 
                 <Feather
@@ -208,7 +287,7 @@ export default function OrderDetails() {
                     color: "#6B7280",
                     }}
                 >
-                    30 items
+                    {order?.totalOrderItems ?? 0} items
                 </Text>
                 </View>
             </View>
@@ -253,7 +332,7 @@ export default function OrderDetails() {
                     fontSize: 14,
                     }}
                 >
-                    July 12, 2025
+                    {formattedDate}
                 </Text>
 
                 <Feather
@@ -270,7 +349,7 @@ export default function OrderDetails() {
                     color: "#6B7280",
                 }}
                 >
-                10:30 Pm
+                {formattedTime}
                 </Text>
             </View>
 
@@ -314,7 +393,20 @@ export default function OrderDetails() {
                     fontSize: 14,
                     }}
                 >
-                    July 15, 2025
+                    <Text
+                    style={{
+                        fontWeight: "600",
+                        fontSize: 14,
+                    }}
+                    >
+                    {order?.deliveryDate
+                        ? new Date(order.deliveryDate).toLocaleDateString("en-US", {
+                            month: "long",
+                            day: "numeric",
+                            year: "numeric",
+                        })
+                        : "-"}
+                    </Text>
                 </Text>
 
                 <Feather
@@ -331,7 +423,7 @@ export default function OrderDetails() {
                     color: "#6B7280",
                 }}
                 >
-                Morning Slot
+                {order?.deliveryTimeSlot ?? "-"}
                 </Text>
             </View>
             </View>
@@ -398,7 +490,6 @@ export default function OrderDetails() {
                 }}
             >
 
-
                 <Image
                     source={AVATAR}
                     style={{
@@ -423,7 +514,7 @@ export default function OrderDetails() {
                     color: "#222",
                     }}
                 >
-                    Green Valley Farms
+                    {order?.retailerName || order?.shopName}
                 </Text>
 
                 <View
@@ -447,7 +538,7 @@ export default function OrderDetails() {
                         fontSize: 13,
                         }}
                     >
-                        7349322285
+                        {order?.retailerPhoneNumber ?? "-"}
                     </Text>
                     </View>
 
@@ -498,8 +589,7 @@ export default function OrderDetails() {
                     fontSize: 16,
                 }}
                 >
-                42 Market Street, Organic District,
-                New Delhi - 110001
+                {order?.retailerAddress ?? "-"}
                 </Text>
             </View>
 
@@ -528,7 +618,7 @@ export default function OrderDetails() {
                     fontSize: 20,
                     }}
                 >
-                    20
+                    {order?.totalOrderItems ?? 0}
                 </Text>
                 </View>
 
@@ -559,7 +649,9 @@ export default function OrderDetails() {
                         fontSize: 20,
                     }}
                     >
-                    RT-88210
+                    {order?.retailerId
+                        ? order.retailerId.slice(0, 8).toUpperCase()
+                        : "-"}
                     </Text>
 
                     <Feather
@@ -606,7 +698,7 @@ export default function OrderDetails() {
                     fontSize: 18,
                 }}
                 >
-                ₹{subtotal.toLocaleString()}
+                ₹{order?.subtotal?.toLocaleString() ?? 0}
                 </Text>
             </View>
 
@@ -630,7 +722,7 @@ export default function OrderDetails() {
                     fontSize: 18,
                 }}
                 >
-                ₹{gst.toLocaleString()}
+                ₹{order?.taxAmount?.toLocaleString() ?? 0}
                 </Text>
             </View>
 
@@ -665,7 +757,7 @@ export default function OrderDetails() {
                     fontWeight: "800",
                 }}
                 >
-                ₹{grandTotal.toLocaleString()}
+                ₹{order?.grandTotal?.toLocaleString() ?? 0}
                 </Text>
             </View>
             </View>
@@ -773,7 +865,7 @@ export default function OrderDetails() {
 
             </View>
 
-           {(isEditing || showEditedOrder ? items : oldItems).map((item) => (
+           {items.map((item) => (
                 <View
                 key={item.id}
                 style={{
@@ -937,7 +1029,7 @@ export default function OrderDetails() {
 
             {/* GAP */}
 
-            <View style={{ height: 18 }} />
+            <View style={{ height: 16 }} />
 
             {/* Supplier Note */}
 
@@ -962,6 +1054,7 @@ export default function OrderDetails() {
                 <TextInput
                     placeholder="Add any adjustments or quality notes here..."
                     multiline
+                    returnKeyType="done"
                     style={{
                         backgroundColor:"#FFF",
                         borderRadius:16,
@@ -973,7 +1066,22 @@ export default function OrderDetails() {
 
             {/* GAP */}
 
-            <View style={{ height: 16 }} />
+            </View>
+
+            </ScrollView>
+
+            <View
+                style={{
+                    backgroundColor: "#FFFFFF",
+
+                    paddingHorizontal: 18,
+                    paddingTop: 20,
+                    paddingBottom: 20,
+
+                    borderTopWidth: 1,
+                    borderTopColor: "#E5E7EB",
+                }}
+                >
 
             {/* Info */}
 
@@ -983,6 +1091,7 @@ export default function OrderDetails() {
             style={{
             flexDirection:"row",
             alignItems:"flex-start",
+            marginBottom:20,
             }}
             >
             <Feather
@@ -994,7 +1103,8 @@ export default function OrderDetails() {
 
             <Text
             style={{
-            flex:1,
+            flexShrink: 1,
+            maxWidth: "82%",
             marginLeft:8,
             color:"#6B7280",
             fontSize:13,
@@ -1012,6 +1122,7 @@ export default function OrderDetails() {
             style={{
             flexDirection:"row",
             alignItems:"flex-start",
+            marginBottom:20,
             }}
             >
             <Feather
@@ -1023,11 +1134,12 @@ export default function OrderDetails() {
 
             <Text
             style={{
-            flex:1,
             marginLeft:8,
-            color:"#6B7280",
-            fontSize:13,
-            lineHeight:20,
+            maxWidth:"82%",
+            fontSize:14,
+            lineHeight:22,
+            color:"#556B56",
+            fontWeight:"400",
             }}
             >
             You'll be able to download and share the invoice once the order has been delivered.
@@ -1039,80 +1151,32 @@ export default function OrderDetails() {
 
             {/* GAP */}
 
-            <View style={{ height: 20 }} />
-
            {!isEditing ? (
 
             <>
             {/* Buttons Row */}
-
-            <View
-            style={{
-            flexDirection:"row",
-            justifyContent:"space-between",
-            }}
-            >
+            
 
             <TouchableOpacity
-           disabled={disableActions}
-           onPress={()=>{
-                router.push("./orderConfirm");
-            }}
-            style={{
-            flex:1,
-            backgroundColor:
-            !disableActions
-                ? "#1F7A34"
-                : "#D1D5DB",
-            borderRadius:12,
-            paddingVertical:16,
-            alignItems:"center",
-            marginRight:8,
-            }}
+                disabled={disableActions}
+                onPress={handleFulfillOrder}
+                style={{
+                    backgroundColor: !disableActions ? "#2E7D32" : "#D1D5DB",
+                    borderRadius: 12,
+                    paddingVertical: 16,
+                    alignItems: "center",
+                }}
             >
-            <Text
-            style={{
-            color:
-            !disableActions
-                ? "#FFF"
-                : "#9CA3AF",
-            fontWeight:"600",
-            fontSize:16,
-            }}
-            >
-            Fulfill Order
-            </Text>
+                <Text
+                    style={{
+                        color: "#FFFFFF",
+                        fontSize: 18,
+                        fontWeight: "600",
+                    }}
+                >
+                    Fulfill Order
+                </Text>
             </TouchableOpacity>
-
-            <TouchableOpacity
-            disabled={disableActions}
-            style={{
-            flex:1,
-            backgroundColor:
-            !disableActions
-                ? "#FBEAEA"
-                : "#F3F4F6",
-            borderRadius:12,
-            paddingVertical:16,
-            alignItems:"center",
-            marginLeft:8,
-            }}
-            >
-            <Text
-            style={{
-            color:
-            !disableActions
-                ? "#C24141"
-                : "#9CA3AF",
-            fontWeight:"600",
-            fontSize:16,
-            }}
-            >
-            Reject Order
-            </Text>
-            </TouchableOpacity>
-
-            </View>
 
             <View style={{height:14}} />
 
@@ -1214,8 +1278,11 @@ export default function OrderDetails() {
 
             )}
 
+            
+
         </View>
-      </ScrollView>
     </SafeAreaView>
+    </KeyboardAvoidingView>
+
   );
 }
