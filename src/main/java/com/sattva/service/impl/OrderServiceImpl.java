@@ -158,12 +158,27 @@ public class OrderServiceImpl implements OrderService {
         return convertToOrderItemDTO(updatedItem);
     }
 
-    private OrderItemDTO convertToOrderItemDTO(OrderItem orderItem) {
-        return modelMapper.map(orderItem, OrderItemDTO.class);
-    }
+   // Populate additional fields required by the supplier order details screen.
+        private OrderItemDTO convertToOrderItemDTO(OrderItem orderItem) {
+
+        OrderItemDTO dto = modelMapper.map(orderItem, OrderItemDTO.class);
+
+        // Return the current stock available for this product.
+        dto.setAvailableQuantity(
+                orderItem.getProduct().getStockQuantity()
+        );
+
+        return dto;
+        }
    private OrderDTO convertToDTO(Order order) {
 
         OrderDTO dto = modelMapper.map(order, OrderDTO.class);
+
+        dto.setItems(
+        order.getItems().stream()
+                .map(this::convertToOrderItemDTO)
+                .collect(Collectors.toSet())
+        );
 
         //Supplier Details
         if (order.getSupplier() != null &&
@@ -293,7 +308,7 @@ public class OrderServiceImpl implements OrderService {
         }
 
         // Convert the order item to DTO and return
-        return modelMapper.map(updatedItem, OrderItemDTO.class);
+        return convertToOrderItemDTO(updatedItem);
     }
 
     // Fetch all retailer orders
