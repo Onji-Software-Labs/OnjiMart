@@ -168,6 +168,9 @@ public class OrderServiceImpl implements OrderService {
                 orderItem.getProduct().getStockQuantity()
         );
 
+        // Indicates whether this order item has been edited.
+       dto.setEdited(orderItem.isEdited());
+
         return dto;
         }
    private OrderDTO convertToDTO(Order order) {
@@ -460,6 +463,9 @@ public class OrderServiceImpl implements OrderService {
                 orderItem.setTotalPrice(
                         orderItem.getUnitPrice() * orderItem.getFulfilledQuantity()
                 );
+
+                // Mark item as edited
+                orderItem.setEdited(true);
 
                 // Save updated order item
                 orderItemRepository.save(orderItem);
