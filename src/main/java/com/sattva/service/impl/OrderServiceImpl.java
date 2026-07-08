@@ -472,4 +472,78 @@ public class OrderServiceImpl implements OrderService {
         return convertToDTO(order);
         }
 
+        @Override
+        @Transactional
+        public OrderDTO fulfillOrder(String orderId) {
+
+        // Fetch the order
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Order not found with ID: " + orderId
+                        ));
+
+        // Track whether at least one item was fulfilled
+        boolean hasFulfilledItems = false;
+
+        // Fulfill each order item
+        for (OrderItem orderItem : order.getItems()) {
+
+                // Check if the order item is still editable
+                if (!orderItem.isEditable()) {
+                throw new InvalidInputException(
+                        "This order item is no longer editable."
+                );
+                }
+
+                // Check whether the product is out of stock
+                if (orderItem.getProduct().getStockQuantity() <= 0) {
+
+                orderItem.setStatus(OrderItemStatus.OUT_OF_STOCK);
+                orderItem.setFulfilled(false);
+                orderItem.setBackordered(false);
+                orderItem.setFulfilledQuantity(0);
+                orderItem.setEditable(true);
+
+                orderItemRepository.save(orderItem);
+
+                // Continue with the remaining order items
+                continue;
+                }
+
+                // If supplier didn't edit the quantity,
+                // fulfill the originally requested quantity.
+                if (orderItem.getFulfilledQuantity() == 0) {
+                orderItem.setFulfilledQuantity(
+                        orderItem.getRequestedQuantity()
+                );
+                }
+
+                // Recalculate total price
+                orderItem.setTotalPrice(
+                        orderItem.getUnitPrice() * orderItem.getFulfilledQuantity()
+                );
+
+                // Mark the item as fulfilled
+                orderItem.setStatus(OrderItemStatus.FULFILLED);
+                orderItem.setFulfilled(true);
+                orderItem.setBackordered(false);
+                orderItem.setEditable(false);
+
+                orderItemRepository.save(orderItem);
+
+                hasFulfilledItems = true;
+        }
+
+        // Update the order status only if at least one item was fulfilled
+        if (hasFulfilledItems) {
+                order.setStatus(OrderStatus.PROCESSING);
+        }
+
+        // Save the updated order
+        orderRepository.save(order);
+
+        // Return updated order details
+        return convertToDTO(order);
+        }
 }

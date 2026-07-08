@@ -35,4 +35,8 @@ public interface OrderService {
 
     // Edit all order items before supplier confirms the order.
     OrderDTO editOrder(String orderId,EditOrderRequestDTO request);
+
+    //Fullfill the complete order after supplier confirmation.
+    OrderDTO fulfillOrder(String orderId);
+
 }
