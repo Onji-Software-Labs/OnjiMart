@@ -34,4 +34,6 @@ public class OrderItemDTO {
     private boolean editable; // Indicates whether the item can still be edited by the supplier
 
     private Integer availableQuantity; // Quantity currently available in stock
+
+    private boolean edited; // Indicates whether the supplier has edited this order item.
 }
