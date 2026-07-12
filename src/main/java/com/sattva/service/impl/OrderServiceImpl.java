@@ -11,6 +11,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.sattva.dto.CreateOrderRequestDTO;
+import com.sattva.dto.EditOrderItemRequestDTO;
+import com.sattva.dto.EditOrderRequestDTO;
 import com.sattva.dto.OrderDTO;
 import com.sattva.dto.OrderItemDTO;
 import com.sattva.enums.OrderItemStatus;
@@ -156,12 +158,30 @@ public class OrderServiceImpl implements OrderService {
         return convertToOrderItemDTO(updatedItem);
     }
 
-    private OrderItemDTO convertToOrderItemDTO(OrderItem orderItem) {
-        return modelMapper.map(orderItem, OrderItemDTO.class);
-    }
+   // Populate additional fields required by the supplier order details screen.
+        private OrderItemDTO convertToOrderItemDTO(OrderItem orderItem) {
+
+        OrderItemDTO dto = modelMapper.map(orderItem, OrderItemDTO.class);
+
+        // Return the current stock available for this product.
+        dto.setAvailableQuantity(
+                orderItem.getProduct().getStockQuantity()
+        );
+
+        // Indicates whether this order item has been edited.
+       dto.setEdited(orderItem.isEdited());
+
+        return dto;
+        }
    private OrderDTO convertToDTO(Order order) {
 
         OrderDTO dto = modelMapper.map(order, OrderDTO.class);
+
+        dto.setItems(
+        order.getItems().stream()
+                .map(this::convertToOrderItemDTO)
+                .collect(Collectors.toSet())
+        );
 
         //Supplier Details
         if (order.getSupplier() != null &&
@@ -291,7 +311,7 @@ public class OrderServiceImpl implements OrderService {
         }
 
         // Convert the order item to DTO and return
-        return modelMapper.map(updatedItem, OrderItemDTO.class);
+        return convertToOrderItemDTO(updatedItem);
     }
 
     // Fetch all retailer orders
@@ -390,4 +410,146 @@ public class OrderServiceImpl implements OrderService {
         return convertToDTO(order);
     }
 
+        // Saves edited quantities and prices for all order items
+        // before the supplier confirms the order.
+        @Override
+        @Transactional
+        public OrderDTO editOrder(String orderId,
+                                EditOrderRequestDTO request) {
+
+        // Fetch the order
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Order not found with ID: " + orderId
+                        ));
+
+        // Update each edited order item
+        for (EditOrderItemRequestDTO editedItem : request.getItems()) {
+
+                // Fetch the order item
+                OrderItem orderItem = orderItemRepository.findById(editedItem.getItemId())
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Order item not found with ID: " + editedItem.getItemId()
+                                ));
+                                
+                // Validate that the order item belongs to the given order
+                if (!orderItem.getOrder().getId().equals(orderId)) {
+                        throw new InvalidInputException(
+                                "Order item does not belong to the given order."
+                        );
+                }
+
+                // Check if the order item is still editable
+                if (!orderItem.isEditable()) {
+                        throw new InvalidInputException(
+                                "This order item can no longer be edited."
+                        );
+                }
+
+
+                // Update fulfilled quantity
+                if (editedItem.getFulfilledQuantity() != null) {
+                orderItem.setFulfilledQuantity(editedItem.getFulfilledQuantity());
+                }
+
+                // Update unit price
+                if (editedItem.getUnitPrice() != null) {
+                orderItem.setUnitPrice(editedItem.getUnitPrice());
+                }
+
+                // Recalculate total price
+                orderItem.setTotalPrice(
+                        orderItem.getUnitPrice() * orderItem.getFulfilledQuantity()
+                );
+
+                // Mark item as edited
+                orderItem.setEdited(true);
+
+                // Save updated order item
+                orderItemRepository.save(orderItem);
+        }
+
+        // Save updated order
+        // orderRepository.save(order);
+
+        // Return updated order
+        return convertToDTO(order);
+        }
+
+        @Override
+        @Transactional
+        public OrderDTO fulfillOrder(String orderId) {
+
+        // Fetch the order
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Order not found with ID: " + orderId
+                        ));
+
+        // Track whether at least one item was fulfilled
+        boolean hasFulfilledItems = false;
+
+        // Fulfill each order item
+        for (OrderItem orderItem : order.getItems()) {
+
+                // Check if the order item is still editable
+                if (!orderItem.isEditable()) {
+                throw new InvalidInputException(
+                        "This order item is no longer editable."
+                );
+                }
+
+                // Check whether the product is out of stock
+                if (orderItem.getProduct().getStockQuantity() <= 0) {
+
+                orderItem.setStatus(OrderItemStatus.OUT_OF_STOCK);
+                orderItem.setFulfilled(false);
+                orderItem.setBackordered(false);
+                orderItem.setFulfilledQuantity(0);
+                orderItem.setEditable(true);
+
+                orderItemRepository.save(orderItem);
+
+                // Continue with the remaining order items
+                continue;
+                }
+
+                // If supplier didn't edit the quantity,
+                // fulfill the originally requested quantity.
+                if (orderItem.getFulfilledQuantity() == 0) {
+                orderItem.setFulfilledQuantity(
+                        orderItem.getRequestedQuantity()
+                );
+                }
+
+                // Recalculate total price
+                orderItem.setTotalPrice(
+                        orderItem.getUnitPrice() * orderItem.getFulfilledQuantity()
+                );
+
+                // Mark the item as fulfilled
+                orderItem.setStatus(OrderItemStatus.FULFILLED);
+                orderItem.setFulfilled(true);
+                orderItem.setBackordered(false);
+                orderItem.setEditable(false);
+
+                orderItemRepository.save(orderItem);
+
+                hasFulfilledItems = true;
+        }
+
+        // Update the order status only if at least one item was fulfilled
+        if (hasFulfilledItems) {
+                order.setStatus(OrderStatus.PROCESSING);
+        }
+
+        // Save the updated order
+        orderRepository.save(order);
+
+        // Return updated order details
+        return convertToDTO(order);
+        }
 }

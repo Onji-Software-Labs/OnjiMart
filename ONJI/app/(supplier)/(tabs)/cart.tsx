@@ -221,15 +221,12 @@ export default function OrderRequestScreen() {
           return {
             id: String(raw.id || raw.orderId),
             supplierName: raw.retailerName || raw.shopName || 'Retailer',
-            location:
-            raw.shopCity ||
-            raw.city ||
-            raw.shopLocation ||
-            raw.location ||
-            "",
+            location: raw.retailerAddress
+            ? raw.retailerAddress.split(",")[1]?.trim() ?? ""
+            : "",
 
             phone:
-            raw.retailerPhone ||
+            raw.retailerPhoneNumber ||
             raw.contactNumber ||
             raw.phone ||
             raw.mobile ||
@@ -335,15 +332,23 @@ export default function OrderRequestScreen() {
   // ACTION BUTTONS — per tab
   // ─────────────────────────────────────────────────────────────
 
-  const renderActionButtons = (tab: Tab) => {
+    const renderActionButtons = (
+  tab: Tab,
+  item: Order
+) => {
     if (tab === 'new') {
       return (
         <TouchableOpacity
           onPress={() => {
-              console.log("BUTTON PRESSED");
-              router.push("../orderDetails");
-            }
-          }
+            console.log("BUTTON PRESSED");
+
+            router.push({
+              pathname: "/(supplier)/orderDetails",
+              params: {
+                orderId: item.id,
+              },
+            });
+          }}
           style={{
             backgroundColor: '#2F8F2F',
             paddingVertical: 13,
@@ -371,7 +376,12 @@ export default function OrderRequestScreen() {
           <TouchableOpacity
             onPress={() => {
               console.log("ACTIVE BUTTON PRESSED");
-              router.push("../orderDetails");
+              router.push({
+                pathname: "/(supplier)/orderDetails",
+                params: {
+                  orderId: item.id,
+                },
+              });
             }}
             style={{
               flex: 1,
@@ -741,7 +751,7 @@ export default function OrderRequestScreen() {
           </View>
 
           {/* ── ACTION BUTTONS ── */}
-          {renderActionButtons(selectedTab)}
+          {renderActionButtons(selectedTab, item)}
         </View>
       </View>
     );

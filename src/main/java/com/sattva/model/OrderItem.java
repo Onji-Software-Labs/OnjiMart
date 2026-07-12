@@ -54,4 +54,5 @@ public class OrderItem {
     private boolean isEditable = true; // Indicates whether this item can be edited
     private boolean isFulfilled = false; // Indicates whether this item has been fulfilled
     private boolean isBackordered = false; // Indicates whether the item is backordered
+    private boolean isEdited = false; // Indicates whether the supplier has edited this order item
 }

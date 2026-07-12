@@ -3,6 +3,7 @@ package com.sattva.service;
 import java.util.List;
 
 import com.sattva.dto.CreateOrderRequestDTO;
+import com.sattva.dto.EditOrderRequestDTO;
 import com.sattva.dto.OrderDTO;
 import com.sattva.dto.OrderItemDTO;
 import com.sattva.enums.OrderItemStatus;
@@ -31,4 +32,11 @@ public interface OrderService {
 
     // Get retailer order details by order ID
     OrderDTO getOrderById(String orderId);
+
+    // Edit all order items before supplier confirms the order.
+    OrderDTO editOrder(String orderId,EditOrderRequestDTO request);
+
+    //Fullfill the complete order after supplier confirmation.
+    OrderDTO fulfillOrder(String orderId);
+
 }

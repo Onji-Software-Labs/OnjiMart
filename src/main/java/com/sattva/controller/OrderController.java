@@ -3,6 +3,7 @@ package com.sattva.controller;
 import com.sattva.dto.OrderDTO;
 import com.sattva.dto.OrderItemDTO;
 import com.sattva.dto.CreateOrderRequestDTO;
+import com.sattva.dto.EditOrderRequestDTO;
 import com.sattva.enums.OrderItemStatus;
 import com.sattva.enums.OrderStatus;
 import com.sattva.service.OrderService;
@@ -180,6 +181,28 @@ public class OrderController {
         OrderDTO order = orderService.getOrderById(orderId);
 
         return ResponseEntity.ok(order);
+    }
+
+    // Edit all order items before supplier confirms the order.
+    // This API only saves the edited values.
+    @PutMapping("/{orderId}/edit")
+    public ResponseEntity<OrderDTO> editOrder(
+            @PathVariable String orderId,
+            @RequestBody EditOrderRequestDTO request) {
+
+        return ResponseEntity.ok(
+                orderService.editOrder(orderId, request)
+        );
+    }
+
+    // Fulfill the complete order after supplier confirmation.
+    @PutMapping("/{orderId}/fulfill")
+    public ResponseEntity<OrderDTO> fulfillOrder(
+            @PathVariable String orderId) {
+
+        return ResponseEntity.ok(
+                orderService.fulfillOrder(orderId)
+        );
     }
 
 }

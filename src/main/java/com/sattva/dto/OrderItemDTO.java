@@ -32,4 +32,8 @@ public class OrderItemDTO {
     private OrderItemStatus status; // Status of the order item (e.g., NEW, FULFILLED, BACKORDERED, OUT_OF_STOCK)
 
     private boolean editable; // Indicates whether the item can still be edited by the supplier
+
+    private Integer availableQuantity; // Quantity currently available in stock
+
+    private boolean edited; // Indicates whether the supplier has edited this order item.
 }

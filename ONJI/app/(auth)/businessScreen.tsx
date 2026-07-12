@@ -33,13 +33,52 @@ interface formValues {
   radioState: string;
 }
 const indianPhoneRegex = /^[6-9]\d{9}$/;
+const businessNameRegex = /^[A-Za-z][A-Za-z0-9 ]*$/;
+
 const formSchema = Yup.object().shape({
-  businessName: Yup.string().required(),
-  businessAddress: Yup.string().required(),
+  businessName: Yup.string()
+    .trim() .min(3, "Business name must contain at least 3 characters")
+    .matches(
+      businessNameRegex,
+      "Start with alphabet. Only letters and numbers allowed")
+    .required("Business name is required"),
+
+  businessAddress: Yup.string()
+    .trim() .min(3, "Business address must contain at least 3 characters")
+    .matches(
+      businessNameRegex,
+      "Start with alphabet. Only letters and numbers allowed")
+    .required("Business address is required"),
+
   businessPhoneNumber: Yup.string().matches(indianPhoneRegex),
-  city: Yup.string().required(),
+  city: Yup.string().required().trim(),
   pinCode: Yup.string().required().min(6).max(6),
 });
+
+type SearchParamValue = string | string[] | undefined;
+
+const readSearchParam = (value: SearchParamValue) =>
+  Array.isArray(value) ? value[0] ?? '' : value ?? '';
+
+const parseSearchArray = (value: SearchParamValue) => {
+  const rawValue = readSearchParam(value);
+
+  if (!rawValue) {
+    return [] as string[];
+  }
+
+  try {
+    const parsed = JSON.parse(rawValue);
+    return Array.isArray(parsed)
+      ? parsed.filter((item): item is string => typeof item === 'string')
+      : [];
+  } catch {
+    return rawValue
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+};
 // Remove these:
 // const CategoryOptions = ['Vegetable', 'Fruits', 'Premium', 'Seasonal'];
 // const subCategoryOptions = ['Leafy', 'Root', ...]
@@ -48,48 +87,61 @@ const formSchema = Yup.object().shape({
 
 const BusinessScreen = () => {
   const [isCategoryVisible, setIsCategoryVisible] = useState(false);
-  const [selectedItemsCategory, setSelectedItemsCategory] = useState<string[]>([]);
 
   const [isSubCategoryVisible, setIsSubCategoryVisible] = useState(false);
-  const [selectedItemsSubCategory, setSelectedItemsSubCategory] = useState<string[]>([]);
   const [alertBoxVisibility, setalertBoxVisibility] = useState(false);
-  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
-  const [selectedSubCategoryIds, setSelectedSubCategoryIds] = useState<string[]>([]);
   const formRef = useRef<FormikProps<formValues>>(null);
-  // const params = useLocalSearchParams<{
-  //     name: string;
-  //     number: string;
-  //     radioState: string;
-  // }>();
-
-  // const [paramState, setParamState] = useState({
-  //     fullName: params.name ?? "",
-  //     phoneNumber: params.number ?? "",
-  //     radioState: params.radioState ?? "",
-  // });
-
-  // useEffect(() => {
-  //     setParamState({
-  //         fullName: params.name ?? "",
-  //         phoneNumber: params.number ?? "",
-  //         radioState: params.radioState ?? "",
-  //     });
-  // }, [params]);
-
   const params = useLocalSearchParams<{
-    name: string;
-    number: string;
-    radioState: string;
+    name?: SearchParamValue;
+    number?: SearchParamValue;
+    radioState?: SearchParamValue;
+    profileImageUrl?: SearchParamValue;
+    businessName?: SearchParamValue;
+    businessAddress?: SearchParamValue;
+    businessPhoneNumber?: SearchParamValue;
+    city?: SearchParamValue;
+    pinCode?: SearchParamValue;
+    selectedItemsCategory?: SearchParamValue;
+    selectedItemsSubCategory?: SearchParamValue;
+    selectedCategoryIds?: SearchParamValue;
+    selectedSubCategoryIds?: SearchParamValue;
   }>();
 
   // Destructure with default empty strings for safety and stability
-  const { name = '', number = '', radioState = '' } = params;
+  const name = readSearchParam(params.name);
+  const number = readSearchParam(params.number);
+  const radioState = readSearchParam(params.radioState);
 
   const [paramState, setParamState] = useState({
     fullName: name,
     phoneNumber: number,
     radioState: radioState,
   });
+
+  const [businessName] = useState(() => readSearchParam(params.businessName));
+  const [businessAddress] = useState(() => readSearchParam(params.businessAddress));
+  const [businessPhoneNumber] = useState(() => readSearchParam(params.businessPhoneNumber));
+  const [city] = useState(() => readSearchParam(params.city));
+  const [pinCode] = useState(() => readSearchParam(params.pinCode));
+  const [draftValues, setDraftValues] = useState(() => ({
+    businessName: readSearchParam(params.businessName),
+    businessAddress: readSearchParam(params.businessAddress),
+    businessPhoneNumber: readSearchParam(params.businessPhoneNumber),
+    city: readSearchParam(params.city),
+    pinCode: readSearchParam(params.pinCode),
+  }));
+  const [selectedItemsCategory, setSelectedItemsCategory] = useState<string[]>(() =>
+    parseSearchArray(params.selectedItemsCategory)
+  );
+  const [selectedItemsSubCategory, setSelectedItemsSubCategory] = useState<string[]>(() =>
+    parseSearchArray(params.selectedItemsSubCategory)
+  );
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>(() =>
+    parseSearchArray(params.selectedCategoryIds)
+  );
+  const [selectedSubCategoryIds, setSelectedSubCategoryIds] = useState<string[]>(() =>
+    parseSearchArray(params.selectedSubCategoryIds)
+  );
 
   useEffect(() => {
     // Only update if any value is different to prevent infinite loops
@@ -111,20 +163,46 @@ const BusinessScreen = () => {
     });
   }, [name, number, radioState]);
 
+  useEffect(() => {
+    setDraftValues({
+      businessName: readSearchParam(params.businessName),
+      businessAddress: readSearchParam(params.businessAddress),
+      businessPhoneNumber: readSearchParam(params.businessPhoneNumber),
+      city: readSearchParam(params.city),
+      pinCode: readSearchParam(params.pinCode),
+    });
+  }, [params.businessName, params.businessAddress, params.businessPhoneNumber, params.city, params.pinCode]);
+
   const handleSubmit = () => {
     setalertBoxVisibility(!alertBoxVisibility);
   };
+
+  const buildDraftParams = () => {
+    return {
+      name,
+      number,
+      radioState: paramState.radioState,
+      profileImageUrl: readSearchParam(params.profileImageUrl),
+      businessName: draftValues.businessName,
+      businessAddress: draftValues.businessAddress,
+      businessPhoneNumber: draftValues.businessPhoneNumber,
+      city: draftValues.city,
+      pinCode: draftValues.pinCode,
+      selectedItemsCategory: JSON.stringify(selectedItemsCategory),
+      selectedItemsSubCategory: JSON.stringify(selectedItemsSubCategory),
+      selectedCategoryIds: JSON.stringify(selectedCategoryIds),
+      selectedSubCategoryIds: JSON.stringify(selectedSubCategoryIds),
+    };
+  };
+
   const handleEdit = () => {
-    router.back();
-    setalertBoxVisibility(!alertBoxVisibility);
+    router.replace({
+      pathname: '/(auth)/personalProfile',
+      params: buildDraftParams(),
+    });
   };
   const handleApiCall = async () => {
     try {
-      const values = formRef.current?.values;
-
-      if (!values) return;
-      console.log('Form Values:', values);
-
       const retailerId = await secureStorage.getItem('userId');
 
       if (!retailerId) {
@@ -137,22 +215,22 @@ const BusinessScreen = () => {
 
       const Retailer = {
         retailerId: retailerId,
-        name: values.businessName,
-        address: values.businessAddress,
-        city: values.city,
-        pincode: values.pinCode,
-        contactNumber: values.businessPhoneNumber,
+        name: draftValues.businessName,
+        address: draftValues.businessAddress,
+        city: draftValues.city,
+        pincode: draftValues.pinCode,
+        contactNumber: draftValues.businessPhoneNumber,
         userType: paramState.radioState,
         profileImageUrl,
       };
 
       const Supplier = {
         supplierId: retailerId,
-        name: values.businessName,
-        address: values.businessAddress,
-        city: values.city,
-        pincode: values.pinCode,
-        contactNumber: values.businessPhoneNumber,
+        name: draftValues.businessName,
+        address: draftValues.businessAddress,
+        city: draftValues.city,
+        pincode: draftValues.pinCode,
+        contactNumber: draftValues.businessPhoneNumber,
         categoryIds: selectedCategoryIds,       
         subCategoryIds: selectedSubCategoryIds, 
         userType: paramState.radioState,
@@ -271,7 +349,10 @@ const confirmSelectionSubCategory = () => {
         <SafeAreaView>
           <Pressable
             onPress={() => {
-              router.navigate('/(auth)/personalProfile');
+              router.replace({
+                pathname: '/(auth)/personalProfile',
+                params: buildDraftParams(),
+              });
             }}
           >
             <Image source={require('../../assets/images/arrow_back.png')}></Image>
@@ -283,12 +364,12 @@ const confirmSelectionSubCategory = () => {
           </Text>
           <Formik
             initialValues={{
-              businessName: '',
-              businessAddress: '',
-              businessPhoneNumber: '',
-              city: '',
-              pinCode: '',
-              category: selectedItemsCategory ?? '',
+              businessName: draftValues.businessName,
+              businessAddress: draftValues.businessAddress,
+              businessPhoneNumber: draftValues.businessPhoneNumber,
+              city: draftValues.city,
+              pinCode: draftValues.pinCode,
+              category: selectedItemsCategory,
               subCategory: selectedItemsSubCategory,
               fullName: paramState.fullName,
               phoneNumber: paramState.phoneNumber,
@@ -311,29 +392,54 @@ const confirmSelectionSubCategory = () => {
               setFieldTouched,
               setFieldValue,
             }) => {
-              {
-                useEffect(() => {
-                  setFieldValue('category', selectedItemsCategory);
-                }, [selectedItemsCategory]);
-                useEffect(() => {
-                  setFieldValue('subCategory', selectedItemsSubCategory);
-                }, [selectedItemsSubCategory]);
-              }
               return (
                 <View className="flex-1 justify-between">
                   <View className="mt-6">
                     <FormikTextInput
                       name="businessName"
-                      fieldName="Buiness Name"
+                      fieldName="Business Name"
                       placeholder="Business name "
                       keyboardType="default"
+                      value={draftValues.businessName}
+                      onBlur={() => setFieldTouched("businessName", true)}
+                      onChangeText={(text) => {
+                          const sanitized = text.replace(/[^A-Za-z0-9 ]/g, '');
+                          setDraftValues((prev) => ({
+                            ...prev,
+                            businessName: sanitized.trimStart(),
+                          }));
+                          setFieldValue("businessName", sanitized.trimStart());
+                        }}
                     />
+                    {errors.businessName && touched.businessName && (
+                          <Text className="mt-1 text-text-error font-primarymedium text-sm">
+                            {errors.businessName}
+                          </Text>
+                        )}
                     <FormikTextInput
                       name="businessAddress"
-                      fieldName="Buiness Address"
+                      fieldName="Business Address"
                       placeholder="Business address "
                       keyboardType="default"
+                      value={draftValues.businessAddress}
+                      onBlur={handleBlur('businessAddress')}
+                      onChangeText={(text) => {
+                        const sanitized = text.replace(/[^A-Za-z0-9 ]/g, '');
+
+                        setDraftValues((prev) => ({
+                          ...prev,
+                          businessAddress: sanitized.trimStart(),
+                        }));
+
+                        setFieldValue("businessAddress", sanitized.trimStart());
+                      }}
+                      
                     />
+                    {errors.businessAddress && touched.businessAddress && (
+                      <Text className="mt-1 text-text-error font-primarymedium text-sm">
+                        {errors.businessAddress}
+                      </Text>
+                    )}
                     <View className="mt-6">
                       <View className="flex-row">
                         <Text
@@ -363,18 +469,24 @@ const confirmSelectionSubCategory = () => {
                           className="h-[44px] ml-4 w-full font-primary border-none focus:outline-none bg-surface-pressed "
                           placeholderTextColor={'#AAB2B8'}
                           onBlur={handleBlur('businessPhoneNumber')}
-                          value={values.businessPhoneNumber}
+                          value={draftValues.businessPhoneNumber}
                           keyboardType="numeric"
-                          onChangeText={handleChange('businessPhoneNumber')}
+                          onChangeText={(text) => {
+                            const digitsOnly = text.replace(/[^0-9]/g, '');
+                            setDraftValues((prev) => ({
+                              ...prev,
+                              businessPhoneNumber: digitsOnly,
+                            }));
+                            setFieldValue('businessPhoneNumber', digitsOnly);
+                          }}
                           onFocus={() => setFieldTouched('businessPhoneNumber', true)}
                         ></TextInput>
                       </View>
-                      {/* {errors.businessPhoneNumber &&
-                                        touched.businessPhoneNumber && (
-                                            <Text className="text-text-error font-primarymedium">
-                                                Phone number is not valid
-                                            </Text>
-                                        )} */}
+                      {errors.businessPhoneNumber && touched.businessPhoneNumber && (
+                        <Text className="mt-1 text-text-error font-primarymedium text-sm">
+                          Phone number is not valid
+                        </Text>
+                      )}
                     </View>
                     <View className="mt-6 flex-row justify-between">
                       <View
@@ -388,6 +500,12 @@ const confirmSelectionSubCategory = () => {
                           fieldName="City"
                           placeholder="City"
                           keyboardType="default"
+                          value={draftValues.city}
+                          onChangeText={(text) => {
+                            const sanitized = text.replace(/[^a-zA-Z\s]/g, '');
+                            setDraftValues((prev) => ({ ...prev, city: sanitized.trimStart() }));
+                            return sanitized;
+                          }}
                         ></FormikTextInput>
                       </View>
                       <View className="w-[49.5%]">
@@ -412,21 +530,24 @@ const confirmSelectionSubCategory = () => {
                             placeholderTextColor={
                               errors.pinCode && touched.pinCode ? '#F44336' : '#AAB2B8'
                             }
-                            value={values.pinCode}
-                            onChangeText={handleChange('pinCode')}
+                            value={draftValues.pinCode}
+                            onChangeText={(text) => {
+                              const digitsOnly = text.replace(/[^0-9]/g, '');
+                              setDraftValues((prev) => ({ ...prev, pinCode: digitsOnly }));
+                              setFieldValue('pinCode', digitsOnly);
+                            }}
                             onFocus={() => setFieldTouched('pinCode', true)}
                             onBlur={handleBlur('pinCode')}
                             keyboardType="numeric"
                           ></TextInput>
                         </View>
+                        {errors.pinCode && touched.pinCode && (
+                          <Text className="mt-1 text-text-error font-primarymedium text-sm">
+                            Pincode is not valid
+                          </Text>
+                        )}
                       </View>
                     </View>
-                    {((errors.businessPhoneNumber && touched.businessPhoneNumber) ||
-                      (errors.pinCode && touched.pinCode)) && (
-                      <View>
-                        <Text className="text-text-error">Information is not valid</Text>
-                      </View>
-                    )}
                     {(paramState.radioState === 'Supplier')&&(<View className="mt-6">
                       {/* Label */}
                       <Text className="text-sm text-text-success font-primarymedium">
@@ -436,7 +557,7 @@ const confirmSelectionSubCategory = () => {
                       {/* Dropdown Trigger */}
                       <TouchableOpacity
                         onPress={toggleDropdownCategory}
-                        className={`border border-xs rounded-md ${
+                        className={`border-xs rounded-md ${
                           selectedItemsCategory.length > 0
                             ? 'border-border-success'
                             : 'border-border-disabled'
@@ -514,7 +635,7 @@ const confirmSelectionSubCategory = () => {
                       {/* Dropdown Trigger */}
                       <TouchableOpacity
                         onPress={toggleDropdownSubCategory}
-                        className={`border border-xs rounded-md ${
+                        className={`border-xs rounded-md ${
                           selectedItemsSubCategory.length > 0
                             ? 'border-border-success'
                             : 'border-border-disabled'
@@ -529,7 +650,7 @@ const confirmSelectionSubCategory = () => {
                         >
                           {selectedItemsSubCategory.length > 0
                             ? selectedItemsSubCategory.join(', ')
-                            : 'Business Category'}
+                            : 'Business Subcategory'}
                         </Text>
                         <View>
                           <AntDesign name="down" size={15} color="black" />
