@@ -15,6 +15,7 @@ import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.sattva.exception.ConflictException;
 import com.sattva.exception.ResourceNotFoundException;
 import com.sattva.service.RetailerService;
 import com.sattva.service.UserService;
@@ -203,6 +204,12 @@ public class RetailerServiceImpl implements RetailerService {
 
         User user = userRepository.findById(dto.getRetailerId())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        
+        if (supplierRepository.existsById(user.getId())) {
+                throw new ConflictException(
+                        "User is already registered as a supplier and cannot become a retailer."
+                );
+        }
 
         Retailer retailer = retailerRepository.findById(dto.getRetailerId())
                 .orElseGet(() -> retailerRepository.save(
@@ -210,6 +217,12 @@ public class RetailerServiceImpl implements RetailerService {
                                 .user(user)
                                 .build()
                 ));
+
+        if (user.getUserType() != null && user.getUserType() != UserType.RETAILER) {
+        throw new ConflictException("User type cannot be changed.");
+        }
+
+        user.setUserType(UserType.RETAILER);
 
         user.setUserType(UserType.valueOf(dto.getUserType().toUpperCase()));
         user.setUserOnboardingStatus(true);
