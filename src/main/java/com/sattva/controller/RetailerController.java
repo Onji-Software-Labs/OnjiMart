@@ -40,4 +40,14 @@ public class RetailerController {
         return ResponseEntity.ok(filteredSuppliers);
     }
 
+    @GetMapping("/{retailerId}/suppliers/unconnected")
+    public ResponseEntity<PaginatedResponseDTO<SupplierListDTO>> getUnconnectedSuppliers(
+            @PathVariable String retailerId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        PaginatedResponseDTO<SupplierListDTO> suppliers =
+                retailerService.getUnconnectedSuppliersForRetailer(retailerId, page, size);
+        return ResponseEntity.ok(suppliers);
+    }
+
 }

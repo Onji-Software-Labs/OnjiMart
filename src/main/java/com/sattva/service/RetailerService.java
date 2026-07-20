@@ -13,4 +13,5 @@ public interface RetailerService {
     List<RetailerBusinessRequestDTO> getBusinessesByPincode(String pincode);
     RetailerDTO updateBusinessAndCategories(String businessId, RetailerBusinessRequestDTO dto);
     void deleteBusinessAndCategories(String businessId);
+    PaginatedResponseDTO<SupplierListDTO> getUnconnectedSuppliersForRetailer(String retailerId,int page, int size);
 }

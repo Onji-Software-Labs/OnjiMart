@@ -18,7 +18,9 @@ import org.springframework.stereotype.Service;
 import com.sattva.exception.ResourceNotFoundException;
 import com.sattva.service.RetailerService;
 import com.sattva.service.UserService;
-
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 @Service
 public class RetailerServiceImpl implements RetailerService {
 
@@ -334,5 +336,48 @@ public class RetailerServiceImpl implements RetailerService {
                         .map(Category::getId)
                         .collect(Collectors.toList())
         );
+    }
+    @Override
+    public PaginatedResponseDTO<SupplierListDTO> getUnconnectedSuppliersForRetailer(
+            String retailerId, int page, int size) {
+
+        Retailer retailer = retailerRepository.findById(retailerId)
+                .orElseThrow(() -> new ResourceNotFoundException("Retailer not found with id: " + retailerId));
+
+        // ✅ get IDs of suppliers this retailer is already connected with (ACCEPTED)
+        List<Connection> connections =
+                connectionRepository.findByRetailerIdAndStatus(retailerId, ConnectionStatus.ACCEPTED);
+
+        List<String> connectedSupplierIds = connections.stream()
+                .map(Connection::getSupplierId)
+                .collect(Collectors.toList());
+
+        // ✅ get every supplier, then filter out the ones already connected
+        List<Supplier> unconnectedSuppliers = supplierRepository.findAll().stream()
+                .filter(supplier -> !connectedSupplierIds.contains(supplier.getId()))
+                .collect(Collectors.toList());
+
+        // ✅ manual pagination, same as getSuppliersForRetailer
+        int start = page * size;
+        int end = Math.min(start + size, unconnectedSuppliers.size());
+
+        List<Supplier> paginatedSuppliers =
+                (start >= unconnectedSuppliers.size()) ? List.of() : unconnectedSuppliers.subList(start, end);
+
+        PaginatedResponseDTO<SupplierListDTO> response = new PaginatedResponseDTO<>();
+
+        response.setContent(
+                paginatedSuppliers.stream()
+                        .map(this::convertToListDTO)   // ✅ reuse the real existing mapper
+                        .collect(Collectors.toList())
+        );
+
+        response.setPage(page);
+        response.setSize(size);
+        response.setTotalElements(unconnectedSuppliers.size());
+        response.setTotalPages((int) Math.ceil((double) unconnectedSuppliers.size() / size));
+        response.setLast(end >= unconnectedSuppliers.size());
+
+        return response;
     }
 }

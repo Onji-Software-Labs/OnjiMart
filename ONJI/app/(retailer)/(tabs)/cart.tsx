@@ -28,6 +28,11 @@ import { secureStorage } from "@/lib/secureStorage";
 
 import { useFocusEffect } from "@react-navigation/native";
 import { useLocalSearchParams } from "expo-router";
+import { getCartByShopId, ICartDTO } from "@/lib/api/cart";
+
+import { useRouter } from "expo-router";
+
+
 
 // Enable LayoutAnimation on Android
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -46,6 +51,8 @@ interface CartItem {
   unitPrice: number;
   totalPrice: number;
   status: string;
+  imageUri?: string | null;   // ✅ add this
+  unit?: string;              // ✅ useful for checkout too
 }
 
 interface SupplierCart {
@@ -163,7 +170,8 @@ export default function CartScreen() {
   const [activeTab, setActiveTab] = useState<"cart" | "orders">("cart");
   const [orderStatusTab, setOrderStatusTab] = useState<"active" | "delivered">("active");
   const [cartData, setCartData] = useState<SupplierCart[]>([]);
-
+// ─── inside the component ───
+const router = useRouter();
   useEffect(() => {
     if (tab === "orders") {
       setActiveTab("orders");
@@ -186,22 +194,27 @@ const filteredOrders = ordersData.filter(
   const [cartError, setCartError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
-  const fetchCart = useCallback(async () => {
+const fetchCart = useCallback(async () => {
   try {
     setCartLoading(true);
     setCartError(null);
 
     const shopId = await localStorage.getItem("shopId");
-    const supplierId = await localStorage.getItem("supplierId");
-
-    if (!shopId || !supplierId) {
+    if (!shopId) {
       setCartData([]);
       return;
     }
 
-    let itemsRes;
+    // ✅ load cached product data (images, etc.) written by the order screen
+    let cachedProducts: Record<string, any> = {};
     try {
-      itemsRes = await axiosInstance.get(`/api/carts/${shopId}/${supplierId}/items`);
+      const cached = await localStorage.getItem("cachedProducts");
+      if (cached) cachedProducts = JSON.parse(cached);
+    } catch {}
+
+    let cartsResponse: ICartDTO[];
+    try {
+      cartsResponse = await getCartByShopId(shopId);
     } catch (err: any) {
       if (err?.response?.status === 404) {
         setCartData([]);
@@ -210,42 +223,47 @@ const filteredOrders = ordersData.filter(
       throw err;
     }
 
-    const items = Array.isArray(itemsRes.data)
-  ? itemsRes.data.filter(
-      (i: any) => (i.quantity ?? i.requestedQuantity ?? 0) > 0
-    )
-  : [];
+    const validCarts = (cartsResponse ?? []).filter(
+      (cart) => (cart.items?.length ?? 0) > 0
+    );
 
-    if (items.length === 0) {
+    if (validCarts.length === 0) {
       setCartData([]);
       return;
     }
 
-    const cartId = await localStorage.getItem("cartId");
+    const carts: SupplierCart[] = validCarts.map((cart) => {
+      const validItems = (cart.items ?? []).filter((i) => (i.quantity ?? 0) > 0);
+      return {
+        cartId: cart.id,
+        supplierId: cart.shopId,
+        supplierName: "Supplier",
+        ownerName: "",
+        avatarUri: PLACEHOLDER_AVATAR,
+        totalItems: validItems.length,
+        totalQty: validItems.reduce((sum, i) => sum + (i.quantity ?? 0), 0),
+        items: validItems.map((i) => {
+  const cached = cachedProducts[String(i.productId)];
+  const unitPrice = i.price ?? cached?.price ?? 0;
+  const quantity = i.quantity ?? 0;
+            return {
+            id: i.id,
+            productId: i.productId,
+            productName: i.productName,
+            requestedQuantity: i.quantity ?? 0,
+            unitPrice: i.price || cached?.price  || 0,
+            // totalPrice: i.totalPrice ?? 0,
+            status: "",
+            imageUri: cached?.image?.uri ?? null,   // ✅
+            unit: cached?.unit ?? "kg",              // ✅
+            totalPrice: unitPrice * quantity,   // ✅ compute it, don't trust i.totalPrice
 
-    const cart: SupplierCart = {
-      cartId: cartId ?? shopId,
-      supplierId,
-      supplierName: await localStorage.getItem("supplierName") ?? "Supplier",
-      ownerName: "",
-      avatarUri: PLACEHOLDER_AVATAR,
-      totalItems: items.length,
-      totalQty: items.reduce(
-        (sum: number, i: any) => sum + (i.quantity ?? i.requestedQuantity ?? 0),
-        0
-      ),
-      items: items.map((i: any) => ({
-        id: i.id,
-        productId: i.productId,
-        productName: i.productName,
-        requestedQuantity: i.quantity ?? i.requestedQuantity ?? 0,
-        unitPrice: i.price ?? i.unitPrice ?? 0,
-        totalPrice: i.totalPrice ?? 0,
-        status: i.status ?? "",
-      })),
-    };
+          };
+        }),
+      };
+    });
 
-    setCartData([cart]);
+    setCartData(carts);
   } catch (err) {
     setCartError("Failed to load cart. Please try again.");
   } finally {
@@ -364,31 +382,46 @@ const fetchOrders = useCallback(async () => {
   };
 
   // ── REMOVE CART ──
-    const removeSupplier = async (cartId: string) => {
+const removeSupplier = async (cartId: string) => {
   try {
-    await axiosInstance.delete(`/api/carts/${cartId}/remove`);
+    // find this cart's items so we know which productIds to remove
+    const cart = cartData.find((c) => c.cartId === cartId);
+    if (!cart) return;
+
+    // remove every product in this cart, one call per productId
+    await Promise.all(
+      cart.items.map((item) =>
+        axiosInstance.delete(`/api/carts/${cartId}/remove`, {
+          params: { productId: item.productId },
+        })
+      )
+    );
 
     fetchCart();
-
   } catch (err) {
     console.log("Failed to remove cart:", err);
   }
 };
-
-    const handleCheckout = async (cartId: string) => {
-    try {
-      await axiosInstance.post(`/api/orders/submit/${cartId}`);
-
-      setCartData((prev) =>
-        prev.filter((item) => item.cartId !== cartId)
-      );
-
-      fetchCart();
-
-      console.log("Order placed successfully");
-    } catch (err) {
-      console.log("Checkout failed:", err);
-    }
+  const handleCheckout = (item: SupplierCart) => {
+  console.log("[handleCheckout] navigating with:", item.cartId);
+  router.push({
+    pathname: "/(retailer)/checkout",
+    params: {
+      cart: JSON.stringify({
+        supplierId: item.supplierId,
+        supplierName: item.supplierName,
+        cartId: item.cartId,
+        items: item.items.map((it) => ({
+          productId: it.productId,
+          quantity: it.requestedQuantity,
+          name: it.productName,
+          price: it.unitPrice,
+          unit: it.unit ?? "kg",
+          imageUri: it.imageUri ?? null,
+        })),
+      }),
+    },
+  });
   };
 
   // ─────────────────────────────────────────────────────────────
@@ -437,27 +470,36 @@ const fetchOrders = useCallback(async () => {
 
         {/* ITEMS GRID */}
         <View style={{ flexDirection: "row", flexWrap: "wrap", marginBottom: 18 }}>
-          {visibleItems.map((cartItem, index) => (
-            <View key={index} style={{
-              width: 58, height: 58, borderRadius: 14,
-              borderWidth: 1.5, borderColor: "#15803D",
-              alignItems: "center", justifyContent: "center",
-              marginRight: 10, marginBottom: 10, backgroundColor: "#fff",
-            }}>
-              <Text
-                numberOfLines={2}
-                style={{
-                  fontSize: 10,
-                  color: "#15803D",
-                  fontWeight: "600",
-                  textAlign: "center",
-                  paddingHorizontal: 4,
-                }}
-              >
-                {cartItem.productName}
-              </Text>
-            </View>
-          ))}
+  {visibleItems.map((cartItem, index) => (
+  <View key={index} style={{
+    width: 58, height: 58, borderRadius: 14,
+    borderWidth: 1.5, borderColor: "#15803D",
+    alignItems: "center", justifyContent: "center",
+    marginRight: 10, marginBottom: 10, backgroundColor: "#fff",
+    overflow: "hidden",
+  }}>
+    {cartItem.imageUri ? (
+      <Image
+        source={{ uri: cartItem.imageUri }}
+        style={{ width: "100%", height: "100%" }}
+        resizeMode="cover"
+      />
+    ) : (
+      <Text
+        numberOfLines={2}
+        style={{
+          fontSize: 10,
+          color: "#15803D",
+          fontWeight: "600",
+          textAlign: "center",
+          paddingHorizontal: 4,
+        }}
+      >
+        {cartItem.productName}
+      </Text>
+    )}
+  </View>
+))}
           {remaining > 0 && (
             <View
               style={{
@@ -499,7 +541,7 @@ const fetchOrders = useCallback(async () => {
 
           <TouchableOpacity
             activeOpacity={0.8}
-            onPress={() => handleCheckout(item.cartId)}
+            onPress={() => handleCheckout(item)}
             style={{
               backgroundColor: "#2E7D32",
               paddingHorizontal: 22,
