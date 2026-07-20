@@ -1,26 +1,35 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Text, View, TextInput, Pressable, ScrollView, StatusBar, TouchableOpacity, FlatList } from 'react-native';
+import {
+  Text,
+  View,
+  TextInput,
+  Pressable,
+  ScrollView,
+  StatusBar,
+  TouchableOpacity,
+  FlatList,
+  useWindowDimensions,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Feather, MaterialCommunityIcons, FontAwesome5, AntDesign, Ionicons } from '@expo/vector-icons';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { Feather, MaterialCommunityIcons, FontAwesome5, AntDesign } from '@expo/vector-icons';
+import { useFocusEffect } from 'expo-router';
 import FavouriteModal from '../../../components/retailer/FavouriteModal';
 import NewSupplierCard, { INewSupplier } from '../../../components/retailer/NewSupplierCard';
-import { localStorage} from '../../../lib/localStorage';
+import { localStorage } from '../../../lib/localStorage';
 import { ConnectionStatus, getConnectionStatus } from '../../../lib/api/connection';
 import axiosInstance from '../../../lib/api/axiosConfig';
-import { BusinessSupplier } from '../../../lib/api/supplier';
-import { getAllSuppliers, getMySuppliers } from '../../../lib/api/supplier';
+import { BusinessSupplier, getAllSuppliers, getMySuppliers } from '../../../lib/api/supplier';
 import MySupplierCard from '../../../components/retailer/MySupplierCard';
 import { secureStorage } from '@/lib/secureStorage';
+import SegmentedSwitch from '../../../components/ui/SegmentedSwitch';
 import { getUnconnectedSuppliers } from '@/lib/api/supplier';
 
 // Define the BusinessSupplier interface based on backend response
 
-
 // Maps backend ISupplierResponse → INewSupplier used by the card component
 const mapSupplier = (s: BusinessSupplier): INewSupplier => ({
   id: s.supplierId,
-  businessId: s.businessId||'', 
+  businessId: s.businessId || '',
   name: s.name,
   description: s.contactNumber || '',
   location: `${s.city}${s.pincode ? ', ' + s.pincode : ''}`,
@@ -41,6 +50,14 @@ const mapUnconnectedSupplier = (s: any): INewSupplier => ({
 });
 
 export default function Dashboard() {
+  //placeholder for the search query
+  const { width } = useWindowDimensions();
+  const isCompactActionsLayout = width < 355;
+  const searchContainerSpacing = isCompactActionsLayout ? 'mr-1' : 'mr-2';
+  const searchInputRightPadding = isCompactActionsLayout ? 'pr-10' : 'pr-12';
+  const actionButtonsSpacing = isCompactActionsLayout ? 'space-x-1' : 'space-x-3';
+  const searchPlaceholder = 'Search Suppliers';
+
   // Navigation State for the top tabs
   const [activeTab, setActiveTab] = useState<'find' | 'my'>('find');
   //My Suppliers
@@ -56,15 +73,15 @@ export default function Dashboard() {
   const [favouriteIds, setFavouriteIds] = useState<string[]>([]);
 
   useEffect(() => {
-  const loadFavs = async () => {
-    const savedFavs = await localStorage.getItem('favouriteIds');
-    if (savedFavs) {
-      setFavouriteIds(JSON.parse(savedFavs));
-    }
-  };
+    const loadFavs = async () => {
+      const savedFavs = await localStorage.getItem('favouriteIds');
+      if (savedFavs) {
+        setFavouriteIds(JSON.parse(savedFavs));
+      }
+    };
 
-  loadFavs();
-}, []);
+    loadFavs();
+  }, []);
 
   // API data state
   const [suppliers, setSuppliers] = useState<INewSupplier[]>([]);
@@ -213,20 +230,16 @@ const handleTabSwitch = (tab: 'find' | 'my') => {
 };
   // Handlers
   const handleFilterPress = (filterId: string) => {
-    setSelectedFilters(prev =>
-      prev.includes(filterId)
-        ? prev.filter(id => id !== filterId)
-        : [...prev, filterId]
+    setSelectedFilters((prev) =>
+      prev.includes(filterId) ? prev.filter((id) => id !== filterId) : [...prev, filterId],
     );
   };
 
   const handleSearch = (text: string) => setSearchQuery(text);
 
   const handleCategoryToggle = (category: string) => {
-    setSelectedCategories(prev =>
-      prev.includes(category)
-        ? prev.filter(c => c !== category)
-        : [...prev, category]
+    setSelectedCategories((prev) =>
+      prev.includes(category) ? prev.filter((c) => c !== category) : [...prev, category],
     );
   };
 
@@ -241,7 +254,11 @@ const handleTabSwitch = (tab: 'find' | 'my') => {
     setIsFilterModalVisible(false);
   };
 
-  const hasActiveFilters = selectedCategories.length > 0 || creditProvided !== null || selectedFilters.length > 0 || selectedQuantity !== '';
+  const hasActiveFilters =
+    selectedCategories.length > 0 ||
+    creditProvided !== null ||
+    selectedFilters.length > 0 ||
+    selectedQuantity !== '';
 
   const handleConnect = async (id: string) => {
     const current = connectionStatuses[id] ?? 'NONE';
@@ -252,17 +269,17 @@ const handleTabSwitch = (tab: 'find' | 'my') => {
           params: { retailerId, supplierId: id, initiatedBy: 'RETAILER' },
         });
         // ✅ update map immediately so both lists update
-        setConnectionStatuses(prev => ({ ...prev, [id]: 'PENDING' }));
+        setConnectionStatuses((prev) => ({ ...prev, [id]: 'PENDING' }));
       } else if (current === 'PENDING') {
         await axiosInstance.delete('/api/connections/cancel', {
           params: { retailerId, supplierId: id },
         });
-        setConnectionStatuses(prev => ({ ...prev, [id]: 'NONE' }));
+        setConnectionStatuses((prev) => ({ ...prev, [id]: 'NONE' }));
       } else if (current === 'RECEIVED_PENDING') {
         await axiosInstance.post('/api/connections/accept', null, {
           params: { retailerId, supplierId: id },
         });
-        setConnectionStatuses(prev => ({ ...prev, [id]: 'ACCEPTED' }));
+        setConnectionStatuses((prev) => ({ ...prev, [id]: 'ACCEPTED' }));
       }
     } catch (err) {
       console.log('Connection error:', err);
@@ -270,26 +287,27 @@ const handleTabSwitch = (tab: 'find' | 'my') => {
   };
 
   const handleToggleFav = async (id: string) => {
-  const newFavs = favouriteIds.includes(id)
-    ? favouriteIds.filter(fid => fid !== id)
-    : [...favouriteIds, id];
+    const newFavs = favouriteIds.includes(id)
+      ? favouriteIds.filter((fid) => fid !== id)
+      : [...favouriteIds, id];
 
-  setFavouriteIds(newFavs);
-  await localStorage.setItem('favouriteIds', JSON.stringify(newFavs));
-};
+    setFavouriteIds(newFavs);
+    await localStorage.setItem('favouriteIds', JSON.stringify(newFavs));
+  };
 
-  const favouriteSuppliers = suppliers.filter(s => favouriteIds.includes(s.id));
+  const favouriteSuppliers = suppliers.filter((s) => favouriteIds.includes(s.id));
 
   // Decide which list to search based on the active tab
   const activeList = activeTab === 'find' ? suppliers : mySuppliers;
 
   // Filter the chosen list by search query
-  const filteredSuppliers = activeList.filter(s =>
-    s.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    s.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    s.location?.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredSuppliers = activeList.filter(
+    (s) =>
+      s.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      s.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      s.location?.toLowerCase().includes(searchQuery.toLowerCase()),
   );
-  
+
   return (
 <View className="flex-1 bg-white">
   <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
@@ -337,8 +355,8 @@ const handleTabSwitch = (tab: 'find' | 'my') => {
           <View className="flex-row items-center justify-between mb-2">
             <View className="relative flex-1 mr-2">
               <TextInput
-                className="bg-gray-100 h-12 px-4 pr-12 rounded-lg text-gray-700"
-                placeholder="Search 'Random kaka'"
+                className={`bg-gray-100 h-12 px-4 ${searchInputRightPadding} rounded-lg text-gray-700`}
+                placeholder={searchPlaceholder}
                 placeholderTextColor="#9CA3AF"
                 value={searchQuery}
                 onChangeText={handleSearch}
@@ -375,7 +393,7 @@ const handleTabSwitch = (tab: 'find' | 'my') => {
             </View>
           </View>
           <View className="h-px bg-gray-200 mb-4" />
-          
+
           {/* Filter Chips */}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4">
             <View className="flex-row space-x-2">
@@ -392,7 +410,11 @@ const handleTabSwitch = (tab: 'find' | 'my') => {
                   onPress={() => handleFilterPress(chip.id)}
                   className={`px-4 py-2 rounded-full border ${selectedFilters.includes(chip.id) ? 'bg-purple-500 border-purple-500' : 'bg-white border-purple-500'}`}
                 >
-                  <Text className={`${selectedFilters.includes(chip.id) ? 'text-white' : 'text-purple-500'}`}>{chip.label}</Text>
+                  <Text
+                    className={`${selectedFilters.includes(chip.id) ? 'text-white' : 'text-purple-500'}`}
+                  >
+                    {chip.label}
+                  </Text>
                 </Pressable>
               ))}
             </View>
