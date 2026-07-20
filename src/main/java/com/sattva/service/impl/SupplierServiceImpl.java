@@ -6,6 +6,7 @@ import com.sattva.model.*;
 import com.sattva.repository.*;
 import org.springframework.stereotype.Service;
 
+import com.sattva.exception.ConflictException;
 import com.sattva.exception.ResourceNotFoundException;
 import com.sattva.service.SupplierService;
 
@@ -57,6 +58,12 @@ public class SupplierServiceImpl implements SupplierService {
         User user = userRepository.findById(dto.getSupplierId())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
+        if (retailerRepository.existsById(user.getId())) {
+                throw new ConflictException(
+                        "User is already registered as a retailer and cannot become a supplier."
+                );
+        }
+
         // 2. Get or create Supplier
         Supplier supplier = supplierRepository.findById(dto.getSupplierId())
                 .orElseGet(() -> supplierRepository.save(
@@ -64,10 +71,19 @@ public class SupplierServiceImpl implements SupplierService {
                                 .user(user)
                                 .build()
                 ));
+        
+        if (user.getUserType() != null && user.getUserType() != UserType.SUPPLIER) {
+        throw new ConflictException("User type cannot be changed.");
+        }
 
-        // Récupère le userType depuis le DTO
-        user.setUserType(UserType.valueOf(dto.getUserType().toUpperCase()));
-        userRepository.save(user);
+        user.setUserType(UserType.SUPPLIER);
+
+        user.setUserOnboardingStatus(true);
+                userRepository.save(user);
+
+        // Register the user as a supplier if not already done
+        // user.setUserType(UserType.valueOf(dto.getUserType().toUpperCase()));
+        // userRepository.save(user);
         System.out.println("User Type is :" + user.getUserType());
 
         //  ADD HERE (IMPORTANT)
@@ -135,12 +151,12 @@ public class SupplierServiceImpl implements SupplierService {
         //Save supplier (which cascades and saves business too)
         Supplier savedSupplier = supplierRepository.save(supplier);
 
-        // Mettre à jour l'onboarding directement sur l'objet déjà chargé
-        if (!user.isUserOnboardingStatus()) {
-            user.setUserOnboardingStatus(true);
-            userRepository.save(user);
-            System.out.println("-------------------"+ user.isUserOnboardingStatus());
-        }
+        // // Mettre à jour l'onboarding directement sur l'objet déjà chargé
+        // if (!user.isUserOnboardingStatus()) {
+        //     user.setUserOnboardingStatus(true);
+        //     userRepository.save(user);
+        //     System.out.println("-------------------"+ user.isUserOnboardingStatus());
+        // }
 
         // Capture final IDs for response
         Set<String> savedCategoryIds = savedSupplier.getCategories()
