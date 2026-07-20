@@ -16,4 +16,5 @@ public interface SupplierService {
     List<SupplierBusinessRequestDTO> getBusinessesByPincode(String pincode);
 
     List<RetailerDTO> getConnectedRetailers(String supplierId);
+    SupplierDTO addRatingToSupplier(String supplierId, Double rating);
 }

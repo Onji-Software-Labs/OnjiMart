@@ -5,14 +5,18 @@ import {
   useWindowDimensions,
   Platform,
   Alert,
+  Modal,
+  ActivityIndicator,
+  StatusBar as RNStatusBar
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useFocusEffect } from "expo-router";
 import { secureStorage } from '@/lib/secureStorage';
 import axiosInstance from '@/lib/api/axiosConfig';
+import { Shop } from '@/constants/StorageKeys'; // adjust path to your project structure
 
 export default function RetailerHomeScreen() {
   const router = useRouter();
@@ -22,7 +26,34 @@ export default function RetailerHomeScreen() {
   const isWeb = Platform.OS === 'web';
 
   const [notificationCount, setNotificationCount] = useState(0);
+// Add near your other state
+const [shops, setShops] = useState<Shop[]>([]);
+// State — note selectedShop holds a full Shop object, not just a string
+const [isShopModalVisible, setIsShopModalVisible] = useState(false);
+const [selectedShop, setSelectedShop] = useState<Shop | null>(shops[0] ?? null);
 
+// Derive the shop being displayed
+const currentShop = selectedShop ?? shops[0];
+useEffect(() => {
+  const loadShops = async () => {
+    const storedShops = await secureStorage.getItem('shopsList');
+    const storedShopId = await secureStorage.getItem('shopId');
+    if (storedShops) {
+      const parsedShops: Shop[] = JSON.parse(storedShops);
+      setShops(parsedShops);
+      const current = parsedShops.find((s) => s.id === storedShopId) || parsedShops[0];
+      setSelectedShop(current);
+    }
+  };
+  loadShops();
+}, []);
+
+const handleSelectShop = async (shop: Shop) => {
+  setSelectedShop(shop);
+  await secureStorage.setItem('shopId', shop.id);
+  setIsShopModalVisible(false);
+  // Optionally trigger a refetch of dashboard data tied to shopId here
+};
   useFocusEffect(
     useCallback(() => {
       const fetchNotificationCount = async () => {
@@ -81,76 +112,195 @@ export default function RetailerHomeScreen() {
         contentContainerStyle={{ paddingBottom: 100 }} 
       >
 
-        {/* Header */}
-        <View style={[styles.headerWrapper, { paddingTop: insets.top + 8 }]}>
-          <Image
-            source={require("../../../assets/images/topimg.png")}
-            style={styles.topIllustration}
-            resizeMode="contain"
-          />
-          <View style={styles.headerContent}>
-            <View>
-              <View style={styles.storeBadge}>
-                <Text style={styles.storeBadgeText}>Store 1</Text>
-              </View>
-              <View style={styles.storeNameRow}>
-                <Text style={styles.storeName}>Mandavi palace</Text>
-                <Ionicons name="chevron-down" size={16} color="#2E7D32" />
-              </View>
-              <Text style={styles.storeAddress}>udupi, ambagilu 56101</Text>
-            </View>
-            <View style={styles.headerRight}>
-              <TouchableOpacity style={{
-                width: 44,
-                height: 44,
-                borderRadius: 22,
-                backgroundColor: notificationCount > 0 ? '#E8F5E9' : '#F3F4F6',
-                borderWidth: 1.5,
-                borderColor: notificationCount > 0 ? '#2E7D32' : '#D1D5DB',
-                justifyContent: 'center',
-                alignItems: 'center',
-                position: 'relative',
-              }}
-                onPress={() => router.push("/(retailer)/notifications")}
-              > 
-                <Ionicons name="notifications-outline" size={22} color={notificationCount > 0 ? '#2E7D32' : '#9CA3AF'} />
-                {notificationCount > 0 && (
-                  <View style={{
-                    position: 'absolute',
-                    top: -4,
-                    right: -4,
-                    minWidth: 18,
-                    height: 18,
-                    borderRadius: 9,
-                    backgroundColor: '#2E7D32',
-                    borderWidth: 1.5,
-                    borderColor: '#FFFFFF',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    paddingHorizontal: 4,
-                  }}>
-                    <Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '700' }}>{notificationCount}</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: 22,
-                  backgroundColor: '#E8F5E9',
-                  borderWidth: 1.5,
-                  borderColor: '#2E7D32',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                }}
-                onPress={() => router.push("/(retailer)/profile")}
-              >
-                <Ionicons name="person-outline" size={22} color="#2E7D32" />
-              </TouchableOpacity>
-            </View>
+ {/* HEADER */}
+<View
+  style={{
+    paddingHorizontal: horizontalPadding,
+    paddingTop: Platform.OS === 'android'
+      ? (RNStatusBar.currentHeight ?? 24) + 8
+      : isWeb ? 20 : 12,
+    paddingBottom: 8,
+    backgroundColor: '#FFFFFF',
+    zIndex: 10,
+    position: 'relative'
+  }}>
+
+  {/* Decorative Image */}
+  <View
+    pointerEvents="none"
+    style={{
+      position: 'absolute',
+      top: -10,
+      right: 0,
+      width: 180,
+      height: 180,
+      opacity: 0.6,
+      zIndex: 1
+    }}>
+    <Image
+      source={require('../../../assets/images/topimg.png')}
+      style={{ width: '100%', height: '100%', resizeMode: 'contain' }}
+    />
+  </View>
+
+  {/* Shop & Icons */}
+  <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', zIndex: 2 }}>
+<View style={{ flex: 1 }}>
+  <View style={{
+    alignSelf: 'flex-start',
+    backgroundColor: '#E8F5E9',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    marginBottom: 4,
+  }}>
+    <Text style={{ fontSize: 11, fontWeight: '600', color: '#2E7D32' }}>
+      {shops.length === 0 ? 'Store' : (currentShop?.name ?? 'Store 1')}
+
+    </Text>
+  </View>
+
+  <TouchableOpacity
+    onPress={() => shops.length > 0 && setIsShopModalVisible(!isShopModalVisible)}
+    disabled={shops.length === 0}
+    style={{
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 4
+    }}>
+    <Text style={{
+      fontSize: isWeb ? 17 : 17,
+      fontWeight: '700',
+      color: '#1F2937',
+      marginRight: 9
+    }}>
+      {shops.length === 0 ? 'No shop' : (currentShop?.name ?? 'Select a shop')}
+    </Text>
+    {shops.length > 0 && (
+      <Ionicons
+        name={isShopModalVisible ? "chevron-up" : "chevron-down"}
+        size={20}
+        color="#6B7280"
+      />
+    )}
+  </TouchableOpacity>
+
+  {shops.length > 0 && (
+    <Text style={{
+      fontSize: isWeb ? 14 : 13,
+      color: '#6B7280',
+      marginBottom: 2
+    }}>
+      {[currentShop?.city, currentShop?.location, currentShop?.pincode]
+        .filter(Boolean)
+        .join(', ')}
+    </Text>
+  )}
+
+  {/* Shop Dropdown */}
+  {isShopModalVisible && shops.length > 0 && (
+    <View style={{
+      position: 'absolute',
+      top: 60,
+      left: 0,
+      right: 0,
+      backgroundColor: '#FFFFFF',
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: '#E5E7EB',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.1,
+      shadowRadius: 8,
+      elevation: 8,
+      zIndex: 20
+    }}>
+      {shops.map((shop, index) => (
+        <TouchableOpacity
+          key={index}
+          onPress={() => {
+            setSelectedShop(shop);
+            setIsShopModalVisible(false);
+            handleSelectShop(shop);
+          }}
+          style={{
+            padding: 16,
+            borderBottomWidth: index < shops.length - 1 ? 1 : 0,
+            borderBottomColor: '#F3F4F6'
+          }}>
+          <Text style={{
+            fontSize: 16,
+            fontWeight: shop.name === currentShop?.name ? '600' : '400',
+            color: shop.name === currentShop?.name ? '#059669' : '#1F2937'
+          }}>
+            {shop.name}
+          </Text>
+          <Text style={{
+            fontSize: isWeb ? 14 : 13,
+            color: '#6B7280',
+            marginTop: 4
+          }}>
+            {[shop?.city, shop?.location, shop?.pincode].filter(Boolean).join(', ')}
+          </Text>
+        </TouchableOpacity>
+      ))}
+    </View>
+  )}
+</View>
+
+    {/* Icons */}
+    <View style={{ flexDirection: 'row', marginLeft: 12, zIndex: 20, elevation: 10 }}>
+      <TouchableOpacity
+        onPress={() => router.push('/(retailer)/notifications' as any)}
+        style={{
+          width: isWeb ? 44 : 40,
+          height: isWeb ? 44 : 40,
+          borderRadius: isWeb ? 22 : 20,
+          backgroundColor: notificationCount > 0 ? '#E8F5E9' : '#F3F4F6',
+          borderWidth: 1.5,
+          borderColor: notificationCount > 0 ? '#2E7D32' : '#D1D5DB',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginRight: 8,
+        }}>
+        <Ionicons name="notifications-outline" size={isWeb ? 24 : 20} color={notificationCount > 0 ? '#2E7D32' : '#9CA3AF'} />
+        {notificationCount > 0 && (
+          <View style={{
+            position: 'absolute',
+            top: -4,
+            right: -4,
+            minWidth: 18,
+            height: 18,
+            borderRadius: 9,
+            backgroundColor: '#2E7D32',
+            borderWidth: 1.5,
+            borderColor: '#FFFFFF',
+            alignItems: 'center',
+            justifyContent: 'center',
+            paddingHorizontal: 4,
+          }}>
+            <Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '700' }}>{notificationCount}</Text>
           </View>
-        </View>
+        )}
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        onPress={() => router.push('/(retailer)/profile' as any)}
+        style={{
+          width: isWeb ? 44 : 40,
+          height: isWeb ? 44 : 40,
+          borderRadius: isWeb ? 22 : 20,
+          backgroundColor: '#E8F5E9',
+          borderWidth: 1.5,
+          borderColor: '#2E7D32',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}>
+        <Ionicons name="person-outline" size={isWeb ? 24 : 20} color="#2E7D32" />
+      </TouchableOpacity>
+    </View>
+  </View>
+</View>
 
         {/* Search */}
         <View style={styles.searchBarWrapper}>

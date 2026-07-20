@@ -195,4 +195,14 @@ public class OrderController {
         );
     }
 
+    // Fulfill the complete order after supplier confirmation.
+    @PutMapping("/{orderId}/fulfill")
+    public ResponseEntity<OrderDTO> fulfillOrder(
+            @PathVariable String orderId) {
+
+        return ResponseEntity.ok(
+                orderService.fulfillOrder(orderId)
+        );
+    }
+
 }

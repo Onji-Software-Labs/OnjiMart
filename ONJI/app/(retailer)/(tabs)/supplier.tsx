@@ -22,6 +22,7 @@ import { BusinessSupplier, getAllSuppliers, getMySuppliers } from '../../../lib/
 import MySupplierCard from '../../../components/retailer/MySupplierCard';
 import { secureStorage } from '@/lib/secureStorage';
 import SegmentedSwitch from '../../../components/ui/SegmentedSwitch';
+import { getUnconnectedSuppliers } from '@/lib/api/supplier';
 
 // Define the BusinessSupplier interface based on backend response
 
@@ -37,11 +38,11 @@ const mapSupplier = (s: BusinessSupplier): INewSupplier => ({
   credit: false,
 });
 
-const mapMySupplier = (s: any): INewSupplier => ({
-  id: s.userId,
-  businessId: s.userId,
-  name: s.businessName || 'Unknown',
-  description: '',
+const mapUnconnectedSupplier = (s: any): INewSupplier => ({
+  id: s.userId,                          // ✅ matches SupplierListDTO.userId
+  businessId: '',                         // not present in this DTO
+  name: s.fullName || s.businessName || 'Unknown',
+  description: s.businessName || '',
   location: s.city || '',
   rating: s.rating || 0,
   reviews: 0,
@@ -85,62 +86,114 @@ export default function Dashboard() {
   // API data state
   const [suppliers, setSuppliers] = useState<INewSupplier[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
-  const [connectionStatuses, setConnectionStatuses] = useState<Record<string, ConnectionStatus>>(
-    {},
-  );
+  const [connectionStatuses, setConnectionStatuses] = useState<Record<string, ConnectionStatus>>({});
+  const [hasLoadedMySuppliers, setHasLoadedMySuppliers] = useState(false);
 
-  const fetchData = useCallback(async () => {
-    try {
-      setIsLoading(true);
+const fetchUnconnectedSuppliers = useCallback(async () => {
+  try {
+    setIsLoading(true);
+    setFetchError(null);
 
-      // Fetch ALL suppliers for the "Find new suppliers" tab
-      const data: BusinessSupplier[] = await getAllSuppliers();
-      const mapped = data.map(mapSupplier);
+    const retailerId = await secureStorage.getItem('userId');
 
-      // De-duplicate by supplierId — backend sometimes returns the same supplier twice
-      const seen = new Set<string>();
-      const unique = mapped.filter((s) => {
-        if (seen.has(s.id)) return false;
-        seen.add(s.id);
-        return true;
-      });
-      setSuppliers(unique);
-
-      const statusEntries = await Promise.all(
-        unique.map(async (s) => {
-          const status = await getConnectionStatus(s.id);
-          return { id: s.id, status };
-        }),
-      );
-      const statusMap: Record<string, ConnectionStatus> = {};
-      statusEntries.forEach(({ id, status }) => {
-        statusMap[id] = status;
-      });
-      setConnectionStatuses(statusMap);
-
-      // Load the logged-in retailer's suppliers from storage.
-      const retailerId = await secureStorage.getItem('userId');
-      if (retailerId) {
-        const myData = await getMySuppliers(retailerId);
-        setMySuppliers(myData.map(mapMySupplier));
-      } else {
-        console.log('No userId found in local storage.');
-        setMySuppliers([]);
-      }
-    } catch (err: any) {
-      console.error('Failed to fetch suppliers:', err);
-      setMySuppliers([]);
-    } finally {
-      setIsLoading(false);
+    if (!retailerId) {
+      throw new Error("Retailer ID not found");
     }
-  }, []);
 
-  useFocusEffect(
-    useCallback(() => {
-      fetchData();
-    }, [fetchData]),
-  );
+    const data: BusinessSupplier[] = await getUnconnectedSuppliers(retailerId);
+
+    const mapped = data.map(mapUnconnectedSupplier);
+
+    const seen = new Set<string>();
+
+    const unique = mapped.filter(s => {
+      if (seen.has(s.id)) return false;
+      seen.add(s.id);
+      return true;
+    });
+
+    setSuppliers(unique);
+
+    const statusEntries = await Promise.all(
+      unique.map(async (s) => {
+        const status = await getConnectionStatus(s.id);
+        return { id: s.id, status };
+      })
+    );
+
+    const statusMap: Record<string, ConnectionStatus> = {};
+
+    statusEntries.forEach(({ id, status }) => {
+      statusMap[id] = status;
+    });
+
+    setConnectionStatuses(statusMap);
+
+  } catch (err: any) {
+    console.error('Failed to fetch suppliers:', err);
+    setFetchError('Unable to load suppliers. Please try again.');
+  } finally {
+    setIsLoading(false);
+  }
+
+}, []);
+
+
+const fetchMySuppliers = useCallback(async () => {
+  try {
+
+    const retailerId = await secureStorage.getItem('userId');
+
+    if (!retailerId) {
+      throw new Error("Retailer ID not found");
+    }
+
+
+    const myData = await getMySuppliers(retailerId);
+
+    setMySuppliers(
+      myData.map(mapSupplier)
+    );
+
+    setHasLoadedMySuppliers(true);
+
+
+  } catch (err: any) {
+
+    console.error('Failed to fetch my suppliers:', err);
+
+    setMySuppliers([]);
+
+  }
+
+}, []);
+
+useFocusEffect(
+  useCallback(() => {
+
+    if (activeTab === 'find') {
+      // if (suppliers.length === 0) {
+        fetchUnconnectedSuppliers();
+      // }
+    }
+
+
+    if (activeTab === 'my') {
+      // if (!hasLoadedMySuppliers) {
+        fetchMySuppliers();
+      // }
+    }
+
+  }, [
+    activeTab,
+    hasLoadedMySuppliers,
+    suppliers.length,
+    fetchUnconnectedSuppliers,
+    fetchMySuppliers
+  ])
+);
 
   // Filter state
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
@@ -157,13 +210,24 @@ export default function Dashboard() {
     { id: 'vegetable', label: 'Vegetable' },
     { id: 'previously', label: 'Previously' },
   ];
-  const handleTabSwitch = (tab: 'find' | 'my') => {
-    setActiveTab(tab);
-    setSearchQuery('');
-    setSelectedFilters([]);
-    setIsFilterModalVisible(false);
-    setIsSortModalVisible(false);
-  };
+const handleTabSwitch = (tab: 'find' | 'my') => {
+
+  setActiveTab(tab);
+
+  setSearchQuery('');
+
+  setSelectedFilters([]);
+
+  setIsFilterModalVisible(false);
+
+  setIsSortModalVisible(false);
+
+
+  if (tab === 'my' && !hasLoadedMySuppliers) {
+    fetchMySuppliers();
+  }
+
+};
   // Handlers
   const handleFilterPress = (filterId: string) => {
     setSelectedFilters((prev) =>
@@ -245,30 +309,51 @@ export default function Dashboard() {
   );
 
   return (
-    <View className="flex-1 bg-white">
-      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
-      <SafeAreaView className="bg-white">
-        <View className="px-4 pt-2">
-          {/* Tab toggle — shared segmented switch */}
-          <SegmentedSwitch
-            value={activeTab}
-            onChange={(tabValue) => handleTabSwitch(tabValue as 'find' | 'my')}
-            options={[
-              { label: 'Find new suppliers', value: 'find' },
-              { label: 'My Suppliers', value: 'my' },
-            ]}
-            containerStyle={{ marginBottom: 16 }}
-            labelStyle={{ fontSize: 15 }}
-          />
+<View className="flex-1 bg-white">
+  <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+  <SafeAreaView className="bg-white">
+    <View className="px-4 pt-2">
+
+  {/* Tab toggle — same pill style as Cart screen */}
+<View style={{
+  backgroundColor: '#E5E7EB',
+  borderRadius: 16,          // was 20
+  flexDirection: 'row',
+  padding: 3,                 // was 4
+  marginBottom: 12,           // was 16
+}}>
+  <TouchableOpacity
+    onPress={() => handleTabSwitch('find')}
+    style={{
+      flex: 1,
+      backgroundColor: activeTab === 'find' ? '#fff' : 'transparent',
+      paddingVertical: 9,      // was 14
+      borderRadius: 13,        // was 16
+      alignItems: 'center',
+    }}
+  >
+    <Text style={{ color: activeTab === 'find' ? '#15803D' : '#4B5563', fontWeight: '600', fontSize: 13 }}>
+      Find new suppliers
+    </Text>
+  </TouchableOpacity>
+  <TouchableOpacity
+    onPress={() => handleTabSwitch('my')}
+    style={{
+      flex: 1,
+      backgroundColor: activeTab === 'my' ? '#fff' : 'transparent',
+      paddingVertical: 9,      // was 14
+      borderRadius: 13,        // was 16
+      alignItems: 'center',
+    }}
+  >
+    <Text style={{ color: activeTab === 'my' ? '#15803D' : '#4B5563', fontWeight: '600', fontSize: 13 }}>
+      My Suppliers
+    </Text>
+  </TouchableOpacity>
+</View>
           {/* Search & Actions */}
-          <View
-            className={`mb-4 ${isCompactActionsLayout ? '' : 'flex-row items-center justify-between'}`}
-          >
-            <View
-              className={
-                isCompactActionsLayout ? 'relative' : `relative flex-1 ${searchContainerSpacing}`
-              }
-            >
+          <View className="flex-row items-center justify-between mb-2">
+            <View className="relative flex-1 mr-2">
               <TextInput
                 className={`bg-gray-100 h-12 px-4 ${searchInputRightPadding} rounded-lg text-gray-700`}
                 placeholder={searchPlaceholder}
@@ -280,26 +365,16 @@ export default function Dashboard() {
                 <Feather name="search" size={20} color="#9CA3AF" />
               </Pressable>
             </View>
-            <View
-              className={`flex-row items-center ${actionButtonsSpacing} ${isCompactActionsLayout ? 'w-full justify-end mt-2' : ''}`}
-            >
+            <View className="flex-row items-center space-x-2">
               <Pressable
-                className={`items-center p-2 rounded-lg ${isFilterModalVisible || hasActiveFilters ? 'border-2 border-green-500 bg-green-50' : ''}`}
+                className={`items-center p-1.5 rounded-lg ${isFilterModalVisible || hasActiveFilters ? 'border-2 border-green-500 bg-green-50' : ''}`}
                 onPress={() => {
                   setIsFilterModalVisible(true);
                   setIsSortModalVisible(false);
                 }}
               >
-                <Feather
-                  name="filter"
-                  size={20}
-                  color={isFilterModalVisible || hasActiveFilters ? '#10B981' : '#6B7280'}
-                />
-                <Text
-                  className={`text-xs mt-1 ${isFilterModalVisible || hasActiveFilters ? 'text-green-600 font-medium' : 'text-gray-500'}`}
-                >
-                  Filter
-                </Text>
+                <Feather name="filter" size={15} color={isFilterModalVisible || hasActiveFilters ? "#10B981" : "#6B7280"} />
+                <Text className={`text-xs mt-1 ${isFilterModalVisible || hasActiveFilters ? 'text-green-600 font-medium' : 'text-gray-500'}`}>Filter</Text>
               </Pressable>
               <Pressable
                 className={`items-center p-2 rounded-lg ${isSortModalVisible || selectedSort ? 'border-2 border-green-500 bg-green-50' : ''}`}
@@ -308,19 +383,11 @@ export default function Dashboard() {
                   setIsFilterModalVisible(false);
                 }}
               >
-                <MaterialCommunityIcons
-                  name="sort"
-                  size={20}
-                  color={isSortModalVisible || selectedSort ? '#10B981' : '#6B7280'}
-                />
-                <Text
-                  className={`text-xs mt-1 ${isSortModalVisible || selectedSort ? 'text-green-600 font-medium' : 'text-gray-500'}`}
-                >
-                  Sort
-                </Text>
+                <MaterialCommunityIcons name="sort" size={15} color={isSortModalVisible || selectedSort ? "#10B981" : "#6B7280"} />
+                <Text className={`text-xs mt-1 ${isSortModalVisible || selectedSort ? 'text-green-600 font-medium' : 'text-gray-500'}`}>Sort</Text>
               </Pressable>
               <Pressable className="items-center" onPress={() => setIsFavouriteModalVisible(true)}>
-                <FontAwesome5 name="heart" size={18} color="#9CA3AF" />
+                <FontAwesome5 name="heart" size={15} color="#9CA3AF" />
                 <Text className="text-xs text-gray-500 mt-1">Favourite</Text>
               </Pressable>
             </View>
@@ -383,239 +450,156 @@ export default function Dashboard() {
         }}
         contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 120 }}
         showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
-          isLoading ? (
-            <View style={{ alignItems: 'center', paddingTop: 60 }}>
-              <Text style={{ color: '#6B7280', fontSize: 15 }}>Loading…</Text>
-            </View>
-          ) : (
-            <View style={{ alignItems: 'center', paddingTop: 60 }}>
-              <Text style={{ color: '#9CA3AF', fontSize: 16 }}>
-                {activeTab === 'find' ? 'No suppliers found' : 'No connected suppliers yet'}
-              </Text>
-            </View>
-          )
-        }
+ListEmptyComponent={
+  isLoading ? (
+    <View style={{ alignItems: 'center', paddingTop: 60 }}>
+      <Text style={{ color: '#6B7280', fontSize: 15 }}>Loading…</Text>
+    </View>
+  ) : (
+    <View style={{ alignItems: 'center', paddingTop: 60 }}>
+      <Text style={{ color: '#9CA3AF', fontSize: 16 }}>
+        {activeTab === 'find' ? 'No suppliers found' : 'No connected suppliers yet'}
+      </Text>
+    </View>
+  )}
       />
 
-      {/* Filter Modal */}
-      {isFilterModalVisible && !isSortModalVisible && (
-        <View
-          style={{
-            position: 'absolute',
-            top: 120,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'white',
-            borderTopLeftRadius: 24,
-            borderTopRightRadius: 24,
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: -2 },
-            shadowOpacity: 0.1,
-            shadowRadius: 8,
-            elevation: 10,
-            zIndex: 10,
-          }}
-        >
-          <View className="flex-row items-center justify-between px-4 py-4 border-b border-gray-200">
-            <Text className="text-xl font-semibold text-green-600">Filter</Text>
-            <TouchableOpacity onPress={() => setIsFilterModalVisible(false)}>
-              <AntDesign name="close" size={24} color="#6B7280" />
+ {/* Filter Modal */}
+{isFilterModalVisible && !isSortModalVisible && (
+  <View style={{ position: 'absolute', top: 120, left: 0, right: 0, bottom: 0, backgroundColor: 'white', borderTopLeftRadius: 20, borderTopRightRadius: 20, shadowColor: '#000', shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 10, zIndex: 10 }}>
+    <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-200">
+      <Text className="text-base font-semibold text-green-600">Filter</Text>
+      <TouchableOpacity onPress={() => setIsFilterModalVisible(false)}>
+        <AntDesign name="close" size={20} color="#6B7280" />
+      </TouchableOpacity>
+    </View>
+    <ScrollView className="flex-1 px-4 py-4" showsVerticalScrollIndicator={false}>
+      {/* Category Section */}
+      <View className="mb-4">
+        <Text className="text-sm font-medium text-gray-800 mb-2">Category</Text>
+        <View className="flex-row flex-wrap">
+          {categories.map((category) => (
+            <TouchableOpacity
+              key={category}
+              onPress={() => handleCategoryToggle(category)}
+              className={`mr-2 mb-2 px-3 py-1.5 rounded-full border ${selectedCategories.includes(category) ? 'bg-green-500 border-green-500' : 'bg-white border-gray-300'}`}
+            >
+              <Text className={`text-xs ${selectedCategories.includes(category) ? 'text-white' : 'text-gray-600'}`}>{category}</Text>
             </TouchableOpacity>
-          </View>
-          <ScrollView className="flex-1 px-4 py-6" showsVerticalScrollIndicator={false}>
-            {/* Category Section */}
-            <View className="mb-6">
-              <Text className="text-base font-medium text-gray-800 mb-4">Category</Text>
-              <View className="flex-row flex-wrap">
-                {categories.map((category) => (
-                  <TouchableOpacity
-                    key={category}
-                    onPress={() => handleCategoryToggle(category)}
-                    className={`mr-3 mb-3 px-4 py-2 rounded-full border ${selectedCategories.includes(category) ? 'bg-green-500 border-green-500' : 'bg-white border-gray-300'}`}
-                  >
-                    <Text
-                      className={`text-sm ${selectedCategories.includes(category) ? 'text-white' : 'text-gray-600'}`}
-                    >
-                      {category}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-            {/* Credit Provided Section */}
-            <View className="mb-6">
-              <Text className="text-base font-medium text-gray-800 mb-4">Credit Provided</Text>
-              <View className="flex-row">
-                <TouchableOpacity
-                  onPress={() => setCreditProvided('yes')}
-                  className="flex-row items-center mr-8"
-                >
-                  <View
-                    className={`w-4 h-4 border-2 mr-3 ${creditProvided === 'yes' ? 'bg-green-500 border-green-500' : 'border-gray-300'}`}
-                  >
-                    {creditProvided === 'yes' && <AntDesign name="check" size={10} color="white" />}
-                  </View>
-                  <Text className="text-base text-gray-700">Yes</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => setCreditProvided('no')}
-                  className="flex-row items-center"
-                >
-                  <View
-                    className={`w-4 h-4 border-2 mr-3 ${creditProvided === 'no' ? 'bg-green-500 border-green-500' : 'border-gray-300'}`}
-                  >
-                    {creditProvided === 'no' && <AntDesign name="check" size={10} color="white" />}
-                  </View>
-                  <Text className="text-base text-gray-700">No</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-            {/* Distance Section - Location Chips */}
-            <View className="mb-6">
-              <Text className="text-base font-medium text-gray-800 mb-4">Distance</Text>
-              <View className="flex-row flex-wrap">
-                {['Within your city', 'Mangalore', 'kundapur', 'All'].map((location) => (
-                  <TouchableOpacity
-                    key={location}
-                    onPress={() => {
-                      setSelectedFilters((prev) =>
-                        prev.includes(location)
-                          ? prev.filter((l) => l !== location)
-                          : [...prev, location],
-                      );
-                    }}
-                    className={`mr-3 mb-3 px-4 py-2 rounded-full border ${selectedFilters.includes(location) ? 'bg-green-500 border-green-500' : 'bg-white border-gray-300'}`}
-                  >
-                    <Text
-                      className={`text-sm ${selectedFilters.includes(location) ? 'text-white' : 'text-gray-600'}`}
-                    >
-                      {location}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-            {/* Supplier Ratings Section */}
-            <View className="mb-6">
-              <Text className="text-base font-medium text-gray-800 mb-4">Supplier Ratings</Text>
-              <View className="flex-row flex-wrap">
-                {[5, 4, 3, 2, 1].map((rating) => (
-                  <TouchableOpacity
-                    key={rating}
-                    onPress={() => {
-                      setSelectedFilters((prev) =>
-                        prev.includes(`${rating}★`)
-                          ? prev.filter((r) => r !== `${rating}★`)
-                          : [...prev, `${rating}★`],
-                      );
-                    }}
-                    className={`mr-3 mb-3 px-4 py-2 rounded-full border ${selectedFilters.includes(`${rating}★`) ? 'bg-yellow-400 border-yellow-400' : 'bg-white border-gray-300'}`}
-                  >
-                    <Text
-                      className={`text-sm ${selectedFilters.includes(`${rating}★`) ? 'text-white' : 'text-gray-600'}`}
-                    >
-                      {rating} ★
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-            {/* Minimum Quantity Section */}
-            <View className="mb-8">
-              <Text className="text-base font-medium text-gray-800 mb-2">Minimum Quantity</Text>
-              <Text className="text-sm text-gray-500 mb-4">Up to</Text>
-              <View className="flex-row flex-wrap">
-                {quantities.map((quantity) => (
-                  <TouchableOpacity
-                    key={quantity}
-                    onPress={() => setSelectedQuantity(quantity)}
-                    className={`mr-3 mb-3 px-4 py-2 rounded-full border ${selectedQuantity === quantity ? 'bg-green-500 border-green-500' : 'bg-white border-gray-300'}`}
-                  >
-                    <Text
-                      className={`text-sm ${selectedQuantity === quantity ? 'text-white' : 'text-gray-600'}`}
-                    >
-                      {quantity}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-          </ScrollView>
-          {/* Modal Footer */}
-          <View className="px-4 py-4 border-t border-gray-200">
-            <View className="flex-row space-x-4">
-              <TouchableOpacity
-                onPress={resetFilters}
-                className="flex-1 py-3 px-4 border border-green-500 rounded-lg"
-              >
-                <Text className="text-center text-green-500 font-medium text-base">
-                  Reset Filter
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={applyFilters}
-                className="flex-1 py-3 px-4 bg-green-500 rounded-lg"
-              >
-                <Text className="text-center text-white font-medium text-base">Apply</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+          ))}
         </View>
-      )}
+      </View>
 
-      {/* Sort Modal */}
-      {isSortModalVisible && !isFilterModalVisible && (
-        <View
-          style={{
-            position: 'absolute',
-            top: 120,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'white',
-            borderTopLeftRadius: 24,
-            borderTopRightRadius: 24,
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: -2 },
-            shadowOpacity: 0.1,
-            shadowRadius: 8,
-            elevation: 10,
-            zIndex: 10,
-          }}
-        >
-          <View className="flex-row items-center justify-between px-4 py-4 border-b border-gray-200">
-            <Text className="text-xl font-semibold text-green-600">Sort</Text>
-            <TouchableOpacity onPress={() => setIsSortModalVisible(false)}>
-              <AntDesign name="close" size={24} color="#6B7280" />
-            </TouchableOpacity>
-          </View>
-          <View className="px-4 py-6">
-            {['Recommended', 'Newest', 'Credit: High to Low', 'Credit: Low to High'].map(
-              (option) => (
-                <TouchableOpacity
-                  key={option}
-                  onPress={() => {
-                    setSelectedSort(selectedSort === option ? null : option);
-                  }}
-                  className="flex-row items-center justify-between mb-6"
-                >
-                  <Text className="text-lg text-gray-800">{option}</Text>
-                  <View
-                    className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${selectedSort === option ? 'border-green-500' : 'border-gray-300'}`}
-                    style={{ backgroundColor: selectedSort === option ? '#E8F5E8' : 'white' }}
-                  >
-                    {selectedSort === option && (
-                      <View className="w-3 h-3 rounded-full bg-green-500" />
-                    )}
-                  </View>
-                </TouchableOpacity>
-              ),
-            )}
-          </View>
+      {/* Credit Provided Section */}
+      <View className="mb-4">
+        <Text className="text-sm font-medium text-gray-800 mb-2">Credit Provided</Text>
+        <View className="flex-row">
+          <TouchableOpacity onPress={() => setCreditProvided('yes')} className="flex-row items-center mr-6">
+            <View className={`w-3.5 h-3.5 border-2 mr-2 ${creditProvided === 'yes' ? 'bg-green-500 border-green-500' : 'border-gray-300'}`}>{creditProvided === 'yes' && (<AntDesign name="check" size={8} color="white" />)}</View>
+            <Text className="text-sm text-gray-700">Yes</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setCreditProvided('no')} className="flex-row items-center">
+            <View className={`w-3.5 h-3.5 border-2 mr-2 ${creditProvided === 'no' ? 'bg-green-500 border-green-500' : 'border-gray-300'}`}>{creditProvided === 'no' && (<AntDesign name="check" size={8} color="white" />)}</View>
+            <Text className="text-sm text-gray-700">No</Text>
+          </TouchableOpacity>
         </View>
-      )}
+      </View>
+
+      {/* Distance Section - Location Chips */}
+      <View className="mb-4">
+        <Text className="text-sm font-medium text-gray-800 mb-2">Distance</Text>
+        <View className="flex-row flex-wrap">
+          {['Within your city', 'Mangalore', 'kundapur', 'All'].map((location) => (
+            <TouchableOpacity
+              key={location}
+              onPress={() => {
+                setSelectedFilters(prev => prev.includes(location) ? prev.filter(l => l !== location) : [...prev, location]);
+              }}
+              className={`mr-2 mb-2 px-3 py-1.5 rounded-full border ${selectedFilters.includes(location) ? 'bg-green-500 border-green-500' : 'bg-white border-gray-300'}`}
+            >
+              <Text className={`text-xs ${selectedFilters.includes(location) ? 'text-white' : 'text-gray-600'}`}>{location}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
+      {/* Supplier Ratings Section */}
+      <View className="mb-4">
+        <Text className="text-sm font-medium text-gray-800 mb-2">Supplier Ratings</Text>
+        <View className="flex-row flex-wrap">
+          {[5, 4, 3, 2, 1].map((rating) => (
+            <TouchableOpacity
+              key={rating}
+              onPress={() => {
+                setSelectedFilters(prev => prev.includes(`${rating}★`) ? prev.filter(r => r !== `${rating}★`) : [...prev, `${rating}★`]);
+              }}
+              className={`mr-2 mb-2 px-3 py-1.5 rounded-full border ${selectedFilters.includes(`${rating}★`) ? 'bg-yellow-400 border-yellow-400' : 'bg-white border-gray-300'}`}
+            >
+              <Text className={`text-xs ${selectedFilters.includes(`${rating}★`) ? 'text-white' : 'text-gray-600'}`}>{rating} ★</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
+      {/* Minimum Quantity Section */}
+      <View className="mb-6">
+        <Text className="text-sm font-medium text-gray-800 mb-1">Minimum Quantity</Text>
+        <Text className="text-xs text-gray-500 mb-2">Up to</Text>
+        <View className="flex-row flex-wrap">
+          {quantities.map((quantity) => (
+            <TouchableOpacity
+              key={quantity}
+              onPress={() => setSelectedQuantity(quantity)}
+              className={`mr-2 mb-2 px-3 py-1.5 rounded-full border ${selectedQuantity === quantity ? 'bg-green-500 border-green-500' : 'bg-white border-gray-300'}`}
+            >
+              <Text className={`text-xs ${selectedQuantity === quantity ? 'text-white' : 'text-gray-600'}`}>{quantity}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+    </ScrollView>
+
+    {/* Modal Footer */}
+    <View className="px-4 py-3 border-t border-gray-200">
+      <View className="flex-row space-x-3">
+        <TouchableOpacity onPress={resetFilters} className="flex-1 py-2.5 px-4 border border-green-500 rounded-lg">
+          <Text className="text-center text-green-500 font-medium text-sm">Reset Filter</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={applyFilters} className="flex-1 py-2.5 px-4 bg-green-500 rounded-lg">
+          <Text className="text-center text-white font-medium text-sm">Apply</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  </View>
+)}
+
+{/* Sort Modal */}
+{isSortModalVisible && !isFilterModalVisible && (
+  <View style={{ position: 'absolute', top: 120, left: 0, right: 0, bottom: 0, backgroundColor: 'white', borderTopLeftRadius: 20, borderTopRightRadius: 20, shadowColor: '#000', shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 10, zIndex: 10 }}>
+    <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-200">
+      <Text className="text-base font-semibold text-green-600">Sort</Text>
+      <TouchableOpacity onPress={() => setIsSortModalVisible(false)}>
+        <AntDesign name="close" size={20} color="#6B7280" />
+      </TouchableOpacity>
+    </View>
+    <View className="px-4 py-4">
+      {['Recommended', 'Newest', 'Credit: High to Low', 'Credit: Low to High'].map(option => (
+        <TouchableOpacity
+          key={option}
+          onPress={() => {
+            setSelectedSort(selectedSort === option ? null : option);
+          }}
+          className="flex-row items-center justify-between mb-4"
+        >
+          <Text className="text-sm text-gray-800">{option}</Text>
+          <View className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${selectedSort === option ? 'border-green-500' : 'border-gray-300'}`} style={{ backgroundColor: selectedSort === option ? '#E8F5E8' : 'white' }}>
+            {selectedSort === option && (<View className="w-2.5 h-2.5 rounded-full bg-green-500" />)}
+          </View>
+        </TouchableOpacity>
+      ))}
+    </View>
+  </View>
+)}
       {/* Favourite Modal */}
       <FavouriteModal
         visible={isFavouriteModalVisible}

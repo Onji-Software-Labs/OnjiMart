@@ -23,6 +23,11 @@ import * as yup from "yup";
 import "yup-phone";
 const { height, width } = Dimensions.get("window");
 
+type SearchParamValue = string | string[] | undefined;
+
+const readSearchParam = (value: SearchParamValue) =>
+    Array.isArray(value) ? value[0] ?? "" : value ?? "";
+
 interface formValues {
     fullName: string;
     phoneNumber: string;
@@ -36,26 +41,58 @@ const formSchema = yup.object().shape({
 });
 
 const PersonalProfile = () => {
-    const [radioState, setRadioState] = useState("Supplier");
-    const [savedPhone, setSavedPhone] = useState('');
-    const [profileImage, setProfileImage] = useState<string | null>(null);
+    const params = useLocalSearchParams<{
+        name?: SearchParamValue;
+        number?: SearchParamValue;
+        radioState?: SearchParamValue;
+        profileImageUrl?: SearchParamValue;
+        businessName?: SearchParamValue;
+        businessAddress?: SearchParamValue;
+        businessPhoneNumber?: SearchParamValue;
+        city?: SearchParamValue;
+        pinCode?: SearchParamValue;
+        selectedItemsCategory?: SearchParamValue;
+        selectedItemsSubCategory?: SearchParamValue;
+        selectedCategoryIds?: SearchParamValue;
+        selectedSubCategoryIds?: SearchParamValue;
+    }>();
+    const draftName = readSearchParam(params.name);
+    const draftNumber = readSearchParam(params.number);
+    const draftRadioState = readSearchParam(params.radioState) || "Supplier";
+    const draftProfileImageUrl = readSearchParam(params.profileImageUrl);
+
+    const [radioState, setRadioState] = useState(draftRadioState);
+    const [savedPhone, setSavedPhone] = useState(draftNumber);
+    const [profileImage, setProfileImage] = useState<string | null>(
+        draftProfileImageUrl || null
+    );
     const [isUploading, setIsUploading] = useState(false);
+
+    useEffect(() => {
+        setRadioState(draftRadioState);
+        if (draftNumber) {
+            setSavedPhone(draftNumber);
+        }
+        if (draftProfileImageUrl) {
+            setProfileImage(draftProfileImageUrl);
+        }
+    }, [draftNumber, draftProfileImageUrl, draftRadioState]);
 
     // Load saved phone + profile image on mount
     useEffect(() => {
         const loadData = async () => {
             const stored = await AsyncStorage.getItem('phoneNumber');
-            if (stored) {
+            if (stored && !draftNumber) {
                 const digits = stored.startsWith('+91') ? stored.slice(3) : stored;
                 setSavedPhone(digits);
             }
             const savedImage = await AsyncStorage.getItem('profileImage');
-            if (savedImage) {
+            if (savedImage && !draftProfileImageUrl) {
                 setProfileImage(savedImage);
             }
         };
         loadData();
-    }, []);
+    }, [draftNumber, draftProfileImageUrl]);
 
     // Pick image from device gallery and upload to Cloudinary
     const pickImage = async () => {
@@ -101,10 +138,24 @@ const PersonalProfile = () => {
         );
         const name = values.fullName;
         const number = values.phoneNumber;
-        const profileImageUrl = profileImage ?? '';
+        const profileImageUrl = profileImage || readSearchParam(params.profileImageUrl) || '';
         router.push({
-            pathname: "/(auth)/BusinessDetailsScreen",
-            params: { name, number, radioState, profileImageUrl },
+            pathname: "/(auth)/businessScreen",
+            params: {
+                name,
+                number,
+                radioState,
+                profileImageUrl,
+                businessName: readSearchParam(params.businessName),
+                businessAddress: readSearchParam(params.businessAddress),
+                businessPhoneNumber: readSearchParam(params.businessPhoneNumber),
+                city: readSearchParam(params.city),
+                pinCode: readSearchParam(params.pinCode),
+                selectedItemsCategory: readSearchParam(params.selectedItemsCategory),
+                selectedItemsSubCategory: readSearchParam(params.selectedItemsSubCategory),
+                selectedCategoryIds: readSearchParam(params.selectedCategoryIds),
+                selectedSubCategoryIds: readSearchParam(params.selectedSubCategoryIds),
+            },
         });
     };
     return (
@@ -177,8 +228,8 @@ const PersonalProfile = () => {
                             <View className="mt-6 flex-1 ">
                                 <Formik
                                     initialValues={{
-                                        fullName: "",
-                                        phoneNumber: savedPhone,
+                                        fullName: draftName,
+                                        phoneNumber: savedPhone || draftNumber,
                                     }}
                                     enableReinitialize   // picks up savedPhone once it loads
                                     onSubmit={(values) => handleSubmit(values)}

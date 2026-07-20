@@ -93,4 +93,29 @@ public class ShopServiceImpl implements ShopService {
         }
         shopRepository.deleteById(shopId);
     }
+    public List<ShopDTO> getShopsByRetailerId(String retailerId) {
+        List<Shop> shops = shopRepository.findByRetailer_Id(retailerId);
+        return shops.stream()
+                .map(this::toDTO)
+                .toList();
+    }
+
+    public  ShopDTO toDTO(Shop shop) {
+        ShopDTO dto = new ShopDTO();
+        dto.setId(shop.getId());
+        dto.setRetailerId(shop.getRetailer().getId());
+        dto.setName(shop.getName());
+       // dto.setLocation(shop.getLocation());
+        dto.setStreet(shop.getStreet());
+        dto.setCity(shop.getCity());
+        dto.setState(shop.getState());
+        dto.setPincode(shop.getPincode());
+        dto.setCountry(shop.getCountry());
+        dto.setLatitude(shop.getLatitude());
+        dto.setLongitude(shop.getLongitude());
+        dto.setContactNumber(shop.getContactNumber());
+        dto.setOpeningHours(shop.getOpeningHours());
+        dto.setActive(shop.isActive());
+        return dto;
+    }
 }
