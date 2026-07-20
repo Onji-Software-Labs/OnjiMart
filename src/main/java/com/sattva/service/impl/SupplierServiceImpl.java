@@ -379,5 +379,27 @@ public class SupplierServiceImpl implements SupplierService {
             .collect(Collectors.toList());
         }
 
+    // Add rating to a supplier
+    @Override
+    public SupplierDTO addRatingToSupplier(String supplierId, Double rating) {
+        // Fetch the supplier by its ID
+        Supplier supplier = supplierRepository.findById(supplierId)
+                .orElseThrow(() -> new ResourceNotFoundException("Supplier not found with id: " + supplierId));
+
+        //Check if the rating value is not null and in between 1 and 5
+        if (rating == null || rating < 1.0 || rating > 5.0) {
+            throw new IllegalArgumentException("rating must be between 1 and 5");
+        }
+
+        //Set the rating value to the supplier
+        supplier.setRating(rating);
+
+        // Save the updated supplier
+        Supplier savedSupplier = supplierRepository.save(supplier);
+
+        // Map the saved supplier to SupplierDTO and return it
+        return modelMapper.map(savedSupplier, SupplierDTO.class);
+    }
+
 
 }
