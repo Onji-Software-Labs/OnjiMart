@@ -5,24 +5,19 @@ import {
   Text,
   TouchableOpacity,
   ScrollView,
-  Image,
+  StyleSheet,
+  Platform,
+  StatusBar,
+  Image 
 } from "react-native";
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons, Feather } from "@expo/vector-icons";
 import { TextInput } from "react-native";
-import { submitOrder } from "@/lib/api/order"; 
+import { submitOrder } from "@/lib/api/order";
+import axiosInstance from "@/lib/api/axiosConfig";
+import { secureStorage } from "@/lib/secureStorage";
 
-export default function CheckoutScreen() {
-  const router = useRouter();
-  const { cart } = useLocalSearchParams();
-
-  
-  const parsedCart = cart ? JSON.parse(cart as string) : null;
-
-  const [selectedDay, setSelectedDay] = useState("Thu");
-  const [selectedTime, setSelectedTime] = useState("Morning");
-
-  const days = [
+const days = [
   { day: "Sun", date: "Mar 24", available: true },
   { day: "Mon", date: "Mar 25", available: true },
   { day: "Tue", date: "Mar 26", available: true },
@@ -32,432 +27,553 @@ export default function CheckoutScreen() {
   { day: "Sat", date: "Mar 29", available: false },
 ];
 
-const [loading, setLoading] = useState(false);
-
-const [quantities, setQuantities] = useState<{ [key: string]: string }>({});
-
 const timeSlots = [
   { label: "Morning", time: "7 am – 12 pm", available: true },
   { label: "Afternoon", time: "12 pm – 3 pm", available: false },
   { label: "Evening", time: "3 pm – 6 pm", available: true },
 ];
+
+export default function CheckoutScreen() {
+  const router = useRouter();
+const { cart } = useLocalSearchParams();
+const parsedCart = cart ? JSON.parse(cart as string) : null;
+
+// ✅ access cartId like this:
+const cartId = parsedCart?.cartId;
+const supplierId = parsedCart?.supplierId;
+const supplierName = parsedCart?.supplierName;
+// const items = parsedCart?.items;
+
+const [selectedDay, setSelectedDay] = useState("Thu");
+const [selectedTime, setSelectedTime] = useState("Morning0");
+const [loading, setLoading] = useState(false);
+const [quantities, setQuantities] = useState<{ [key: string]: string }>({});
+
+
+
+
+// ─── inside the component ───
+
+const [items, setItems] = useState<any[]>(parsedCart?.items ?? []);
+
+const getAuthHeader = async () => {
+  const tok =
+    (await secureStorage.getItem("jwtToken")) ||
+    (await secureStorage.getItem("token"));
+  return tok ? { Authorization: `Bearer ${tok}` } : {};
+};
+
+// debounce timers per product, same pattern as the order screen
+const debounceRef = React.useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
+const updateQuantity = (productId: string, quantity: number) => {
+  if (debounceRef.current[productId]) clearTimeout(debounceRef.current[productId]);
+
+  debounceRef.current[productId] = setTimeout(async () => {
+    try {
+      const headers = await getAuthHeader();
+      await axiosInstance.put(
+        `/api/carts/${cartId}/update`,
+        null,
+        { params: { productId, quantity }, headers }
+      );
+    } catch (e: any) {
+      console.log("[updateQuantity] error:", e?.message);
+    }
+  }, 800);
+};
+
+const deleteItem = async (productId: string) => {
+  try {
+    const headers = await getAuthHeader();
+    await axiosInstance.delete(`/api/carts/${cartId}/remove`, {
+      params: { productId },
+      headers,
+    });
+    // ✅ remove from local state so it disappears from the screen immediately
+    setItems((prev) => prev.filter((it) => (it.productId ?? it.itemId) !== productId));
+  } catch (e: any) {
+    console.log("[deleteItem] error:", e?.message);
+    alert("Failed to remove item. Try again.");
+  }
+};
+
   if (!parsedCart) return null;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#FFFFFF" }}>
+    <SafeAreaView style={styles.safe}>
       {/* HEADER */}
-      <View style={{ flexDirection: "row", alignItems: "center", padding: 16 }}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={22} color="#16A34A" />
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.push("/(retailer)/(tabs)/cart")} style={styles.backBtn}>
+          <Ionicons name="arrow-back" size={22} color="#2E7D32" />
         </TouchableOpacity>
-        <Text style={{ fontSize: 20, fontWeight: "700", marginLeft: 10, color: "#16A34A" }}>
-          Checkout
-        </Text>
+        <Text style={styles.headerTitle}>Checkout</Text>
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: 16 }}>
-        
+      <ScrollView contentContainerStyle={styles.scroll}>
+
         {/* SUPPLIER */}
-        <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>
-          <View
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: 20,
-              backgroundColor: "#ddd",
-              marginRight: 10,
-            }}
-          />
+        <View style={styles.supplierRow}>
+          <View style={styles.supplierAvatar} />
           <View>
-            <Text style={{ fontWeight: "700" }}>
-              {parsedCart.supplierName}
-            </Text>
-            <Text style={{ fontSize: 12, color: "#666" }}>Aslam</Text>
+            <Text style={styles.supplierName}>{parsedCart.supplierName}</Text>
+            <Text style={styles.supplierSub}>Aslam</Text>
           </View>
         </View>
 
-        {/* SCHEDULE DELIVERY */}
-        <Text style={{ fontWeight: "600", marginBottom: 10 }}>
-          Schedule delivery
-        </Text>
+        {/* ── SCHEDULE DELIVERY ──────────────────────────────── */}
+        <Text style={styles.subtitle}>Schedule delivery</Text>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-  {days.map((item) => (
-    <TouchableOpacity
-      key={item.day}
-      disabled={!item.available}
-      onPress={() => setSelectedDay(item.day)}
-      style={{
-        alignItems: "center",
-        paddingVertical: 10,
-        paddingHorizontal: 14,
-        marginRight: 10,
-        borderRadius: 14,
-        borderWidth: 1,
-        borderColor:
-          selectedDay === item.day ? "#2E7D32" : "#E5E7EB",
-        backgroundColor:
-          selectedDay === item.day ? "#F3F4F6" : "#F3F4F6",
-        opacity: item.available ? 1 : 0.5,
-        minWidth: 70,
-      }}
-    >
-      {/* DOT */}
-      {selectedDay === item.day && (
-        <View
-          style={{
-            width: 6,
-            height: 6,
-            borderRadius: 3,
-            backgroundColor: "#2E7D32",
-            marginBottom: 4,
-          }}
-        />
-      )}
+          {days.map((item) => (
+            <TouchableOpacity
+              key={item.day}
+              disabled={!item.available}
+              onPress={() => setSelectedDay(item.day)}
+              style={[
+                styles.dayBox,
+                selectedDay === item.day && styles.dayBoxActive,
+                !item.available && styles.dayBoxDisabled,
+              ]}
+            >
+              {selectedDay === item.day && (
+                <View style={styles.dotIndicator} />
+              )}
+              <Text
+                style={[
+                  styles.dayText,
+                  selectedDay === item.day && styles.dayTextActive,
+                  !item.available && styles.dayTextDisabled,
+                ]}
+              >
+                {item.day}
+              </Text>
+              <Text
+                style={[
+                  styles.dateText,
+                  selectedDay === item.day && styles.dayTextActive,
+                  !item.available && styles.dayTextDisabled,
+                ]}
+              >
+                {item.date}
+              </Text>
+              {!item.available && (
+                <Text style={styles.unavailableText}>Unavailable</Text>
+              )}
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
 
-      {/* DAY */}
-      <Text
-        style={{
-          fontSize: 12,
-          fontWeight: "600",
-          color: selectedDay === item.day ? "#2E7D32" : "#111",
-        }}
-      >
-        {item.day}
-      </Text>
-
-      {/* DATE */}
-      <Text
-        style={{
-          fontSize: 11,
-          color: selectedDay === item.day ? "#2E7D32" : "#666",
-          marginTop: 2,
-        }}
-      >
-        {item.date}
-      </Text>
-
-      {/* UNAVAILABLE */}
-      {!item.available && (
-        <Text style={{ fontSize: 9, color: "#999", marginTop: 2 }}>
-          Unavailable
-        </Text>
-      )}
-    </TouchableOpacity>
-  ))}
-</ScrollView>
-
-        
-
-<View
-  style={{
-    backgroundColor: "#F3F4F6",
-    padding: 20,
-    borderRadius: 16,
-    marginTop: 12,    
-    marginBottom: 12,
-  }}
->
-    {/* TIME */}
-        <Text style={{ marginTop: 5,marginBottom:10, fontWeight: "600" }}>
+        {/* ── TIME OF DAY ────────────────────────────────────── */}
+        <Text style={[styles.subtitle, { marginTop: 16 }]}>
           Select time of the day
         </Text>
 
-  <View style={{ flexDirection: "row", gap: 8 }}>
-    {timeSlots.map((slot, i) => (
-      <TouchableOpacity
-        key={i}
-        disabled={!slot.available}
-        onPress={() => setSelectedTime(slot.label)}
-        style={{
-          flex: 1,
-          borderWidth: 1,
-          borderRadius: 14,
-          padding: 10,
-          borderColor:
-            selectedTime === slot.label ? "#2E7D32" : "#E5E7EB",
-          backgroundColor:
-            selectedTime === slot.label ? "#ECFDF5" : "#fff",
-          opacity: slot.available ? 1 : 0.5,
-        }}
-      >
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-          
-          {/* RADIO */}
-          <View
-            style={{
-              width: 18,
-              height: 18,
-              borderRadius: 9,
-              borderWidth: 2,
-              borderColor:
-                selectedTime === slot.label ? "#2E7D32" : "#9CA3AF",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            {selectedTime === slot.label && (
-              <View
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: 4,
-                  backgroundColor: "#2E7D32",
-                }}
-              />
-            )}
-          </View>
-
-          {/* TEXT */}
-          <View>
-            <Text
-              style={{
-                fontWeight: "600",
-                color: "#111",
-              }}
-            >
-              {slot.label}
-            </Text>
-
-            <Text
-              style={{
-                fontSize: 12,
-                color: "#6B7280",
-              }}
-            >
-              {slot.time}
-            </Text>
-
-            {!slot.available && (
-              <Text style={{ fontSize: 10, color: "#9CA3AF" }}>
-                Unavailable
-              </Text>
-            )}
-          </View>
-        </View>
-      </TouchableOpacity>
-    ))}
-  </View>
-</View>
-
-        {/* QUANTITY */}
-        <View style={{ marginTop: 20 }}>
-          <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-            <Text style={{ fontWeight: "700" }}>Quantity</Text>
+        <View style={styles.timeRow}>
+          {timeSlots.map((slot, i) => (
             <TouchableOpacity
-  style={{
-    flexDirection: "row",
-    alignItems: "center",
-    borderWidth: 1.5,
-    borderColor: "#3B82F6",
-    borderRadius: 999, // pill shape
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-    gap: 6,
-  }}
->
-  <Text
-    style={{
-      color: "#3B82F6",
-      fontWeight: "600",
-      fontSize: 14,
-    }}
-  >
-    Add items
-  </Text>
-
-  {/* PLUS ICON CIRCLE */}
-  <View
-    style={{
-      width: 18,
-      height: 18,
-      borderRadius: 9,
-      borderWidth: 1.5,
-      borderColor: "#3B82F6",
-      alignItems: "center",
-      justifyContent: "center",
-    }}
-  >
-    <Text style={{ color: "#3B82F6", fontSize: 12, fontWeight: "700" }}>
-      +
-    </Text>
-  </View>
-</TouchableOpacity>
-          </View>
-
-          <Text style={{ fontSize: 12, color: "#666", marginBottom: 10 }}>
-            Minimum total order quantity 300kg*
-          </Text>
-
-          {/* ITEMS */}
-          {parsedCart.items.map((item: any, index: number) => (
-            <View
-              key={`${parsedCart.supplierId}-${item.itemId}-${index}`}
-              style={{
-                backgroundColor: "#fff",
-                padding: 12,
-                borderRadius: 12,
-                marginBottom: 10,
-                borderWidth: 1,
-                borderColor: "#eee",
-              }}
+              key={i}
+              disabled={!slot.available}
+              onPress={() => setSelectedTime(slot.label + i)}
+              style={[
+                styles.timeBox,
+                selectedTime === slot.label + i && styles.timeBoxActive,
+                !slot.available && styles.timeBoxDisabled,
+              ]}
             >
-              <View style={{ flexDirection: "row", alignItems: "center" }}>
-                
-                {/* IMAGE */}
+              <View style={styles.radioRow}>
                 <View
-                  style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 10,
-                    backgroundColor: "#E6F4EA",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    marginRight: 10,
-                  }}
+                  style={[
+                    styles.radioOuter,
+                    selectedTime === slot.label + i && styles.radioOuterActive,
+                  ]}
                 >
-                  <Text>{item.emoji || "🥬"}</Text>
+                  {selectedTime === slot.label + i && (
+                    <View style={styles.radioInner} />
+                  )}
                 </View>
-
-                {/* NAME */}
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontWeight: "600" }}>{item.name}</Text>
-                  <Text style={{ fontSize: 12, color: "#666" }}>₹28/kg</Text>
+                <View>
+                  <Text style={styles.slotLabel}>{slot.label}</Text>
+                  <Text style={styles.slotTime}>{slot.time}</Text>
+                  {!slot.available && (
+                    <Text style={styles.unavailableText}>Unavailable</Text>
+                  )}
                 </View>
-
-                {/* ACTIONS */}
-                {/* RIGHT SIDE (ALL IN ONE ROW) */}
-<View
-  style={{
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-  }}
->
-  {/* CUSTOM KG */}
-  <View style={{ alignItems: "flex-end" }}>
-    <TextInput
-  value={quantities[index] || ""}
-  onChangeText={(text) =>
-    setQuantities((prev) => ({ ...prev, [index]: text }))
-  }
-  placeholder="Custom Kg"
-  keyboardType="numeric"
-  style={{
-    borderBottomWidth: 1,
-    borderBottomColor: "#2E7D32",
-    color: "#2E7D32",
-    minWidth: 60,
-    textAlign: "right",
-    paddingVertical: 2,
-  }}
-/>
-
-    <Text style={{ fontWeight: "700" }}>
-  ₹{(Number(quantities[index] || 0) * 28).toFixed(0)}
-</Text>
-  </View>
-
-  {/* SAVE */}
-  <TouchableOpacity style={{ alignItems: "center" }}>
-    <Feather name="bookmark" size={18} color="#444" />
-    <Text style={{ fontSize: 10, color: "#666" }}>
-      Save
-    </Text>
-  </TouchableOpacity>
-
-  {/* DELETE */}
-  <TouchableOpacity style={{ alignItems: "center" }}>
-    <Feather name="trash-2" size={18} color="#444" />
-    <Text style={{ fontSize: 10, color: "#666" }}>
-      Delete
-    </Text>
-  </TouchableOpacity>
-</View>
               </View>
-
-            </View>
+            </TouchableOpacity>
           ))}
         </View>
+
+        {/* ── QUANTITY ───────────────────────────────────────── */}
+        <View style={styles.divider} />
+
+        <View style={styles.qtyHeader}>
+          <Text style={styles.sectionTitle}>Quantity</Text>
+          <TouchableOpacity style={styles.addItemsBtn}>
+            <Text style={styles.addItemsText}>Add items</Text>
+            <View style={styles.addItemsIcon}>
+              <Text style={styles.addItemsPlus}>+</Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+
+        <Text style={styles.minOrderNote}>
+          Minimum total order quantity 300kg*
+        </Text>
+
+{items.map((item: any, index: number) => {
+  const productId = item.productId ?? item.itemId;
+  const qty = Number(quantities[productId] ?? item.quantity ?? 0);
+  const totalPrice = (qty * (item.price ?? 0)).toFixed(0);
+
+  return (
+    <View
+      key={`${parsedCart.supplierId}-${productId}-${index}`}
+      style={styles.cartItemRow}
+    >
+      {/* IMAGE — same URL-based image for every product, with a clean fallback */}
+      <View style={styles.cartItemImgBox}>
+        {item.imageUri || item.image?.uri ? (
+          <Image
+            source={{ uri: item.imageUri ?? item.image?.uri }}
+            style={styles.cartItemImg}
+          />
+        ) : (
+          <Ionicons name="cube-outline" size={20} color="#fff" />
+        )}
+      </View>
+
+      <View style={styles.cartItemInfo}>
+        <Text style={styles.cartItemName}>{item.name}</Text>
+        <Text style={styles.cartItemPrice}>
+          ₹{item.price ?? 0}/{item.unit ?? "kg"}
+        </Text>
+      </View>
+
+      <View style={styles.customKgBox}>
+        <View style={styles.customKgInputRow}>
+          <TextInput
+            style={styles.customKgInput}
+            value={String(qty)}
+            keyboardType="numeric"
+            selectTextOnFocus
+            onChangeText={(val) => {
+              const n = parseInt(val.replace(/[^0-9]/g, ""), 10);
+              if (isNaN(n) || n < 0) return;
+
+              setQuantities((prev) => ({ ...prev, [productId]: n }));
+
+              if (n === 0) {
+                deleteItem(productId); // qty 0 = remove, same as the order screen
+              } else {
+                updateQuantity(productId, n);
+              }
+            }}
+          />
+          <Text style={styles.customKgText}>{item.unit ?? "kg"}</Text>
+        </View>
+        <Text style={styles.totalPrice}>₹{totalPrice}</Text>
+      </View>
+
+      <TouchableOpacity style={styles.itemAction}>
+        <Feather name="bookmark" size={18} color="#444" />
+        <Text style={styles.itemActionText}>Save</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity style={styles.itemAction} onPress={() => deleteItem(productId)}>
+        <Feather name="trash-2" size={18} color="#444" />
+        <Text style={styles.itemActionText}>Delete</Text>
+      </TouchableOpacity>
+    </View>
+  );
+})}
       </ScrollView>
 
       {/* BOTTOM BAR */}
-      <View
-        style={{
-          padding: 16,
-          backgroundColor: "#fff",
-          borderTopWidth: 1,
-          borderColor: "#eee",
-        }}
-      >
-        <View
-  style={{
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginTop: 10,
-  }}
->
-  {/* LEFT TEXT */}
-  <Text style={{ fontSize: 13, color: "#374151" }}>
-    Deliver to:{" "}
-    <Text style={{ fontWeight: "600", color: "#111" }}>
-      North west, kanye west, ambalpady
-    </Text>
-  </Text>
-
-  {/* RIGHT PILL */}
-  <TouchableOpacity
-    style={{
-      flexDirection: "row",
-      alignItems: "center",
-      borderWidth: 1,
-      borderColor: "#9CA3AF",
-      borderStyle: "dashed", // 🔥 IMPORTANT
-      borderRadius: 20,
-      paddingVertical: 6,
-      paddingHorizontal: 12,
-      gap: 6,
-    }}
-  >
-    <Text style={{ fontWeight: "600", color: "#111" }}>
-      Store 1
-    </Text>
-
-    <Text style={{ color: "#16A34A", fontWeight: "600" }}>
-      Change
-    </Text>
-  </TouchableOpacity>
-</View>
+      <View style={styles.bottomBar}>
+        <View style={styles.deliverRow}>
+          <Text style={styles.deliverText}>
+            Deliver to:{" "}
+            <Text style={styles.deliverBold}>North west, Ambalpady</Text>
+          </Text>
+          <TouchableOpacity style={styles.changeStorePill}>
+            <Text style={styles.changeStoreLabel}>Store 1</Text>
+            <Text style={styles.changeStoreLink}>Change</Text>
+          </TouchableOpacity>
+        </View>
 
         <TouchableOpacity
+          style={styles.placeOrderBtn}
+          disabled={loading}
           onPress={async () => {
-  try {
-    const order = await submitOrder(parsedCart.supplierId);
-
-    // Inside your checkout.tsx button onPress:
+            try {
+              console.log("Placing order with:", cartId, selectedDay, selectedTime);
+              setLoading(true);
+              const order = await submitOrder(cartId, selectedDay, selectedTime);
               console.log("Order success:", order);
-
-              
-              router.replace({ pathname: "/(retailer)/(tabs)/cart", params: { success: "true" } });
-
-  } catch (err) {
-    console.log(err);
-    alert("Order failed. Try again.");
-  }
-}}
-          style={{
-            backgroundColor: "#2E7D32",
-            padding: 16,
-            borderRadius: 12,
-            alignItems: "center",
+              router.replace({
+                pathname: "/(retailer)/(tabs)/cart",
+                params: { success: "true" },
+              });
+            } catch (err) {
+              console.log(err);
+              alert("Order failed. Try again.");
+            } finally {
+              setLoading(false);
+            }
           }}
         >
-          <Text style={{ color: "#fff", fontWeight: "700", fontSize: 16 }}>
-            Place Order Request
+          <Text style={styles.placeOrderText}>
+            {loading ? "Placing…" : "Place Order Request"}
           </Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
 }
+
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
+const styles = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: "#fff" },
+
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 10,
+  },
+  backBtn: {
+    paddingHorizontal: 20,
+    paddingVertical: 5,
+    paddingTop: 5,
+    marginTop: 15,
+  },
+  headerTitle: { fontSize: 20, fontWeight: "700", color: "#2E7D32" },
+
+  scroll: { padding: 16, paddingBottom: 180 },
+
+  supplierRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 20,
+    gap: 10,
+  },
+  supplierAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#ddd",
+  },
+  supplierName: { fontWeight: "700", fontSize: 15, color: "#111" },
+  supplierSub: { fontSize: 12, color: "#666", marginTop: 2 },
+
+  // ── Day picker (identical to OrderSupplierScreen) ──
+  subtitle: { fontSize: 14, fontWeight: "600", color: "#111", marginBottom: 12 },
+  dayBox: {
+    alignItems: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginRight: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#ddd",
+    minWidth: 60,
+  },
+  dayBoxActive: { borderColor: "#2E7D32", backgroundColor: "#2E7D32" },
+  dayBoxDisabled: { opacity: 0.4 },
+  dotIndicator: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#fff",
+    marginBottom: 2,
+  },
+  dayText: { fontSize: 12, color: "#444", fontWeight: "500" },
+  dayTextActive: { color: "#fff" },
+  dayTextDisabled: { color: "#999" },
+  dateText: { fontSize: 11, color: "#666", marginTop: 2 },
+  unavailableText: { fontSize: 9, color: "#999", marginTop: 2 },
+
+  // ── Time slots (identical to OrderSupplierScreen) ──
+  timeRow: { flexDirection: "row", gap: 8, marginBottom: 16 },
+  timeBox: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 10,
+    padding: 10,
+  },
+  timeBoxActive: { borderColor: "#2E7D32" },
+  timeBoxDisabled: { opacity: 0.4 },
+  radioRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  radioOuter: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 2,
+    borderColor: "#ddd",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  radioOuterActive: { borderColor: "#2E7D32" },
+  radioInner: {
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+    backgroundColor: "#2E7D32",
+  },
+  slotLabel: { fontSize: 12, fontWeight: "600", color: "#111" },
+  slotTime: { fontSize: 10, color: "#666" },
+
+  divider: { height: 1, backgroundColor: "#EEE", marginVertical: 16 },
+
+  // ── Items ──
+  qtyHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  sectionTitle: { fontSize: 15, fontWeight: "700", color: "#111" },
+  addItemsBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: "#3B82F6",
+    borderRadius: 999,
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    gap: 6,
+  },
+  addItemsText: { color: "#3B82F6", fontWeight: "600", fontSize: 13 },
+  addItemsIcon: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 1.5,
+    borderColor: "#3B82F6",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  addItemsPlus: { color: "#3B82F6", fontSize: 12, fontWeight: "700" },
+  minOrderNote: { fontSize: 12, color: "#666", marginBottom: 12 },
+
+  itemCard: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#eee",
+    padding: 12,
+    marginBottom: 10,
+  },
+  itemRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  itemImgBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    backgroundColor: "#E6F4EA",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  itemMeta: { flex: 1 },
+  itemName: { fontWeight: "600", fontSize: 13, color: "#111" },
+  itemUnitPrice: { fontSize: 12, color: "#666", marginTop: 2 },
+  itemActions: { flexDirection: "row", alignItems: "center", gap: 12 },
+  customQtyBox: { alignItems: "flex-end" },
+  customQtyInput: {
+    borderBottomWidth: 1.5,
+    borderBottomColor: "#2E7D32",
+    color: "#111",
+    minWidth: 56,
+    textAlign: "right",
+    paddingVertical: 2,
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  customQtyUnit: { fontSize: 10, color: "#888", marginTop: 1 },
+  itemLineTotal: {
+    fontWeight: "700",
+    fontSize: 13,
+    color: "#2E7D32",
+    marginTop: 2,
+  },
+  itemAction: { alignItems: "center", gap: 2 },
+  itemActionText: { fontSize: 10, color: "#444" },
+
+  // ── Bottom bar ──
+  bottomBar: {
+    padding: 16,
+    backgroundColor: "#fff",
+    borderTopWidth: 1,
+    borderColor: "#eee",
+    gap: 12,
+  },
+  deliverRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  deliverText: { fontSize: 13, color: "#374151", flex: 1 },
+  deliverBold: { fontWeight: "600", color: "#111" },
+  changeStorePill: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#9CA3AF",
+    borderStyle: "dashed",
+    borderRadius: 20,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    gap: 6,
+  },
+  changeStoreLabel: { fontWeight: "600", color: "#111", fontSize: 13 },
+  changeStoreLink: { color: "#2E7D32", fontWeight: "600", fontSize: 13 },
+  placeOrderBtn: {
+    backgroundColor: "#2E7D32",
+    padding: 16,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  placeOrderText: { color: "#fff", fontWeight: "700", fontSize: 16 },
+  cartItemRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F0F0F0",
+    gap: 8,
+  },
+  cartItemImgBox: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#2E7D32",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cartItemImg: { width: 36, height: 36, borderRadius: 18 },
+  cartItemInfo: { flex: 1 },
+  cartItemName: { fontSize: 13, fontWeight: "600", color: "#111" },
+  cartItemPrice: { fontSize: 12, color: "#666", marginTop: 2 },
+  customKgBox: {
+    alignItems: "center",
+    // borderBottomWidth: 1,
+    borderBottomColor: "#333",
+    paddingBottom: 4,
+    minWidth: 80,
+  },
+  customKgInputRow: { flexDirection: "row", alignItems: "center" },
+  customKgInput: {
+    borderBottomWidth: 1,
+    fontSize: 12,
+    color: "#333",
+    minWidth: 50,
+    textAlign: "center",
+    padding: 0,
+  },
+  customKgText: { fontSize: 14, color: "#333" },
+  totalPrice: { fontSize: 12, color: "#111", fontWeight: "600", marginTop: 2 },
+
+});

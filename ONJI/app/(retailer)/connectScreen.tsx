@@ -20,7 +20,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { secureStorage } from '@/lib/secureStorage';
 import axiosInstance from "@/lib/api/axiosConfig";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams ,useRouter} from "expo-router";
 
 interface Supplier {
   name: string;
@@ -28,7 +28,7 @@ interface Supplier {
   category: string;
   location: string;
 }
-
+// const router = useRouter();
 const windowWidth = Dimensions.get("window").width;
 
 const ConnectScreen = () => {
@@ -426,8 +426,13 @@ const closeProductModal = () => {
       {/* Back */}
       <TouchableOpacity
         style={{ marginLeft: 10, marginTop: 10, marginBottom: 10 }}
-        onPress={() => router.back()}
-      >
+onPress={() => {
+  if (router.canGoBack()) {
+    router.back();
+  } else {
+    router.replace("/(retailer)/(tabs)/supplier");
+  }
+}} >
         <Image source={require("../../assets/images/arrow_back.png")} />
       </TouchableOpacity>
 
@@ -462,8 +467,8 @@ const closeProductModal = () => {
                 <Text style={styles.companyName}>{supplier?.name}</Text>
 
                 <View style={styles.rating}>
-                  <FontAwesome name="star" size={14} color="#0F9D58" />
-                  <Text style={{ color: "#0F9D58", marginLeft: 4 }}>
+                  <FontAwesome name="star" size={14} color="#2E7D32" />
+                  <Text style={{ color: "#2E7D32", marginLeft: 4 }}>
                     4.5 (6)
                   </Text>
                 </View>
@@ -548,17 +553,17 @@ const closeProductModal = () => {
                     ]}
                   >
                     <Text style={styles.connectText}>Accept</Text>
-                    <Entypo name="check" size={20} color="#0F9D58" />
+                    <Entypo name="check" size={20} color="#2E7D32" />
                   </Animated.View>
                 ) : (
                   <Animated.View
                     style={[
                       styles.connectButton,
-                      { borderColor: "#0F9D58", backgroundColor: "#EAF5EA", transform: [{ scale: connectScale }] },
+                      { borderColor: "#2E7D32", backgroundColor: "#EAF5EA", transform: [{ scale: connectScale }] },
                     ]}
                   >
                     <Text style={styles.connectText}>Order</Text>
-                    <Feather name="arrow-right" size={16} color="#0F9D58" />
+                    <Feather name="arrow-right" size={16} color="#2E7D32" />
                   </Animated.View>
                 )}
               </TouchableOpacity>
@@ -801,7 +806,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     bottom: 0,
     right: 0,
-    backgroundColor: "#22C55E",
+    backgroundColor: "#2E7D32",
     borderRadius: 10,
     padding: 4,
   },
@@ -839,16 +844,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   connectButton: {
-    borderWidth: 0.5,
-    borderColor: "#0F9D58",
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    borderWidth: 0.2,
+    borderColor: "#2E7D32",
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     flexDirection: "row",
     alignItems: "center",
   },
   connectText: {
-    color: "#0F9D58",
+    color: "#2E7D32",
     marginRight: 6,
   },
   cancelText: {

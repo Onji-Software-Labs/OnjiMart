@@ -32,7 +32,35 @@ export interface ICartDTO {
  *
  * JWT token is injected automatically by the axiosInstance interceptor.
  */
+// cart.ts
+export interface ICartItemDTO {
+  id: string;
+  productId: string;
+  productName: string;
+  price: number;
+  quantity: number;
+  totalPrice: number;
+}
+
+export interface ICartDTO {
+  id: string;
+  shopId: string;
+  items: ICartItemDTO[];
+}
+
 export const getCartByShopId = async (shopId: string): Promise<ICartDTO[]> => {
   const response = await axiosInstance.get<ICartDTO[]>(`/api/carts/${shopId}`);
+  return response.data;
+};
+
+
+
+export const getCartItemsBySupplier = async (
+  shopId: string,
+  supplierId: string
+): Promise<ICartItemDTO[]> => {
+  const response = await axiosInstance.get<ICartItemDTO[]>(
+    `/api/carts/${shopId}/${supplierId}/items`
+  );
   return response.data;
 };

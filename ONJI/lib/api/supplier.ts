@@ -56,3 +56,11 @@ export const getMySuppliers = async (retailerId: string) => {
     throw error;
   }
 };
+
+export const getUnconnectedSuppliers = async (retailerId: string) => {
+  const response = await axiosInstance.get(
+    `/retailers/${retailerId}/suppliers/unconnected`
+  );
+
+  return response.data.content;
+};

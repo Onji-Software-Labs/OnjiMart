@@ -169,10 +169,11 @@ public class CartServiceImpl implements CartService {
         return cart.getItems()
                 .stream()
                 .map(this::convertToCartItemDTO)
+                .peek(dto -> dto.setCartId(cart.getId()))  // ← on injecte le cartId sur chaque item
                 .collect(Collectors.toList());
     }
 
-        private CartDTO convertToCartDTO(Cart cart) {
+    private CartDTO convertToCartDTO(Cart cart) {
             CartDTO dto = modelMapper.map(cart, CartDTO.class);
 
             if (cart.getItems() != null && !cart.getItems().isEmpty()) {

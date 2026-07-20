@@ -16,4 +16,13 @@ public interface SupplierRepository extends JpaRepository<Supplier, String> {
     Page<Supplier> findAll(Pageable pageable);
     List<Supplier> findDistinctByCategories_IdIn(List<String> categoryIds);
     List<Supplier> findByIdIn(List<String> ids);
+    @Query("""
+        SELECT s FROM Supplier s
+        WHERE s.id NOT IN (
+            SELECT c.supplierId FROM Connection c
+            WHERE c.retailerId = :retailerId
+        )
+    """)
+    Page<Supplier> findUnconnectedSuppliers(@Param("retailerId") String retailerId, Pageable pageable);
+
 }
