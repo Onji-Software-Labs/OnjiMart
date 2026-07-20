@@ -67,4 +67,19 @@ public class SupplierController {
 
         return ResponseEntity.ok(retailers);
     }
+
+    // Endpoint to add rating to a supplier
+    @PostMapping("/{supplierId}/rating/{rating}")
+    public ResponseEntity<SupplierDTO> addRatingToSupplier(
+            @PathVariable String supplierId,
+            @PathVariable Double rating) {
+
+        // Calling the service method to add rating to the supplier
+        SupplierDTO updatedSupplier = supplierService.addRatingToSupplier(
+                supplierId, rating);
+
+        // Return the updated supplier as a response
+        return ResponseEntity.ok(updatedSupplier);
+    }
+
 }
