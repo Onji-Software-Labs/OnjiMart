@@ -40,6 +40,7 @@ interface Props {
 }
 
 const NewSupplierCard: React.FC<Props> = ({ supplier, connectionStatus, isFavourite, onConnect, onToggleFavourite }) => {  
+  if (!supplier) return null;   // ✅ bail out safely if supplier is missing
 
 console.log("Supplier ID:", supplier.id, "Name:", supplier.name);
 
@@ -125,7 +126,7 @@ const handlePress = () => {
   <Animated.View style={{ transform: [{ scale: heartScale }, { rotate: rotateHeart }] }}>
     <Ionicons
       name={isFavourite ? 'heart' : 'heart-outline'}
-      size={22}
+      size={20}
       color={isFavourite ? '#EF4444' : '#9CA3AF'}
     />
   </Animated.View>
@@ -174,7 +175,7 @@ const handlePress = () => {
     styles.connectButtonWrapper,
     {
       borderColor:
-        connectionStatus === 'PENDING' ? '#D1D5DB' : '#34D399',
+        connectionStatus === 'PENDING' ? '#D1D5DB' : '#2E7D32',
     },
   ]}
 >
@@ -195,12 +196,12 @@ const handlePress = () => {
     </Text>
 
     {connectionStatus === 'PENDING' ? (
-      <AntDesign name="close" size={14} color="#6B7280" />
+      <AntDesign name="close" size={14} color="#72797D" />
     ) : connectionStatus === 'RECEIVED_PENDING' ? (
-      <AntDesign name="check" size={14} color="#34D399" />
+      <AntDesign name="check" size={14} color="#2E7D32" />
     ) : connectionStatus === 'ACCEPTED' ? (
-      <AntDesign name="arrow-right" size={16} color="#34D399" />    ) : (
-      <MaterialCommunityIcons name="account-plus" size={18} color="#34D399" />
+      <AntDesign name="arrow-right" size={14} color="#2E7D32" />    ) : (
+      <MaterialCommunityIcons name="account-plus" size={18} color="#2E7D32" />
     )}
   </Animated.View>
 </TouchableOpacity>
@@ -242,9 +243,11 @@ const styles = StyleSheet.create({
     resizeMode: 'cover',
   },
   infoContainer: {
-    flex: 1,
-    paddingRight: 30,
-  },
+    flex:1,
+    marginLeft:10,
+    paddingRight:110,
+},
+
   name: {
     fontSize: 16,
     fontWeight: '700',
@@ -259,7 +262,9 @@ const styles = StyleSheet.create({
   location: {
     fontSize: 12,
     color: '#9CA3AF',
-    marginBottom: 6,
+    marginTop: 1,
+    marginBottom: 4,
+    flexShrink: 1,
   },
   ratingRow: {
     flexDirection: 'row',
@@ -297,22 +302,22 @@ const styles = StyleSheet.create({
   connectButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#34D399',
+  paddingHorizontal: 10,
+  paddingVertical: 6,
+    borderRadius: 6,
+    borderWidth: 0.2,
+    borderColor: '#2E7D32',
     columnGap: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 3,
+    // shadowColor: '#000',
+    // shadowOffset: { width: 0, height: 1 },
+    // shadowOpacity: 0.08,
+    // shadowRadius: 3,
     elevation: 2,
   },
   connectButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#34D399',
+    color: '#2E7D32',
   },
   cancelButton: {
     position: 'absolute',
@@ -320,18 +325,18 @@ const styles = StyleSheet.create({
     right: 12,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+    borderWidth: 0.2,
+    borderColor: '#72797D',
     backgroundColor: 'white',
     columnGap: 6,
   },
   cancelButtonText: {
     fontSize: 14,
-    fontWeight: '500',
-    color: '#6B7280',
+    fontWeight: '600',
+    color: '#72797D',
   },
 });
 

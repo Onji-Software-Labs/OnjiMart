@@ -214,9 +214,31 @@ export default function OrderRequestScreen() {
             time = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
           } catch { date = raw.orderDate || ''; }
 
-          const totalPrice = raw.items?.reduce(
-            (sum: number, item: any) => sum + (item.totalPrice ?? 0), 0
-          ) ?? 0;
+          const subtotal =
+          raw.subtotal ??
+          raw.items?.reduce(
+            (sum: number, item: any) =>
+              sum + item.requestedQuantity * item.unitPrice,
+            0
+          ) ??
+          0;
+
+        const tax = subtotal * 0.05;
+
+        const grandTotal =
+        raw.grandTotal ??
+        subtotal + subtotal * 0.05;
+
+        const totalQty = raw.items?.reduce(
+        (sum: number, item: any) =>
+          sum +
+          (
+            item.edited
+              ? item.fulfilledQuantity
+              : item.requestedQuantity
+          ),
+        0
+      ) ?? 0;
 
           return {
             id: String(raw.id || raw.orderId),
@@ -238,8 +260,8 @@ export default function OrderRequestScreen() {
             deliveryTime: raw.deliveryTime || 'N/A',
             paymentType: raw.paymentType || 'N/A',
             totalShipmentItems: `${raw.items?.length ?? 0} Items`,
-            totalQty: `${raw.items?.reduce((s: number, i: any) => s + (i.requestedQuantity ?? 0), 0) ?? 0} Kg`,
-            total: `₹${totalPrice.toLocaleString()}`,
+            totalQty: `${totalQty} Kg`,
+            total: `₹${grandTotal.toLocaleString()}`,
             status: raw.status === 'DELIVERED' ? 'Delivered' : 'Approved',
             isNewBuyer: raw.isNewBuyer ?? false,
             expanded: defaultExpanded,
@@ -292,6 +314,12 @@ export default function OrderRequestScreen() {
     useEffect(() => {
   fetchOrders();
 }, [selectedTab]);
+
+  useFocusEffect(
+  useCallback(() => {
+    fetchOrders();
+  }, [fetchOrders])
+);
 
     
 

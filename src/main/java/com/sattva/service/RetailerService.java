@@ -3,9 +3,13 @@ package com.sattva.service;
 import java.util.List;
 
 import com.sattva.dto.*;
+import com.sattva.model.Supplier;
 
 public interface RetailerService {
     PaginatedResponseDTO<SupplierListDTO> getSuppliersForRetailer(String retailerId,int page, int size);
+
+    SupplierListDTO convertToListDTO(Supplier supplier);
+
     List<SupplierDTO> filterSuppliers(String retailerId, SupplierFilterRequest request);
     RetailerDTO createBusinessAndAssignCategories(RetailerBusinessRequestDTO dto);
     RetailerBusinessRequestDTO getBusinessDetails(String businessId);
@@ -13,4 +17,5 @@ public interface RetailerService {
     List<RetailerBusinessRequestDTO> getBusinessesByPincode(String pincode);
     RetailerDTO updateBusinessAndCategories(String businessId, RetailerBusinessRequestDTO dto);
     void deleteBusinessAndCategories(String businessId);
+    PaginatedResponseDTO<SupplierListDTO> getUnconnectedSuppliersForRetailer(String retailerId,int page, int size);
 }

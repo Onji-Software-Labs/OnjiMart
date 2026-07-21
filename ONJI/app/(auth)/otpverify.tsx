@@ -18,6 +18,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import axios from 'axios';
 
 const { width, height } = Dimensions.get('window');
 
@@ -117,13 +118,7 @@ export default function OTPVerification() {
     setErrorMessage('');
 
     const payload = {
-      userNames: 'UserName',
-      fullName: 'Full Name',
       phoneNumber: normalizedPhoneNumber,
-      email: 'example@email.com',
-      userType: 'USER',
-      //userOnboardingStatus: true,
-      supplier: false,
     };
 
     console.log('Sending OTP payload:', payload);
@@ -302,8 +297,32 @@ export default function OTPVerification() {
           if (userType === 'SUPPLIER') {
             router.replace('/(supplier)/(tabs)/dashboard');
           } else if (userType === 'RETAILER') {
-            router.replace('/(retailer)/(tabs)/home');
-          } else {
+  // ── ADDED: Fetch and store shop list for this retailer ──
+  try {
+    const retailerId = storedUserId;
+    const shopResponse = await axiosInstance.get(`/api/shops/RetailerShop/${retailerId}`);
+    const shops = shopResponse.data; // now an array of ShopDTO
+
+    if (shops && shops.length > 0) {
+      await secureStorage.setItem('shopsList', JSON.stringify(shops));
+      await secureStorage.setItem('shopId', shops[0].id); // default to first shop
+      console.log('✅ shops saved, default shopId:', shops[0].id);
+    } else {
+      console.warn('⚠️ No shops found for retailer:', retailerId);
+    }
+  } catch (shopError) {
+  if (axios.isAxiosError(shopError)) {
+    console.error('Failed to fetch shops for retailer:', shopError.response?.data || shopError.message);
+  } else if (shopError instanceof Error) {
+    console.error('Failed to fetch shops for retailer:', shopError.message);
+  } else {
+    console.error('Failed to fetch shops for retailer:', shopError);
+  }
+}
+  // ── END ADDED ──
+
+  router.replace('/(retailer)/(tabs)/home');
+} else {
             router.replace('/(auth)/personalProfile');
           }
         } else {

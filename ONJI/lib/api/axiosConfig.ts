@@ -7,7 +7,7 @@ const PUBLIC_ROUTES = [
 ];
 
 const axiosInstance = axios.create({
-  baseURL: 'http://35.207.221.19:5000',
+  baseURL: 'http://34.0.227.135:5000',
   timeout: 15000, // ⛔ important for detecting hangs
   headers: {
     'Content-Type': 'application/json',

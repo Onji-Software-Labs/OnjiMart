@@ -7,6 +7,7 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
 import com.sattva.enums.UserType;
+import com.sattva.exception.ConflictException;
 import com.sattva.repository.RefreshTokenRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -29,7 +30,6 @@ import com.sattva.security.JwtHelper;
 import com.sattva.service.RefreshTokenService;
 import com.sattva.service.SmsService;
 import com.sattva.service.UserService;
-
 import javax.imageio.spi.IIORegistry;
 import javax.management.Query;
 
@@ -74,6 +74,15 @@ public class AuthController {
 
         if (existUser) {
             User existingUser = existing.get();
+
+            if (userDto.getUserType() != null &&
+                existingUser.getUserType() != null &&
+                UserType.valueOf(userDto.getUserType().toUpperCase()) != existingUser.getUserType()) {
+
+                throw new ConflictException(
+                    "An account already exists with this phone number."
+                );
+            }
             userId = existingUser.getId();
             fullName = existingUser.getFullName();
             userOnboardingStatus = existingUser.isUserOnboardingStatus();

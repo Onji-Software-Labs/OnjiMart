@@ -48,6 +48,7 @@ public class ShopController {
     @PostMapping("/create")
     public ResponseEntity<ShopDTO> createShop(@RequestBody ShopDTO shopDTO) {
         ShopDTO createdShop = shopService.createShop(shopDTO);
+        System.out.println("_______________ Shop created "+ shopDTO);
         return new ResponseEntity<>(createdShop, HttpStatus.CREATED);
     }
 
@@ -61,5 +62,10 @@ public class ShopController {
     public ResponseEntity<Void> deleteShop(@PathVariable String shopId) {
         shopService.deleteShop(shopId);
         return ResponseEntity.noContent().build();
+    }
+    @GetMapping("RetailerShop/{retailerId}")
+    public ResponseEntity<List<ShopDTO>> getShopsByRetailerId(@PathVariable String retailerId) {
+        List<ShopDTO> retailerShops = shopService.getShopsByRetailerId(retailerId);
+        return ResponseEntity.ok(retailerShops);
     }
 }

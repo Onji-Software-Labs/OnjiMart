@@ -34,9 +34,9 @@ const MySupplierCard = ({
         onPress={() => onToggleFavourite(supplier.id)}
       >
         {isFavourite ? (
-          <AntDesign name="heart" size={22} color="#EF4444" />
+          <AntDesign name="heart" size={20} color="#EF4444" />
         ) : (
-          <Ionicons name="heart-outline" size={22} color="#9CA3AF" />
+          <Ionicons name="heart-outline" size={20} color="#9CA3AF" />
         )}
       </TouchableOpacity>
 
@@ -70,11 +70,11 @@ const MySupplierCard = ({
         </Text>
 
         <View style={styles.ratingRow}>
-          <AntDesign name="star" size={13} color="#10B981" />
-          <Text style={styles.ratingText}> 4.5</Text>
-          <Text style={styles.reviewCount}> (6)</Text>
+          <AntDesign name="star" size={10} color="#10B981" />
+          <Text style={styles.ratingText}> 4.5 (6)</Text>
+          {/* <Text style={styles.reviewCount}> (6)</Text> */}
           <View style={styles.creditBadge}>
-            <Text>🥔 🍏</Text>
+            {/* <Text>🥔 🍏</Text> */}
           </View>
         </View>
 
@@ -108,7 +108,7 @@ const MySupplierCard = ({
           <AntDesign
             name="arrow-right"
             size={16}
-            color="#34D399"
+            color="#2E7D32"
           />
         </Pressable>
       </View>
@@ -162,19 +162,19 @@ const styles = StyleSheet.create({
 
   infoContainer: {
     flex:1,
-    marginLeft:12,
+    marginLeft:10,
     paddingRight:110,
 },
 
   name: {
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '800',
     color: '#1F2937',
     flexShrink: 1,
   },
 
   description: {
-    fontSize: 12,
+    fontSize: 13,
     color: '#4B5563',
     marginTop: 1,
     flexShrink: 1,
@@ -198,25 +198,26 @@ const styles = StyleSheet.create({
   },
 
   ratingText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#047857',
+    fontSize: 9,
+    fontWeight: '100',
+    color: '#2E7D32',
   },
 
   reviewCount: {
-    fontSize: 12,
+    fontSize: 9,
     color: '#6B7280',
   },
 
   bottomInfo: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginTop: 9,
   },
 
   daysAgo: {
-    fontSize: 10,
+    fontSize: 9,
     color: '#9CA3AF',
-    marginLeft: 4,
+    marginLeft: 6,
   },
 
   actionContainer: {
@@ -233,9 +234,9 @@ const styles = StyleSheet.create({
   },
 
 connectButtonWrapper: {
-  borderRadius: 10,
-  borderWidth: 1.5,
-  borderColor: '#34D399',
+  borderRadius: 6,
+  borderWidth: 0.2,
+  borderColor: '#2E7D32',
   overflow: 'hidden',
 },
 
@@ -243,16 +244,17 @@ connectButton: {
   flexDirection: 'row',
   alignItems: 'center',
   justifyContent: 'center',
-  paddingHorizontal: 14,
-  paddingVertical: 8,
-  columnGap: 6,
+  paddingHorizontal: 10,
+  paddingVertical: 6,
+  columnGap: 3,
+  backgroundColor: '#E2F6E3'
 },
 
 connectButtonText: {
   fontSize: 14,
   fontWeight: '600',
-  color: '#34D399',
-},
+  color: '#2E7D32',
+}
 
 
 });

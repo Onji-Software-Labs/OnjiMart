@@ -7,6 +7,8 @@ interface viewProps {
   placeholder: string;
   keyboardType: "numeric" | "default";
   fieldName: string;
+  value?: string;
+  onBlur?: (e: any) => void;
   onChangeText?: (text: string) => void;
 }
 
@@ -15,6 +17,8 @@ const FormikTextInput = ({
   placeholder,
   fieldName,
   keyboardType,
+  value,
+  onBlur,
   onChangeText,
 }: viewProps) => {
   const [field, meta, helpers] = useField(name);
@@ -32,8 +36,12 @@ const FormikTextInput = ({
           className="h-[44px] font-primary focus:outline-none bg-surface-pressed  border-xs rounded-md px-[12] py-[11px]"
           placeholderTextColor={"#AAB2B8"}
           style={{borderColor: meta.error ? "#AAB2B8" : "#4CAF50" }}
-          value={field.value}
-          onChangeText={onChangeText ?? helpers.setValue}
+          value={value ?? field.value}
+          onChangeText={(text) => {
+            const nextValue = onChangeText ? onChangeText(text) : text;
+            helpers.setValue(nextValue ?? text);
+          }}
+          onBlur={onBlur ?? field.onBlur(name)}
           keyboardType={keyboardType}
         ></TextInput>
 

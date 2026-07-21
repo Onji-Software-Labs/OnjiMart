@@ -6,6 +6,7 @@ import com.sattva.model.*;
 import com.sattva.repository.*;
 import org.springframework.stereotype.Service;
 
+import com.sattva.exception.ConflictException;
 import com.sattva.exception.ResourceNotFoundException;
 import com.sattva.service.SupplierService;
 
@@ -57,6 +58,12 @@ public class SupplierServiceImpl implements SupplierService {
         User user = userRepository.findById(dto.getSupplierId())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
+        if (retailerRepository.existsById(user.getId())) {
+                throw new ConflictException(
+                        "User is already registered as a retailer and cannot become a supplier."
+                );
+        }
+
         // 2. Get or create Supplier
         Supplier supplier = supplierRepository.findById(dto.getSupplierId())
                 .orElseGet(() -> supplierRepository.save(
@@ -64,10 +71,19 @@ public class SupplierServiceImpl implements SupplierService {
                                 .user(user)
                                 .build()
                 ));
+        
+        if (user.getUserType() != null && user.getUserType() != UserType.SUPPLIER) {
+        throw new ConflictException("User type cannot be changed.");
+        }
 
-        // Récupère le userType depuis le DTO
-        user.setUserType(UserType.valueOf(dto.getUserType().toUpperCase()));
-        userRepository.save(user);
+        user.setUserType(UserType.SUPPLIER);
+
+        user.setUserOnboardingStatus(true);
+                userRepository.save(user);
+
+        // Register the user as a supplier if not already done
+        // user.setUserType(UserType.valueOf(dto.getUserType().toUpperCase()));
+        // userRepository.save(user);
         System.out.println("User Type is :" + user.getUserType());
 
         //  ADD HERE (IMPORTANT)
@@ -135,12 +151,12 @@ public class SupplierServiceImpl implements SupplierService {
         //Save supplier (which cascades and saves business too)
         Supplier savedSupplier = supplierRepository.save(supplier);
 
-        // Mettre à jour l'onboarding directement sur l'objet déjà chargé
-        if (!user.isUserOnboardingStatus()) {
-            user.setUserOnboardingStatus(true);
-            userRepository.save(user);
-            System.out.println("-------------------"+ user.isUserOnboardingStatus());
-        }
+        // // Mettre à jour l'onboarding directement sur l'objet déjà chargé
+        // if (!user.isUserOnboardingStatus()) {
+        //     user.setUserOnboardingStatus(true);
+        //     userRepository.save(user);
+        //     System.out.println("-------------------"+ user.isUserOnboardingStatus());
+        // }
 
         // Capture final IDs for response
         Set<String> savedCategoryIds = savedSupplier.getCategories()
@@ -378,6 +394,28 @@ public class SupplierServiceImpl implements SupplierService {
             .map(this::convertToRetailerDTO)
             .collect(Collectors.toList());
         }
+
+    // Add rating to a supplier
+    @Override
+    public SupplierDTO addRatingToSupplier(String supplierId, Double rating) {
+        // Fetch the supplier by its ID
+        Supplier supplier = supplierRepository.findById(supplierId)
+                .orElseThrow(() -> new ResourceNotFoundException("Supplier not found with id: " + supplierId));
+
+        //Check if the rating value is not null and in between 1 and 5
+        if (rating == null || rating < 1.0 || rating > 5.0) {
+            throw new IllegalArgumentException("rating must be between 1 and 5");
+        }
+
+        //Set the rating value to the supplier
+        supplier.setRating(rating);
+
+        // Save the updated supplier
+        Supplier savedSupplier = supplierRepository.save(supplier);
+
+        // Map the saved supplier to SupplierDTO and return it
+        return modelMapper.map(savedSupplier, SupplierDTO.class);
+    }
 
 
 }

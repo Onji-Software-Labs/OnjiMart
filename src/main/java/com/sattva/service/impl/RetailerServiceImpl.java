@@ -15,6 +15,7 @@ import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.sattva.exception.ConflictException;
 import com.sattva.exception.ResourceNotFoundException;
 import com.sattva.service.RetailerService;
 import com.sattva.service.UserService;
@@ -86,25 +87,26 @@ public class RetailerServiceImpl implements RetailerService {
         return response;
     }
 
-    private SupplierListDTO convertToListDTO(Supplier supplier) {
-        String businessNames = supplier.getBusinesses().stream()
-                .map(SupplierBusiness::getName)
-                .collect(Collectors.joining(", "));
-
-        String cities = supplier.getBusinesses().stream()
-                .map(SupplierBusiness::getCity)
-                .filter(city -> city != null && !city.isEmpty())
-                .distinct()
-                .collect(Collectors.joining(", "));
+    @Override
+    public SupplierListDTO convertToListDTO(Supplier supplier) {
+        // On prend la première business active du supplier, s'il en a une
+        SupplierBusiness business = supplier.getBusinesses().stream()
+                .filter(SupplierBusiness::isActive)
+                .findFirst()
+                .orElse(null);
 
         return new SupplierListDTO(
                 supplier.getId(),
-                supplier.getUser().getFullName(),
-                businessNames,
-                cities,
+                business != null ? business.getName() : "",
+                business != null ? business.getAddress() : "",
+                business != null ? business.getCity() : "",
+                business != null ? business.getPincode() : "",
+                business != null ? business.getContactNumber() : "",
+                business != null ? business.getProfilePicture() : "",
                 supplier.getRating()
         );
     }
+
 
     @Override
     public List<SupplierDTO> filterSuppliers(String retailerId, SupplierFilterRequest request) {
@@ -203,6 +205,12 @@ public class RetailerServiceImpl implements RetailerService {
 
         User user = userRepository.findById(dto.getRetailerId())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        
+        if (supplierRepository.existsById(user.getId())) {
+                throw new ConflictException(
+                        "User is already registered as a supplier and cannot become a retailer."
+                );
+        }
 
         Retailer retailer = retailerRepository.findById(dto.getRetailerId())
                 .orElseGet(() -> retailerRepository.save(
@@ -210,6 +218,12 @@ public class RetailerServiceImpl implements RetailerService {
                                 .user(user)
                                 .build()
                 ));
+
+        if (user.getUserType() != null && user.getUserType() != UserType.RETAILER) {
+        throw new ConflictException("User type cannot be changed.");
+        }
+
+        user.setUserType(UserType.RETAILER);
 
         user.setUserType(UserType.valueOf(dto.getUserType().toUpperCase()));
         user.setUserOnboardingStatus(true);
@@ -334,5 +348,48 @@ public class RetailerServiceImpl implements RetailerService {
                         .map(Category::getId)
                         .collect(Collectors.toList())
         );
+    }
+    @Override
+    public PaginatedResponseDTO<SupplierListDTO> getUnconnectedSuppliersForRetailer(
+            String retailerId, int page, int size) {
+
+        Retailer retailer = retailerRepository.findById(retailerId)
+                .orElseThrow(() -> new ResourceNotFoundException("Retailer not found with id: " + retailerId));
+
+        // ✅ get IDs of suppliers this retailer is already connected with (ACCEPTED)
+        List<Connection> connections =
+                connectionRepository.findByRetailerIdAndStatus(retailerId, ConnectionStatus.ACCEPTED);
+
+        List<String> connectedSupplierIds = connections.stream()
+                .map(Connection::getSupplierId)
+                .collect(Collectors.toList());
+
+        // ✅ get every supplier, then filter out the ones already connected
+        List<Supplier> unconnectedSuppliers = supplierRepository.findAll().stream()
+                .filter(supplier -> !connectedSupplierIds.contains(supplier.getId()))
+                .collect(Collectors.toList());
+
+        // ✅ manual pagination, same as getSuppliersForRetailer
+        int start = page * size;
+        int end = Math.min(start + size, unconnectedSuppliers.size());
+
+        List<Supplier> paginatedSuppliers =
+                (start >= unconnectedSuppliers.size()) ? List.of() : unconnectedSuppliers.subList(start, end);
+
+        PaginatedResponseDTO<SupplierListDTO> response = new PaginatedResponseDTO<>();
+
+        response.setContent(
+                paginatedSuppliers.stream()
+                        .map(this::convertToListDTO)   // ✅ reuse the real existing mapper
+                        .collect(Collectors.toList())
+        );
+
+        response.setPage(page);
+        response.setSize(size);
+        response.setTotalElements(unconnectedSuppliers.size());
+        response.setTotalPages((int) Math.ceil((double) unconnectedSuppliers.size() / size));
+        response.setLast(end >= unconnectedSuppliers.size());
+
+        return response;
     }
 }

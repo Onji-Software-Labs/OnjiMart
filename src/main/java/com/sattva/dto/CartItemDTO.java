@@ -1,12 +1,12 @@
 package com.sattva.dto;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
+@Getter
+@Setter
 public class CartItemDTO {
 
     private String id;           // Cart Item ID
@@ -17,5 +17,6 @@ public class CartItemDTO {
     // NEW FIELDS FOR CART SCREEN
     private double price;  //Price of single unit of the product
     private double totalPrice; //Total price for this cart item price* quantity
+    private String cartId; // ← nouveau champ
 
 }

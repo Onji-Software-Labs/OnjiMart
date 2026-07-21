@@ -5,6 +5,7 @@ import com.sattva.dto.UserDTO;
 import com.sattva.enums.RoleName;
 import com.sattva.enums.UserStatus;
 import com.sattva.enums.UserType;
+import com.sattva.exception.ConflictException;
 import com.sattva.exception.InvalidInputException;
 import com.sattva.exception.ResourceNotFoundException;
 import com.sattva.model.RefreshToken;
@@ -103,10 +104,19 @@ public class UserServiceImpl implements UserService {
             user.setPhoneNumber(userDTO.getPhoneNumber());
         }
         user.setPassword(userDTO.getPassword());
-        user.setUserType(userDTO.getUserType());
+        // user.setUserType(userDTO.getUserType());
         user.setStatus(userDTO.getStatus());
         user.setUserOnboardingStatus(userDTO.isOnboardingStatus());
         user.setFullName(userDTO.getFullName());
+        if (userDTO.getUserType() != null &&
+                user.getUserType() != null &&
+                userDTO.getUserType() != user.getUserType()) {
+                throw new ConflictException("User type cannot be changed.");
+            }
+
+            if (user.getUserType() == null) {
+                user.setUserType(userDTO.getUserType());
+            }
 
         if (userDTO.getRoles() != null && !userDTO.getRoles().isEmpty()) {
             Set<Role> updatedRoles = new HashSet<>();
@@ -126,21 +136,21 @@ public class UserServiceImpl implements UserService {
         // Save updated user
         User updatedUser = userRepository.save(user);
 
-        if (userDTO.getUserType() == UserType.SUPPLIER) {
-            if (!supplierRepository.existsById(userId)) {
-                Supplier supplier = new Supplier();
-                supplier.setUser(user);  // set the actual user object
-                supplierRepository.save(supplier);
-            }
-            retailerRepository.deleteById(userId);
-        } else if (userDTO.getUserType() == UserType.RETAILER) {
-            if (!retailerRepository.existsById(userId)) {
-                Retailer retailer = new Retailer();
-                retailer.setUser(user);  // set the actual user object
-                retailerRepository.save(retailer);
-            }
-            supplierRepository.deleteById(userId);
-        }
+        // if (userDTO.getUserType() == UserType.SUPPLIER) {
+        //     if (!supplierRepository.existsById(userId)) {
+        //         Supplier supplier = new Supplier();
+        //         supplier.setUser(user);  // set the actual user object
+        //         supplierRepository.save(supplier);
+        //     }
+        //     retailerRepository.deleteById(userId);
+        // } else if (userDTO.getUserType() == UserType.RETAILER) {
+        //     if (!retailerRepository.existsById(userId)) {
+        //         Retailer retailer = new Retailer();
+        //         retailer.setUser(user);  // set the actual user object
+        //         retailerRepository.save(retailer);
+        //     }
+        //     supplierRepository.deleteById(userId);
+        // }
 
         return mapToDTO(updatedUser);
     }
