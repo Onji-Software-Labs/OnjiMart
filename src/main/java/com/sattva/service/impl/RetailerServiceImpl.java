@@ -19,9 +19,7 @@ import com.sattva.exception.ConflictException;
 import com.sattva.exception.ResourceNotFoundException;
 import com.sattva.service.RetailerService;
 import com.sattva.service.UserService;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
+
 @Service
 public class RetailerServiceImpl implements RetailerService {
 
@@ -89,25 +87,26 @@ public class RetailerServiceImpl implements RetailerService {
         return response;
     }
 
-    private SupplierListDTO convertToListDTO(Supplier supplier) {
-        String businessNames = supplier.getBusinesses().stream()
-                .map(SupplierBusiness::getName)
-                .collect(Collectors.joining(", "));
-
-        String cities = supplier.getBusinesses().stream()
-                .map(SupplierBusiness::getCity)
-                .filter(city -> city != null && !city.isEmpty())
-                .distinct()
-                .collect(Collectors.joining(", "));
+    @Override
+    public SupplierListDTO convertToListDTO(Supplier supplier) {
+        // On prend la première business active du supplier, s'il en a une
+        SupplierBusiness business = supplier.getBusinesses().stream()
+                .filter(SupplierBusiness::isActive)
+                .findFirst()
+                .orElse(null);
 
         return new SupplierListDTO(
                 supplier.getId(),
-                supplier.getUser().getFullName(),
-                businessNames,
-                cities,
+                business != null ? business.getName() : "",
+                business != null ? business.getAddress() : "",
+                business != null ? business.getCity() : "",
+                business != null ? business.getPincode() : "",
+                business != null ? business.getContactNumber() : "",
+                business != null ? business.getProfilePicture() : "",
                 supplier.getRating()
         );
     }
+
 
     @Override
     public List<SupplierDTO> filterSuppliers(String retailerId, SupplierFilterRequest request) {
