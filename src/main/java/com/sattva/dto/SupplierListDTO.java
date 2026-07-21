@@ -7,8 +7,11 @@ import lombok.Data;
 @AllArgsConstructor
 public class SupplierListDTO {
     private String userId;
-    private String fullName;
     private String businessName;
+    private String address;
     private String city;
+    private String pincode;
+    private String contactNumber;
+    private String profilePicture;
     private Double rating;
 }
