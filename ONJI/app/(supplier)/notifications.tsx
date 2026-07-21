@@ -748,6 +748,14 @@ export default function NotificationsScreen() {
                       key={order.id || idx}
                       message={order.message}
                       timeString={formatTime(order.createdAt)}
+                      onPress={() => {
+                        router.push({
+                          pathname: "/(supplier)/orderDetails",
+                          params: {
+                            orderId: order.id,
+                          },
+                        });
+                      }}
                     />
                   ))}
                 </View>
@@ -762,6 +770,14 @@ export default function NotificationsScreen() {
                       key={order.id || `past-${idx}`}
                       message={order.message}
                       timeString={formatTime(order.createdAt)}
+                      onPress={() => {
+                        router.push({
+                          pathname: "/(supplier)/orderDetails",
+                          params: {
+                            orderId: order.id,
+                          },
+                        });
+                      }}
                     />
                   ))}
                 </View>

@@ -268,10 +268,12 @@ const PendingRequestCard = ({
 // ─── Connection Request Card (Confirmed) ─────────────────────────────
 const ConfirmedRequestCard = ({ 
   supplierName, 
-  formattedTime 
+  formattedTime,
+  onOrder,
 }: {
   supplierName: string;
   formattedTime: string;
+  onOrder?: () => void;
 }) => (
   <View style={{
     backgroundColor: COLORS.connectedBg,
@@ -332,6 +334,7 @@ const ConfirmedRequestCard = ({
         </TouchableOpacity>
 
         <TouchableOpacity 
+          onPress={onOrder}
           activeOpacity={0.8}
           style={{
             backgroundColor: COLORS.white,
@@ -461,10 +464,14 @@ export default function NotificationsScreen() {
                 }
               }
 
-              return { ...req, supplierName: name };
+              return {
+                ...req,
+                supplierName: name,
+                businessId: userBusiness?.businessId || '',
+              };
             } catch (err) {
               console.error(`Error resolving name for supplier ${req.supplierId}:`, err);
-              return { ...req, supplierName: 'Supplier' };
+              return { ...req, supplierName: 'Supplier', businessId: '' };
             }
           })
         );
@@ -692,6 +699,16 @@ export default function NotificationsScreen() {
                     key={request.id}
                     supplierName={supplierName}
                     formattedTime={formattedTime}
+                    onOrder={() =>
+                      router.push({
+                        pathname: '/(retailer)/orderSupplierScreen',
+                        params: {
+                          supplierId: request.supplierId,
+                          businessId: request.businessId || '',
+                          supplierName,
+                        },
+                      })
+                    }
                   />
                 ) : (
                   <PendingRequestCard
@@ -726,34 +743,38 @@ export default function NotificationsScreen() {
             <View style={{ marginTop: 4 }}>
               
               {/* ─── Today Section ─── */}
-              {todayOrders.length > 0 && (
-                <View style={{ marginBottom: 8 }}>
-                  <SectionHeader title="Today" />
-                  {todayOrders.map((order: any, idx: number) => (
-                    <OrderNotificationItem
-                      key={order.id || idx}
-                      message={order.message}
-                      timeString={formatTime(order.createdAt)}
-                      onPress={() => router.push('/(retailer)/(tabs)/cart?tab=orders')}
-                    />
-                  ))}
-                </View>
-              )}
+              {todayOrders.map((order: any, idx: number) => (
+                <OrderNotificationItem
+                  key={order.id || idx}
+                  message={order.message}
+                  timeString={formatTime(order.createdAt)}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/(supplier)/orderDetails",
+                      params: {
+                        orderId: order.id,
+                      },
+                    })
+                  }
+                />
+              ))}
 
               {/* ─── Last 30 Days Section ─── */}
-              {pastOrders.length > 0 && (
-                <View style={{ marginBottom: 8 }}>
-                  <SectionHeader title="Last 30 days" />
-                  {pastOrders.map((order: any, idx: number) => (
-                    <OrderNotificationItem
-                      key={order.id || `past-${idx}`}
-                      message={order.message}
-                      timeString={formatTime(order.createdAt)}
-                      onPress={() => router.push('/(retailer)/(tabs)/cart?tab=orders')}
-                    />
-                  ))}
-                </View>
-              )}
+              {pastOrders.map((order: any, idx: number) => (
+                <OrderNotificationItem
+                  key={order.id || `past-${idx}`}
+                  message={order.message}
+                  timeString={formatTime(order.createdAt)}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/(supplier)/orderDetails",
+                      params: {
+                        orderId: order.id,
+                      },
+                    })
+                  }
+                />
+              ))}
 
               {/* Show empty state only if everything is empty */}
               {isAllEmpty && !loading && (

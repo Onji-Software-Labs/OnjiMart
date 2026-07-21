@@ -457,15 +457,15 @@ const add = useCallback((product: any): void => {
         const data = res.data?.data || res.data;
 
         if (Array.isArray(data) && data.length > 0) {
-          const first = data[0];
-          const sid = String(first.supplierId || first.id || first._id);
-          setSupplierId(sid);
+          const matched = supplierId
+            ? data.find((b: any) => String(b.supplierId || b.id || b._id) === String(supplierId))
+            : null;
+          const target = matched || data[0];
+          const sid = String(target.supplierId || target.id || target._id);
           supplierIdRef.current = sid;
 
           await localStorage.setItem("supplierId", sid);
-          await localStorage.setItem("supplierName", first.name ?? "Supplier");
-
-          setSupplier(first);
+          await localStorage.setItem("supplierName", target.name ?? supplierName ?? "Supplier");
         }
       } catch (err: any) {
         console.log("ERROR: initApp:", err?.message);
