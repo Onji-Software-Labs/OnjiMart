@@ -51,8 +51,8 @@ interface CartItem {
   unitPrice: number;
   totalPrice: number;
   status: string;
-  imageUri?: string | null;   // ✅ add this
-  unit?: string;              // ✅ useful for checkout too
+  imageUri?: string | null;   
+  unit?: string;              
 }
 
 interface SupplierCart {
@@ -254,9 +254,9 @@ const fetchCart = useCallback(async () => {
             unitPrice: i.price || cached?.price  || 0,
             // totalPrice: i.totalPrice ?? 0,
             status: "",
-            imageUri: cached?.image?.uri ?? null,   // ✅
-            unit: cached?.unit ?? "kg",              // ✅
-            totalPrice: unitPrice * quantity,   // ✅ compute it, don't trust i.totalPrice
+            imageUri: cached?.image?.uri ?? null,   
+            unit: cached?.unit ?? "kg",              
+            totalPrice: unitPrice * quantity,
 
           };
         }),
