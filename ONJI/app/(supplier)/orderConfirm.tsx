@@ -6,10 +6,15 @@ import {
   StatusBar,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { Feather } from "@expo/vector-icons";
+import { fulfillOrder } from "@/lib/api/order";
 
 export default function OrderConfirm() {
+
+  const { orderId } = useLocalSearchParams<{
+    orderId: string;
+  }>();
 
   /*
   ===================================
@@ -33,9 +38,27 @@ export default function OrderConfirm() {
     router.back();
   };
 
-  const handleConfirm = () => {
-    setShowConfirmModal(false);
-    setShowSuccessModal(true);
+  const handleConfirm = async () => {
+    try {
+      setLoading(true);
+
+      console.log("Order ID:", orderId);
+
+      const res = await fulfillOrder(orderId);
+
+      console.log("Fulfill Response:", res);
+
+      setShowConfirmModal(false);
+      setShowSuccessModal(true);
+
+    } catch (error: any) {
+      console.error(
+        "Fulfill Order error:",
+        error.response?.data || error.message
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
     /*

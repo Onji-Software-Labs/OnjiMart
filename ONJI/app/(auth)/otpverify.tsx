@@ -118,13 +118,7 @@ export default function OTPVerification() {
     setErrorMessage('');
 
     const payload = {
-      // userNames: 'UserName',
-      // fullName: 'Full Name',
       phoneNumber: normalizedPhoneNumber,
-      // email: 'example@email.com',
-      // userType: 'USER',
-      //userOnboardingStatus: true,
-      // supplier: false,
     };
 
     console.log('Sending OTP payload:', payload);
