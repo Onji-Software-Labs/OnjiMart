@@ -17,6 +17,8 @@ import { Image } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { useEffect } from "react";
 import axiosInstance from "@/lib/api/axiosConfig";
+import { editOrder } from "@/lib/api/order";
+
 
 const AVATAR = require("../../assets/images/3davatar.png");
 import { useState } from "react";
@@ -33,6 +35,8 @@ export default function OrderDetails() {
     const [hasEditedOrder, setHasEditedOrder] = useState(false);
     const disableActions = hasEditedOrder && !showEditedOrder;
 
+    
+
     const fetchOrderDetails = async () => {
     try {
         const res = await axiosInstance.get(
@@ -41,15 +45,32 @@ export default function OrderDetails() {
 
         console.log("ORDER DETAILS");
         console.log(res.data);
+        console.log(JSON.stringify(res.data, null, 2));
 
         setOrder(res.data);
+
+        const edited = res.data.items.some(
+        (item: any) => item.edited
+        );
+
+        setHasEditedOrder(edited);
+
+        if (!edited) {
+            setShowEditedOrder(false);
+        }
 
         setItems(
         res.data.items.map((item: any) => ({
             id: item.id,
             name: item.productName,
-            quantity: String(item.requestedQuantity),
+            requestedQuantity: String(item.requestedQuantity),
+            fulfilledQuantity: String(
+                item.edited
+                    ? item.fulfilledQuantity
+                    : item.requestedQuantity
+            ),
             price: String(item.unitPrice),
+            availableQuantity: item.availableQuantity,
             emoji: "📦",
         }))
         );
@@ -115,6 +136,56 @@ export default function OrderDetails() {
 
     console.log("ORDER STATE");
     console.log(order);
+    const oldSubtotal = order.items.reduce(
+    (sum: number, item: any) =>
+        sum + item.requestedQuantity * item.unitPrice,
+    0
+    );
+
+    const totalOrderItems = items.reduce(
+  (sum: number, item: any) =>
+    sum +
+    Number(
+      showEditedOrder
+        ? item.fulfilledQuantity
+        : item.requestedQuantity
+    ),
+  0
+);
+
+console.log("Toggle:", showEditedOrder);
+console.log("Items:", items);
+console.log("Calculated:", totalOrderItems);
+
+    console.log("showEditedOrder:", showEditedOrder);
+
+console.log(
+  "Requested:",
+  order.items.map((i: any) => i.requestedQuantity)
+);
+
+console.log(
+  "Fulfilled:",
+  order.items.map((i: any) => i.fulfilledQuantity)
+);
+
+console.log("Calculated Total:", totalOrderItems);
+
+    const editedSubtotal = order.items.reduce(
+    (sum: number, item: any) =>
+        sum + item.fulfilledQuantity * item.unitPrice,
+    0
+    );
+
+
+
+    const subtotal = showEditedOrder
+    ? editedSubtotal
+    : oldSubtotal;
+
+    const tax = subtotal * 0.05;
+
+    const grandTotal = subtotal + tax;
 
     const orderDate = order?.orderDate
     ? new Date(order.orderDate)
@@ -137,7 +208,50 @@ export default function OrderDetails() {
     : "-";
 
     const handleFulfillOrder = () => {
-        router.push("./orderConfirm");
+        router.push({
+            pathname: "./orderConfirm",
+            params: {
+                orderId: order.id,
+            },
+        });
+    };
+
+    const handleEditOrder = async () => {
+    try {
+        const payload = order.items.map((orderItem: any) => {
+        const editedItem = items.find(i => i.id === orderItem.id);
+
+        return {
+            itemId: orderItem.id,
+            fulfilledQuantity: Number(
+                editedItem?.fulfilledQuantity ?? orderItem.fulfilledQuantity
+            ),
+            unitPrice: Number(editedItem?.price ?? orderItem.unitPrice),
+        };
+        });
+
+        console.log(
+        "EDIT REQUEST BODY:",
+        JSON.stringify(
+            {
+            items: payload,
+            },
+            null,
+            2
+        )
+        );
+
+        await editOrder(orderId as string, payload);
+
+        await fetchOrderDetails();
+
+        setHasEditedOrder(true);
+        setShowEditedOrder(true);
+        setIsEditing(false);
+
+    } catch (error) {
+        console.log("Edit Order Error:", error);
+    }
     };
 
   return (
@@ -287,7 +401,7 @@ export default function OrderDetails() {
                     color: "#6B7280",
                     }}
                 >
-                    {order?.totalOrderItems ?? 0} items
+                    {totalOrderItems} items
                 </Text>
                 </View>
             </View>
@@ -618,7 +732,7 @@ export default function OrderDetails() {
                     fontSize: 20,
                     }}
                 >
-                    {order?.totalOrderItems ?? 0}
+                    {totalOrderItems}
                 </Text>
                 </View>
 
@@ -698,7 +812,7 @@ export default function OrderDetails() {
                     fontSize: 18,
                 }}
                 >
-                ₹{order?.subtotal?.toLocaleString() ?? 0}
+                ₹{subtotal.toLocaleString()}
                 </Text>
             </View>
 
@@ -722,7 +836,7 @@ export default function OrderDetails() {
                     fontSize: 18,
                 }}
                 >
-                ₹{order?.taxAmount?.toLocaleString() ?? 0}
+                ₹{tax.toLocaleString()}
                 </Text>
             </View>
 
@@ -757,7 +871,7 @@ export default function OrderDetails() {
                     fontWeight: "800",
                 }}
                 >
-                ₹{order?.grandTotal?.toLocaleString() ?? 0}
+                ₹{grandTotal.toLocaleString()}
                 </Text>
             </View>
             </View>
@@ -915,14 +1029,40 @@ export default function OrderDetails() {
 
                 {!isEditing ? (
 
+                        <>
+
                     <Text
                     style={{
                     marginTop:4,
                     color:"#777",
                     }}
                     >
-                    {item.quantity} kg × ₹{item.price}/kg
+                    {showEditedOrder
+                        ? item.fulfilledQuantity
+                        : item.requestedQuantity}{" "}
+                        kg × ₹{item.price}/kg
                     </Text>
+
+                    {item.availableQuantity <
+                        Number(
+                            showEditedOrder
+                            ? item.fulfilledQuantity
+                            : item.requestedQuantity
+                        ) && (
+                        <Text
+                            style={{
+                                marginTop: 4,
+                                fontSize: 12,
+                                color: "#DC2626",
+                                fontWeight: "500",
+                            }}
+                        >
+                            {item.availableQuantity === 0
+                                ? "Out of stock."
+                                : `Only : ${item.availableQuantity} kg available.`}
+                        </Text>
+                    )}
+                </>
 
                     ) : (
 
@@ -985,13 +1125,13 @@ export default function OrderDetails() {
                     </Text>
 
                     <TextInput
-                        value={item.quantity}
+                        value={item.fulfilledQuantity}
                         keyboardType="numeric"
                         onChangeText={(text)=>{
                         setItems(prev =>
                         prev.map(i =>
                         i.id===item.id
-                        ? {...i, quantity:text}
+                        ? {...i, fulfilledQuantity:text}
                         : i
                         ))
                         }}
@@ -1019,7 +1159,16 @@ export default function OrderDetails() {
                     fontWeight:"700",
                     }}
                     >
-                    ₹{Number(item.price) * Number(item.quantity)}
+                    ₹{
+                    (
+                        Number(item.price) *
+                        Number(
+                        showEditedOrder
+                            ? item.fulfilledQuantity
+                            : item.requestedQuantity
+                        )
+                    ).toLocaleString()
+                    }
                 </Text>
                 </View>
 
@@ -1220,11 +1369,7 @@ export default function OrderDetails() {
             >
 
             <TouchableOpacity
-            onPress={()=>{
-                setHasEditedOrder(true);
-                setShowEditedOrder(true);
-                setIsEditing(false);
-            }}
+            onPress={handleEditOrder}
             style={{
             flex:1,
             backgroundColor:"#1F7A34",
@@ -1286,3 +1431,4 @@ export default function OrderDetails() {
 
   );
 }
+
