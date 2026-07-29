@@ -1,128 +1,298 @@
-import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
 import {
-  FontAwesome5,
   AntDesign,
+  FontAwesome,
+  FontAwesome5,
   Ionicons,
   MaterialCommunityIcons,
-  Feather,
 } from '@expo/vector-icons';
+import React, { useRef } from 'react';
+import {
+  Animated,
+  Easing,
+  Image,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 
 import { INewSupplier } from '@/app/(supplier)/(tabs)/Vendor';
 
-const FindVendorCard = ({
-  supplier,
-  connectionStatus,
-  isFavourite,
-  onConnect,
-  onToggleFavourite,
-}: {
+interface Props {
   supplier: INewSupplier;
   connectionStatus: string;
   isFavourite: boolean;
   onConnect: (id: string) => void;
   onToggleFavourite: (id: string) => void;
+}
+
+const FindVendorCard: React.FC<Props> = ({
+  supplier,
+  connectionStatus,
+  isFavourite,
+  onConnect,
+  onToggleFavourite,
 }) => {
+  if (!supplier) return null;
+
+  const heartScale = useRef(new Animated.Value(1)).current;
+  const heartRotation = useRef(new Animated.Value(0)).current;
+  const connectScale = useRef(new Animated.Value(1)).current;
+  const connectBgColor = useRef(new Animated.Value(0)).current;
+
+  const toggleFavorite = () => {
+    onToggleFavourite(supplier.id);
+    heartScale.setValue(1);
+    heartRotation.setValue(0);
+    Animated.parallel([
+      Animated.spring(heartScale, { toValue: 1.3, friction: 3, useNativeDriver: true }),
+      Animated.timing(heartRotation, { toValue: 1, duration: 200, easing: Easing.linear, useNativeDriver: true }),
+    ]).start(() => {
+      Animated.spring(heartScale, { toValue: 1, friction: 7, useNativeDriver: true }).start();
+      heartRotation.setValue(0);
+    });
+  };
+
+  const handleConnectPressIn = () => {
+    Animated.parallel([
+      Animated.timing(connectScale, { toValue: 0.92, duration: 100, easing: Easing.linear, useNativeDriver: false }),
+      Animated.timing(connectBgColor, { toValue: 1, duration: 100, easing: Easing.linear, useNativeDriver: false }),
+    ]).start();
+  };
+
+  const handleConnectPressOut = () => {
+    Animated.parallel([
+      Animated.timing(connectScale, { toValue: 1, duration: 100, easing: Easing.linear, useNativeDriver: false }),
+      Animated.timing(connectBgColor, { toValue: 0, duration: 100, easing: Easing.linear, useNativeDriver: false }),
+    ]).start();
+  };
+
+  const rotateHeart = heartRotation.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '12deg'],
+  });
+
+  const interpolatedConnectBg = connectBgColor.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['white', '#D1FAE5'],
+  });
+
   return (
-    <View className="bg-white rounded-2xl p-3 mb-3 border border-gray-100 shadow-sm">
-      <View className="flex-row justify-between items-start">
-        <View className="flex-row flex-1">
-          <View className="w-12 h-12 rounded-full bg-orange-100 mr-3 overflow-hidden items-center justify-center">
+    <View style={styles.card}>
+      <TouchableOpacity onPress={toggleFavorite} style={styles.favoriteButton} activeOpacity={0.7}>
+        <Animated.View style={{ transform: [{ scale: heartScale }, { rotate: rotateHeart }] }}>
+          <Ionicons
+            name={isFavourite ? 'heart' : 'heart-outline'}
+            size={20}
+            color={isFavourite ? '#EF4444' : '#9CA3AF'}
+          />
+        </Animated.View>
+      </TouchableOpacity>
+
+      <View style={styles.avatarContainer}>
+        {supplier.imageUrl ? (
+          <Image source={{ uri: supplier.imageUrl }} style={styles.avatar} onError={() => {}} />
+        ) : (
+          <View style={styles.avatarPlaceholder}>
             <FontAwesome5 name="user-alt" size={20} color="#9CA3AF" />
           </View>
-          <View className="flex-1">
-            <Text className="text-sm font-bold text-gray-800">
-              {supplier.name}
-            </Text>
-            <Text className="text-xs text-gray-500">
-              {supplier.description || 'Random kaka'}
-            </Text>
-            <Text className="text-xs text-gray-400 mt-0.5">
-              {supplier.location || '3 kms away, Udupi'}
-            </Text>
-            <View className="flex-row items-center mt-1">
-              <AntDesign name="star" size={11} color="#10B981" />
-              <Text className="text-xs text-green-500 ml-1 font-medium">
-                4.5(6)
-              </Text>
-              <Text className="text-xs ml-2">🥔 🍏</Text>
-            </View>
-          </View>
-        </View>
+        )}
+      </View>
 
-        <TouchableOpacity
-          onPress={() => onToggleFavourite(supplier.id)}
-          className="p-1"
+      <View style={styles.infoContainer}>
+        <Text style={styles.name}>{supplier.name}</Text>
+        <Text style={styles.description}>{supplier.description || 'Random kaka'}</Text>
+        <Text style={styles.location}>{supplier.location || '3 kms away, Udupi'}</Text>
+
+     <View style={styles.ratingRow}>
+    <View style={styles.ratingBadge}>
+      <FontAwesome name="star" size={14} color="#43A047" />
+      <Text style={styles.ratingText}> {supplier.rating ?? 4.5} ({supplier.reviews ?? 6})</Text>
+    </View>
+      </View>
+</View>
+      <TouchableOpacity
+        onPress={() => onConnect(supplier.id)}
+        onPressIn={handleConnectPressIn}
+        onPressOut={handleConnectPressOut}
+        style={[
+          styles.connectButtonWrapper,
+          { borderColor: connectionStatus === 'PENDING' ? '#D1D5DB' : '#2E7D32' },
+        ]}
+      >
+        <Animated.View
+          style={[
+            styles.connectButton,
+            { transform: [{ scale: connectScale }], backgroundColor: interpolatedConnectBg },
+          ]}
         >
-          {isFavourite ? (
-            <AntDesign name="heart" size={18} color="#EF4444" />
+          <Text style={styles.connectButtonText}>
+            {connectionStatus === 'PENDING'
+              ? 'Cancel'
+              : connectionStatus === 'RECEIVED_PENDING'
+              ? 'Accept'
+              : connectionStatus === 'ACCEPTED'
+              ? 'Connected'
+              : 'Connect'}
+          </Text>
+
+          {connectionStatus === 'PENDING' ? (
+            <AntDesign name="close" size={14} color="#72797D" />
+          ) : connectionStatus === 'RECEIVED_PENDING' ? (
+            <AntDesign name="check" size={14} color="#2E7D32" />
+          ) : connectionStatus === 'ACCEPTED' ? (
+            <Ionicons name="arrow-forward" size={14} color="#2E7D32" />
           ) : (
-            <Ionicons name="heart-outline" size={18} color="#9CA3AF" />
+            <MaterialCommunityIcons name="account-plus" size={18} color="#2E7D32" />
           )}
-        </TouchableOpacity>
-      </View>
-
-      <View className="flex-row justify-between items-center mt-3">
-        <View className="flex-row items-center">
-          <Feather name="clock" size={12} color="#9CA3AF" />
-          <Text className="text-xs text-gray-400 ml-1">3 days ago</Text>
-        </View>
-
-        <View className="flex-row items-center">
-          <TouchableOpacity className="mr-4">
-            <Feather name="phone" size={16} color="#6B7280" />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={() => onConnect(supplier.id)}
-            className={`flex-row items-center px-4 py-2 rounded-lg border ${
-              connectionStatus === 'ACCEPTED'
-                ? 'bg-green-50 border-green-100'
-                : connectionStatus === 'PENDING'
-                ? 'bg-gray-50 border-gray-200'
-                : connectionStatus === 'RECEIVED_PENDING'
-                ? 'bg-green-50 border-green-100'
-                : 'bg-white border-green-100'
-            }`}
-          >
-            {connectionStatus === 'PENDING' ? (
-              <>
-                <Text className="text-gray-600 font-medium text-sm mr-2">
-                  Cancel
-                </Text>
-                <AntDesign name="close" size={14} color="#6B7280" />
-              </>
-            ) : connectionStatus === 'RECEIVED_PENDING' ? (
-              <>
-                <Text className="text-green-600 font-medium text-sm mr-2">
-                  Accept
-                </Text>
-                <AntDesign name="check" size={14} color="#10B981" />
-              </>
-            ) : connectionStatus === 'ACCEPTED' ? (
-              <>
-                <Text className="text-green-600 font-medium text-sm mr-2">
-                  Connected
-                </Text>
-                <Ionicons name="arrow-forward" size={16} color="#10B981" />
-              </>
-            ) : (
-              <>
-                <Text className="text-green-600 font-medium text-sm mr-2">
-                  Connect
-                </Text>
-                <MaterialCommunityIcons
-                  name="account-plus"
-                  size={16}
-                  color="#10B981"
-                />
-              </>
-            )}
-          </TouchableOpacity>
-        </View>
-      </View>
+        </Animated.View>
+      </TouchableOpacity>
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  card: {
+    backgroundColor: 'white',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    padding: 14,
+    marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+ favoriteButton: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    padding: 6,
+    zIndex: 10,
+  },
+  avatarContainer: {
+    flexShrink: 0,
+    marginRight: 12,
+  },
+  avatar: {
+    width: 60,
+    height: 60,
+    borderRadius: 32,
+    resizeMode: 'cover',
+  },
+  avatarPlaceholder: {
+    width: 60,
+    height: 60,
+    borderRadius: 32,
+    backgroundColor: '#FFF3E0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  infoContainer: {
+    flex: 1,
+    paddingRight: 90,
+  },
+  name: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#3F4245',
+    marginBottom: 1,
+  },
+  description: {
+    fontSize: 13,
+    color: '#4B5563',
+    marginBottom: 1,
+  },
+  location: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    marginTop: 1,
+    marginBottom: 4,
+    flexShrink: 1,
+  },
+  ratingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  ratingText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#43A047',
+  },
+  reviewCount: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#43A047',
+  },
+  ratingBadge: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  alignSelf: 'flex-start',   // ✅ pill only wraps its own content, doesn't stretch
+  backgroundColor: '#E6F4EA',
+  borderRadius: 6,
+  paddingHorizontal: 8,
+  paddingVertical: 3,
+},
+
+  creditBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#D1FAE5',
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    marginLeft: 8,
+  },
+  creditText: {
+    fontSize: 10,
+    color: '#047857',
+    fontWeight: '600',
+    marginLeft: 3,
+  },
+  connectButtonWrapper: {
+    position: 'absolute',
+    bottom: 12,
+    right: 12,
+  },
+  connectButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+    borderWidth: 0.2,
+    borderColor: '#2E7D32',
+    columnGap: 6,
+    elevation: 2,
+  },
+  connectButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#2E7D32',
+  },
+    cancelButton: {
+    position: 'absolute',
+    bottom: 12,
+    right: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+    borderWidth: 0.2,
+    borderColor: '#72797D',
+    backgroundColor: 'white',
+    columnGap: 8,
+  },
+  cancelButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#72797D',
+  },
+});
 
 export default FindVendorCard;

@@ -13,6 +13,7 @@ import { localStorage } from '../../../lib/localStorage';
 import {
   getSupplierConnectionStatus
 } from '../../../lib/api/supplierConnection';
+import { getUnconnectedRetailers } from '@/lib/api/supplier';
 
 export interface INewSupplier {
   id: string;
@@ -24,6 +25,7 @@ export interface INewSupplier {
   reviews: number;
   credit: boolean;
   contactNumber?: string;
+  imageUrl?: string;
 }
 
 /*
@@ -144,59 +146,37 @@ export default function Dashboard() {
     }
   }, []);
 
-  const fetchAllVendors = useCallback(async () => {
+const fetchAllVendors = useCallback(async () => {
   try {
-    const response = await axiosInstance.get(
-      '/api/retailer-business/all'
-    );
+    const supplierId = await secureStorage.getItem('userId');
+    if (!supplierId) return;
 
-    console.log('ALL VENDORS RESPONSE:', response.data);
+    const data = await getUnconnectedRetailers(supplierId);
 
-    const vendors = response.data.map((r: any) => ({
+    const vendors = data.map((r: any) => ({
       id: r.retailerId,
       businessId: r.businessId,
       name: r.name,
       description: r.address || '',
       location: r.city || '',
       contactNumber: r.contactNumber || '',
-      rating: 4.5,
+      rating: r.rating ?? 4.5,
       reviews: 6,
       credit: false,
     }));
 
     const statuses: Record<string, string> = {};
-
     for (const vendor of vendors) {
       try {
         const status = await getSupplierConnectionStatus(vendor.id);
-
-        console.log(
-          'STATUS:',
-          vendor.name,
-          vendor.id,
-          status
-        );
-
         statuses[vendor.id] = status;
-      } catch (err) {
-        console.log(
-          'STATUS ERROR:',
-          vendor.name,
-          vendor.id,
-          err
-        );
-
+      } catch {
         statuses[vendor.id] = 'NONE';
       }
     }
 
-    setConnectionStatuses(prev => ({
-      ...prev,
-      ...statuses,
-    }));
-
+    setConnectionStatuses(prev => ({ ...prev, ...statuses }));
     setAllVendors(vendors);
-
   } catch (err) {
     console.log('Failed to fetch retailers:', err);
   }

@@ -64,3 +64,8 @@ export const getUnconnectedSuppliers = async (retailerId: string) => {
 
   return response.data.content;
 };
+
+export const getUnconnectedRetailers = async (supplierId: string) => {
+  const response = await axiosInstance.get(`/suppliers/${supplierId}/retailers/unconnected`);
+  return response.data?.content || [];
+};

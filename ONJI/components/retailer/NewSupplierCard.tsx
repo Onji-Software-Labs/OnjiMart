@@ -307,7 +307,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     borderWidth: 0.2,
     borderColor: '#2E7D32',
-    columnGap: 6,
+    columnGap: 4,
     // shadowColor: '#000',
     // shadowOffset: { width: 0, height: 1 },
     // shadowOpacity: 0.08,

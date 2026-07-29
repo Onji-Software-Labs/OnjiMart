@@ -417,5 +417,64 @@ public class SupplierServiceImpl implements SupplierService {
         return modelMapper.map(savedSupplier, SupplierDTO.class);
     }
 
+    @Override
+    public PaginatedResponseDTO<RetailerListDTO> getUnconnectedRetailersForSupplier(
+            String supplierId, int page, int size) {
 
+        Supplier supplier = supplierRepository.findById(supplierId)
+                .orElseThrow(() -> new ResourceNotFoundException("Supplier not found with id: " + supplierId));
+
+        // ✅ get IDs of retailers this supplier is already connected with (ACCEPTED)
+        List<Connection> connections =
+                connectionRepository.findBySupplierIdAndStatus(supplierId, ConnectionStatus.ACCEPTED);
+
+        List<String> connectedRetailerIds = connections.stream()
+                .map(Connection::getRetailerId)
+                .collect(Collectors.toList());
+
+        // ✅ get every retailer, then filter out the ones already connected
+        List<Retailer> unconnectedRetailers = retailerRepository.findAll().stream()
+                .filter(retailer -> !connectedRetailerIds.contains(retailer.getId()))
+                .collect(Collectors.toList());
+
+        // ✅ manual pagination, same pattern as the supplier-side version
+        int start = page * size;
+        int end = Math.min(start + size, unconnectedRetailers.size());
+
+        List<Retailer> paginatedRetailers =
+                (start >= unconnectedRetailers.size()) ? List.of() : unconnectedRetailers.subList(start, end);
+
+        PaginatedResponseDTO<RetailerListDTO> response = new PaginatedResponseDTO<>();
+
+        response.setContent(
+                paginatedRetailers.stream()
+                        .map(this::convertToRetailerListDTO)
+                        .collect(Collectors.toList())
+        );
+
+        response.setPage(page);
+        response.setSize(size);
+        response.setTotalElements(unconnectedRetailers.size());
+        response.setTotalPages((int) Math.ceil((double) unconnectedRetailers.size() / size));
+        response.setLast(end >= unconnectedRetailers.size());
+
+        return response;
+    }
+
+    private RetailerListDTO convertToRetailerListDTO(Retailer retailer) {
+        RetailerBusiness business = retailer.getRetailerBusinesses().stream()
+                .filter(RetailerBusiness::isActive)
+                .findFirst()
+                .orElse(null);
+
+        return new RetailerListDTO(
+                retailer.getId(),
+                business != null ? business.getId() : "",
+                business != null ? business.getName() : "",
+                business != null ? business.getAddress() : "",
+                business != null ? business.getCity() : "",
+                business != null ? business.getContactNumber() : "",
+                null   // rating — set this to whatever field actually holds retailer rating, if one exists
+        );
+    }
 }
