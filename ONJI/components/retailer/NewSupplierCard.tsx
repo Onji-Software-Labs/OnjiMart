@@ -22,13 +22,14 @@ import { ConnectionStatus } from '../../lib/api/connection';
 export interface INewSupplier {
   id: string;
   businessId: string;
-  name: string;
-  description: string;
-  location: string;
+  businessName: string;
+  fullName: string;
+  address: string;
+  city: string;
+  pincode: number;
+  contactNumber: string;
   rating: number;
-  reviews: number;
-  credit: boolean;
-  imageUrl?: string;
+  profilePicture?: string;
 }
 
 interface Props {
@@ -42,7 +43,7 @@ interface Props {
 const NewSupplierCard: React.FC<Props> = ({ supplier, connectionStatus, isFavourite, onConnect, onToggleFavourite }) => {  
   if (!supplier) return null;   // ✅ bail out safely if supplier is missing
 
-console.log("Supplier ID:", supplier.id, "Name:", supplier.name);
+console.log("Supplier ID:", supplier.id, "Name:", supplier.businessName);
 
 const handlePress = () => {
   if (connectionStatus === 'ACCEPTED') {
@@ -51,7 +52,7 @@ const handlePress = () => {
       params: {
         supplierId: supplier.id,
         businessId: supplier.businessId,
-        supplierName: supplier.name,
+        supplierName: supplier.businessName,
       },
     });
   } else if (connectionStatus === 'NONE' || connectionStatus === 'REJECTED') {
@@ -134,9 +135,9 @@ const handlePress = () => {
 
       {/* Avatar */}
       <View style={styles.avatarContainer}>
-        {supplier.imageUrl ? (
+        {supplier.profilePicture ? (
           <Image
-            source={{ uri: supplier.imageUrl }}
+            source={{ uri: supplier.profilePicture }}
             style={styles.avatar}
             onError={() => {}}
           />
@@ -148,25 +149,33 @@ const handlePress = () => {
         )}
       </View>
 
-      {/* Info */}
-      <View style={styles.infoContainer}>
-        <Text style={styles.name}>{supplier.name}</Text>
-        <Text style={styles.description}>{supplier.description}</Text>
-        <Text style={styles.location}>{supplier.location}</Text>
+{/* Info */}
+<View style={styles.infoContainer}>
+  <Text style={styles.name}>{supplier.businessName}</Text>
+  <Text style={styles.description} numberOfLines={2}>
+    {supplier.fullName}
+  </Text>
 
-        {/* Rating Row */}
-        <View style={styles.ratingRow}>
-          <FontAwesome name="star" size={14} color="#22C55E" />
-          <Text style={styles.ratingText}> {supplier.rating}</Text>
-          <Text style={styles.reviewCount}> ({supplier.reviews})</Text>
-          {supplier.credit && (
-            <View style={styles.creditBadge}>
-            <MaterialCommunityIcons name="credit-card-outline" size={12} color="#047857" />
-              <Text style={styles.creditText}>Credit</Text>
-            </View>
-          )}
+  {supplier.city && supplier.pincode ? (
+    <Text style={styles.location}>{supplier.city}, {supplier.pincode}</Text>
+  ) : null}
+
+  {/* Rating Row */}
+  {/* {supplier.rating ? ( */}
+    <View style={styles.ratingRow}>
+      <FontAwesome name="star" size={14} color="#43A047" />
+      <Text style={styles.ratingText}> {supplier.rating}</Text>
+
+      {/* <Text style={styles.reviewCount}> ({supplier.reviews})</Text>
+      {supplier.credit && (
+        <View style={styles.creditBadge}>
+        <MaterialCommunityIcons name="credit-card-outline" size={12} color="#047857" />
+          <Text style={styles.creditText}>Credit</Text>
         </View>
-      </View>
+      )} */}
+    </View>
+  {/* ) : null} */}
+</View>
 
       {/* Action Button */}
       <TouchableOpacity
@@ -200,7 +209,7 @@ const handlePress = () => {
     ) : connectionStatus === 'RECEIVED_PENDING' ? (
       <AntDesign name="check" size={14} color="#2E7D32" />
     ) : connectionStatus === 'ACCEPTED' ? (
-      <AntDesign name="arrow-right" size={14} color="#2E7D32" />    ) : (
+      <AntDesign name="arrow-right" size={18} color="#2E7D32" />    ) : (
       <MaterialCommunityIcons name="account-plus" size={18} color="#2E7D32" />
     )}
   </Animated.View>
@@ -212,11 +221,11 @@ const handlePress = () => {
 const styles = StyleSheet.create({
   card: {
     backgroundColor: 'white',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    padding: 14,
-    marginBottom: 12,
+    borderRadius: 8,
+    borderWidth: 0.2,
+    borderColor: '#92999E',
+    padding: 12,
+    marginBottom: 15,
     flexDirection: 'row',
     alignItems: 'center',
     shadowColor: '#000',
@@ -227,41 +236,53 @@ const styles = StyleSheet.create({
   },
   favoriteButton: {
     position: 'absolute',
-    top: 12,
-    right: 12,
-    padding: 6,
-    zIndex: 10,
+    top: 6,
+    right: 6,
+    padding: 2,
+    zIndex: 100,
   },
+
   avatarContainer: {
     flexShrink: 0,
-    marginRight: 12,
+    // marginRight: 12,
+    width: 72,
+    height: 60,
+    alignItems: 'center',
+    justifyContent: 'center', // Vertical center
   },
   avatar: {
-    width: 64,
-    height: 64,
+    width: 60,
+    height: 60,
     borderRadius: 32,
     resizeMode: 'cover',
+      alignSelf: 'center',
+
   },
+
   infoContainer: {
     flex:1,
-    marginLeft:10,
-    paddingRight:110,
+    marginRight:8,
+    marginTop:4,
+    marginEnd:4,
+
+    // paddingRight:110,
 },
 
   name: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1F2937',
+    color: '#3F4245',
     marginBottom: 1,
+    //paddingRight: 19, // <-- add this to prevent text overflow
   },
   description: {
-    fontSize: 13,
-    color: '#4B5563',
+    fontSize: 12,
+    color: '#3F4245',
     marginBottom: 1,
   },
   location: {
-    fontSize: 12,
-    color: '#9CA3AF',
+    fontSize: 10,
+    color: '#72797D',
     marginTop: 1,
     marginBottom: 4,
     flexShrink: 1,
@@ -272,7 +293,7 @@ const styles = StyleSheet.create({
   },
   ratingText: {
     fontSize: 13,
-    color: '#047857',
+    color: '#43A047',
     fontWeight: '600',
   },
   reviewCount: {
@@ -302,12 +323,12 @@ const styles = StyleSheet.create({
   connectButton: {
     flexDirection: 'row',
     alignItems: 'center',
-  paddingHorizontal: 10,
-  paddingVertical: 6,
+    paddingHorizontal:9,
+    paddingVertical: 6,
     borderRadius: 6,
     borderWidth: 0.2,
     borderColor: '#2E7D32',
-    columnGap: 6,
+    columnGap:4 ,
     // shadowColor: '#000',
     // shadowOffset: { width: 0, height: 1 },
     // shadowOpacity: 0.08,
@@ -315,7 +336,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   connectButtonText: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
     color: '#2E7D32',
   },
@@ -334,7 +355,7 @@ const styles = StyleSheet.create({
     columnGap: 6,
   },
   cancelButtonText: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
     color: '#72797D',
   },

@@ -11,6 +11,7 @@ import {
   AntDesign,
   Ionicons,
   Feather,
+  FontAwesome,
 } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { INewSupplier } from '@/components/retailer/NewSupplierCard';
@@ -44,9 +45,9 @@ const MySupplierCard = ({
       
       {/* Profile */}
       <View style={styles.avatarContainer}>
-        {supplier.imageUrl ? (
+        {supplier.profilePicture ? (
           <Image
-            source={{ uri: supplier.imageUrl }}
+            source={{ uri: supplier.profilePicture }}
             style={styles.avatar}
           />
         ) : (
@@ -59,27 +60,30 @@ const MySupplierCard = ({
 
       {/* Supplier Details */}
       <View style={styles.infoContainer}>
-        <Text style={styles.name}>{supplier.name}</Text>
+        <Text style={styles.name}>{supplier.businessName}</Text>
 
         <Text style={styles.description}>
-          {supplier.description || 'Random kaka'}
+          {supplier.fullName }
         </Text>
+  {supplier.city && supplier.pincode ? (
 
         <Text style={styles.location}>
-          {supplier.location || '3 kms away'}
+          {supplier.city},{supplier.pincode}
         </Text>
-
+  ): null}
+ {/* {supplier.rating ? ( */}
         <View style={styles.ratingRow}>
-          <AntDesign name="star" size={10} color="#10B981" />
-          <Text style={styles.ratingText}> 4.5 (6)</Text>
+          <FontAwesome name="star" size={14} color="#43A047" />
+          <Text style={styles.ratingText}> {supplier.rating}</Text>
           {/* <Text style={styles.reviewCount}> (6)</Text> */}
           <View style={styles.creditBadge}>
             {/* <Text>🥔 🍏</Text> */}
           </View>
         </View>
+        {/* ): null}  */}
 
         <View style={styles.bottomInfo}>
-          <Feather name="box" size={12} color="#9CA3AF" />
+          <Feather name="box" size={10} color="#92999E" />
           <Text style={styles.daysAgo}>3 days ago</Text>
         </View>
       </View>
@@ -87,7 +91,7 @@ const MySupplierCard = ({
 
     <View style={styles.actionContainer}>
       <TouchableOpacity style={styles.phoneButton}>
-        <Feather name="phone" size={20} color="#6B7280" />
+        <Feather name="phone" size={12} color="#6B7280" />
       </TouchableOpacity>
 
       <View style={styles.connectButtonWrapper}>
@@ -99,7 +103,7 @@ const MySupplierCard = ({
               params: {
                 supplierId: supplier.id,
                 businessId: supplier.businessId,
-                supplierName: supplier.name,
+                supplierName: supplier.businessName,
               },
             })
           }
@@ -107,7 +111,7 @@ const MySupplierCard = ({
           <Text style={styles.connectButtonText}>Order</Text>
           <AntDesign
             name="arrow-right"
-            size={16}
+            size={14}
             color="#2E7D32"
           />
         </Pressable>
@@ -122,12 +126,12 @@ export default MySupplierCard;
 const styles = StyleSheet.create({
   card: {
   backgroundColor: '#fff',
-  borderRadius: 14,
-  borderWidth: 1,
-  borderColor: '#E5E7EB',
-  padding: 14,
-  marginBottom: 12,
-
+  borderRadius: 8,
+  borderWidth: 0.2,
+  borderColor: '#92999E',
+  padding: 12,
+  // marginBottom: 15,
+  marginEnd: 6,
   flexDirection: 'row',
   alignItems: 'flex-start',
 
@@ -142,47 +146,58 @@ const styles = StyleSheet.create({
 
   favoriteButton: {
     position: 'absolute',
-    top: 12,
-    right: 12,
-    padding: 6,
+    top: 6,
+    right: 6,
+    padding: 2,
     zIndex: 100,
+    
   },
 
   avatarContainer: {
+  width: 72,
+  height: 60,
   flexShrink: 0,
-  marginRight: 12,
+  // marginRight: 12,
+  alignItems: 'center',
+  justifyContent: 'center', // Vertical center
+
 },
 
  avatar: {
-  width: 64,
-  height: 64,
+    width: 60,
+    height: 60,
+  // alignSelf: 'center',
+
   borderRadius: 32,
   resizeMode: 'cover',
 },
 
   infoContainer: {
     flex:1,
-    marginLeft:10,
-    paddingRight:110,
+    marginRight:8,
+    marginTop:4,
+    marginEnd:4,
+    // paddingRight:110,
 },
 
   name: {
     fontSize: 16,
-    fontWeight: '800',
-    color: '#1F2937',
-    flexShrink: 1,
+    fontWeight: '700',
+    color: '#3F4245',
+    marginBottom: 1,
+    // paddingRight: 19, // <-- add this to prevent text overflow
   },
 
   description: {
-    fontSize: 13,
-    color: '#4B5563',
+    fontSize: 12,
+    color: '#3F4245',
     marginTop: 1,
     flexShrink: 1,
   },
 
   location: {
-    fontSize: 11,
-    color: '#9CA3AF',
+    fontSize: 10,
+    color: '#72797D',
     marginTop: 1,
     marginBottom: 4,
     flexShrink: 1,
@@ -198,9 +213,9 @@ const styles = StyleSheet.create({
   },
 
   ratingText: {
-    fontSize: 9,
-    fontWeight: '100',
-    color: '#2E7D32',
+    fontSize: 13,
+    color: '#43A047',
+    fontWeight: '600',
   },
 
   reviewCount: {
@@ -215,8 +230,8 @@ const styles = StyleSheet.create({
   },
 
   daysAgo: {
-    fontSize: 9,
-    color: '#9CA3AF',
+    fontSize: 10,
+    color: '#92999E',
     marginLeft: 6,
   },
 
@@ -224,13 +239,16 @@ const styles = StyleSheet.create({
   position: 'absolute',
   right: 16,
   bottom: 16,
-
+// backgroundColor: '#fff',
   flexDirection: 'row',
   alignItems: 'center',
 },
 
   phoneButton: {
-    marginRight: 10,
+    marginRight:8,
+    marginEnd: 7,
+    marginTop: 7,
+    marginLeft:8,
   },
 
 connectButtonWrapper: {
@@ -251,7 +269,7 @@ connectButton: {
 },
 
 connectButtonText: {
-  fontSize: 14,
+  fontSize: 12,
   fontWeight: '600',
   color: '#2E7D32',
 }

@@ -8,14 +8,14 @@ export interface BusinessSupplier {
   name: string;
   address: string;
   city: string;
-  pincode: string;
+  pincode: number;
   contactNumber?: string;
   categoryIds: string[];
   subCategoryIds: string[];
   userId?: string;
-  fullName?: string;
-  businessName?: string;
-  rating?: number;
+  fullName: string;
+  businessName: string;
+  rating: number;
   userType: string;
   profileImageUrl?: string;
 }
