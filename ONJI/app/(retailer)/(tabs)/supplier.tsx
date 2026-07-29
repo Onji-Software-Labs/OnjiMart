@@ -29,24 +29,30 @@ import { getUnconnectedSuppliers } from '@/lib/api/supplier';
 // Maps backend ISupplierResponse → INewSupplier used by the card component
 const mapSupplier = (s: BusinessSupplier): INewSupplier => ({
   id: s.supplierId,
-  businessId: s.businessId || '',
-  name: s.name,
-  description: s.contactNumber || '',
-  location: `${s.city}${s.pincode ? ', ' + s.pincode : ''}`,
-  rating: 0,
-  reviews: 0,
-  credit: false,
+  businessId: s.businessId || '', // fallback to empty string if undefined
+  businessName: s.businessName ,
+  address: s.address ,
+  city: s.city ,
+  pincode: s.pincode ,
+  rating: Number(s.rating),
+  contactNumber: String(s.contactNumber ),
+  fullName: s.fullName,  // Added mapping for SupplierName
+  // reviews: 0,
+  // credit: false,
 });
 
 const mapUnconnectedSupplier = (s: any): INewSupplier => ({
   id: s.userId,                          // ✅ matches SupplierListDTO.userId
   businessId: '',                         // not present in this DTO
-  name: s.fullName || s.businessName || 'Unknown',
-  description: s.businessName || '',
-  location: s.city || '',
-  rating: s.rating || 0,
-  reviews: 0,
-  credit: false,
+  businessName: s.businessName ,
+  address: s.address ,
+  city: s.city ,
+  pincode: s.pincode ,
+  rating: Number(s.rating),
+  contactNumber: String(s.contactNumber ),
+  fullName: s.fullName,  // Added mapping for SupplierName
+  // reviews: 0,
+  // credit: false,
 });
 
 export default function Dashboard() {
@@ -303,9 +309,9 @@ const handleTabSwitch = (tab: 'find' | 'my') => {
   // Filter the chosen list by search query
   const filteredSuppliers = activeList.filter(
     (s) =>
-      s.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      s.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      s.location?.toLowerCase().includes(searchQuery.toLowerCase()),
+      s.businessName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      s.address?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      s.city?.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   return (

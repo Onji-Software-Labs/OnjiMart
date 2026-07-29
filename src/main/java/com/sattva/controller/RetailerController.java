@@ -26,6 +26,8 @@ public class RetailerController {
     @GetMapping("/{retailerId}/suppliers")
     public ResponseEntity<PaginatedResponseDTO<SupplierListDTO>> getSuppliersForRetailer(@PathVariable String retailerId, @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size) {
         PaginatedResponseDTO<SupplierListDTO> suppliers = retailerService.getSuppliersForRetailer(retailerId, page, size);
+        System.out.println("+++++++++++++++++++++++++++++++++" + suppliers);
+
         return ResponseEntity.ok(suppliers);
     }
 
