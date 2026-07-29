@@ -97,6 +97,7 @@ public class RetailerServiceImpl implements RetailerService {
 
         return new SupplierListDTO(
                 supplier.getId(),
+                supplier.getUser().getFullName() ,// ✅ fullName vient de User
                 business != null ? business.getName() : "",
                 business != null ? business.getAddress() : "",
                 business != null ? business.getCity() : "",

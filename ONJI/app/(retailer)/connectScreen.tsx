@@ -855,10 +855,12 @@ const styles = StyleSheet.create({
   connectText: {
     color: "#2E7D32",
     marginRight: 6,
+    fontSize: 12,
   },
   cancelText: {
     color: "#6B7280",
     marginRight: 6,
+    fontSize: 12,
   },
   lockText: {
     fontSize: 18,
