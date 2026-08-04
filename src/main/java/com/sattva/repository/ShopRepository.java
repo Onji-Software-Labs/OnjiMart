@@ -9,4 +9,5 @@ import com.sattva.model.Shop;
 public interface ShopRepository extends JpaRepository<Shop, String> {
 	List<Shop> findByCity(String city);
     List<Shop>  findByRetailer_Id(String retailerId);
+    Shop findByIdAndRetailer_Id(String id, String retailerId);
 }
