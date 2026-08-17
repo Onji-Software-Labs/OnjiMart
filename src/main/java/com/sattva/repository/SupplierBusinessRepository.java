@@ -11,4 +11,5 @@ import org.springframework.stereotype.Repository;
 public interface SupplierBusinessRepository extends JpaRepository<SupplierBusiness, String> {
     List<SupplierBusiness> findAll();
     List<SupplierBusiness> findByPincode(String pincode);
+    List<SupplierBusiness> findTop5ByNameIgnoreCaseContaining(String keyword);
 }
