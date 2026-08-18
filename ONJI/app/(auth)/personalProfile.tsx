@@ -1,7 +1,8 @@
 import RadioInput from "@/components/auth/RadioInput";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
-import { uploadImageToCloudinary } from "@/lib/api/cloudinary";
+import { uploadProfilePicture } from "@/lib/api/profilePicture";
+import { secureStorage } from '@/lib/secureStorage';
 import { Formik } from "formik";
 import React, { useState, useEffect } from "react";
 import {
@@ -76,10 +77,19 @@ const PersonalProfile = () => {
             setProfileImage(localUri);
             setIsUploading(true);
             try {
-                const cloudUrl = await uploadImageToCloudinary(localUri);
-                // Replace local URI with the permanent Cloudinary URL
-                setProfileImage(cloudUrl);
-                await AsyncStorage.setItem('profileImage', cloudUrl);
+                const userId = await secureStorage.getItem('userId');
+                if (!userId) {
+                    Alert.alert('User not found', 'Please log in again and try uploading the photo.');
+                    setIsUploading(false);
+                    return;
+                }
+                const profilePictureUrl = await uploadProfilePicture(
+                    localUri,
+                    radioState.toLowerCase() as 'supplier' | 'retailer',
+                    userId,
+                );
+                setProfileImage(profilePictureUrl);
+                await AsyncStorage.setItem('profileImage', profilePictureUrl);
             } catch (error) {
                 Alert.alert('Upload failed', 'Could not upload profile picture. Please try again.');
                 // Revert to no image if upload fails

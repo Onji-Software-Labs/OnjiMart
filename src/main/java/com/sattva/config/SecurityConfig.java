@@ -18,6 +18,7 @@ import org.springframework.security.web.firewall.StrictHttpFirewall;
 
 import com.sattva.security.JWTAuthenticationEntryPoint;
 import com.sattva.security.JwtAuthenticationFilter;
+
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
@@ -32,23 +33,36 @@ public class SecurityConfig {
     private JWTAuthenticationEntryPoint jwtAuthenticationEntryPoint;
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http ) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-            .csrf(csrf -> csrf.disable()) // Disable CSRF for stateless API authentication
-            .authorizeHttpRequests(authorize -> authorize
-                .requestMatchers("/api/auth/**", "/swagger-ui/**", "/v3/api-docs/**","/api/auth/login","/api/auth/send-otp","/api/categories/**","/api/orders/**","/api/categories/**","/api/products/**","/api/aggregates/**").permitAll() // Permit auth and Swagger endpoints
-                .requestMatchers("/api/connections/**").authenticated()
-                .anyRequest().authenticated() // Secure other endpoints
-            )
-            .exceptionHandling(exception -> exception
-                .authenticationEntryPoint(jwtAuthenticationEntryPoint) // Handle unauthorized access
-            )
-            .sessionManagement(session -> session
-                .sessionCreationPolicy(SessionCreationPolicy.STATELESS) // Set session management to stateless
-            );
+                .csrf(csrf -> csrf.disable()) // Disable CSRF for stateless API authentication
+                .authorizeHttpRequests(authorize -> authorize
+                        .requestMatchers(
+                                "/api/auth/**",
+                                "/swagger-ui/**",
+                                "/v3/api-docs/**",
+                                "/api/auth/login",
+                                "/api/auth/send-otp",
+                                "/api/categories/**",
+                                "/api/orders/**",
+                                "/api/categories/**",
+                                "/api/products/**",
+                                "/api/aggregates/**",
+                                "/api/*/*/profile-picture",
+                                "/uploads/**")
+                        .permitAll().requestMatchers("/api/connections/**").authenticated()
+                        .anyRequest().authenticated() // Secure other endpoints
+                )
+                .exceptionHandling(exception -> exception
+                        .authenticationEntryPoint(jwtAuthenticationEntryPoint) // Handle unauthorized access
+                )
+                .sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS) // Set session management to stateless
+                );
 
-//        //  Add DeviceIdFilter FIRST
-//        http.addFilterBefore(deviceIdFilter, UsernamePasswordAuthenticationFilter.class);
+        // // Add DeviceIdFilter FIRST
+        // http.addFilterBefore(deviceIdFilter,
+        // UsernamePasswordAuthenticationFilter.class);
         // Add JWT filter before UsernamePasswordAuthenticationFilter
         http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
@@ -61,7 +75,8 @@ public class SecurityConfig {
     }
 
     @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration) throws Exception {
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration)
+            throws Exception {
         return authenticationConfiguration.getAuthenticationManager();
     }
 

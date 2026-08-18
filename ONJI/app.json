@@ -27,7 +27,11 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#ffffff"
+          
+    "image": "./assets/images/splash-icon.png",
+    "backgroundColor": "#ffffff",
+    "resizeMode": "contain"
+
         }
       ],
       "expo-font",
@@ -49,6 +53,7 @@
       "typedRoutes": true
     },
     "extra": {
+"apiBaseUrl": "http://localhost:5000",
       "router": {},
       "eas": {
         "projectId": "3b2357f2-2144-4b4b-8248-da161d98b25b"

@@ -6,15 +6,21 @@ const PUBLIC_ROUTES = [
   '/api/auth/login',
 ];
 
+import Constants from 'expo-constants';
+
+const expoConfig = Constants.expoConfig || (Constants as any).manifest;
+const API_BASE_URL =
+  (expoConfig?.extra?.apiBaseUrl as string) ||
+  process.env.EXPO_PUBLIC_API_BASE_URL ||
+  'http://35.207.202.166:5000';
+
 const axiosInstance = axios.create({
-  baseURL: 'http://35.207.221.19:5000',
+  baseURL: API_BASE_URL,
   timeout: 15000, // ⛔ important for detecting hangs
   headers: {
-    'Content-Type': 'application/json',
     'ngrok-skip-browser-warning': 'true',
   },
 });
-
 
 // ===============================
 // 🔥 REQUEST INTERCEPTOR
