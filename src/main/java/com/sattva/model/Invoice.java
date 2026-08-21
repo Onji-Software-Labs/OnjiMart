@@ -70,6 +70,8 @@ public class Invoice {
     @Column(name = "modified_user_id", nullable = false)
     private String modifiedUserId;
 
+    private String supplierBusinessName;
+
     @PrePersist
     protected void onCreate() {
         this.dateEntered = LocalDateTime.now();
