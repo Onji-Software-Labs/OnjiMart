@@ -1,5 +1,6 @@
 package com.sattva.service.impl;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -46,6 +47,9 @@ public class RetailerServiceImpl implements RetailerService {
 
     @Autowired
     private ConnectionRepository connectionRepository;
+
+    @Autowired
+    private ShopRepository shopRepository;
 
     @Override
     public PaginatedResponseDTO<SupplierListDTO> getSuppliersForRetailer(String retailerId, int page, int size) {
@@ -392,5 +396,71 @@ public class RetailerServiceImpl implements RetailerService {
         response.setLast(end >= unconnectedSuppliers.size());
 
         return response;
+    }
+
+    @Override
+    public List<DiscoverSupplierDTO> getSuppliersByLocation(String retailerId, String shopId) {
+
+        // Find shop detail from the shop id and retailer id
+        Shop shopDetail = shopRepository.findByIdAndRetailer_Id(shopId, retailerId);
+
+        if (shopDetail == null) {
+            throw new RuntimeException("Shop not found for this retailer");
+        }
+
+        // Get the pincode and city of the shop
+        String shopPincode = shopDetail.getPincode();
+        String shopCity = shopDetail.getCity();
+
+        List<Supplier> samePincodeSuppliers = new ArrayList<>();
+        List<Supplier> sameCitySuppliers = new ArrayList<>();
+        List<Supplier> otherCitySuppliers = new ArrayList<>();
+
+        // Get all the suppliers data
+        List<Supplier> suppliers;
+        suppliers = supplierRepository.findAll();
+
+        for (Supplier supplier : suppliers) {
+
+            List<String> supplierPincodes = supplier.getBusinesses().stream()
+                                .map(SupplierBusiness::getPincode)
+                                .collect(Collectors.toList());
+
+            List<String> supplierCity = supplier.getBusinesses().stream()
+                                .map(SupplierBusiness::getCity)
+                                .collect(Collectors.toList());
+
+            boolean samePincode = supplierPincodes.stream()
+                    .anyMatch(p -> p.equalsIgnoreCase(shopPincode));
+
+            boolean sameCity = supplierCity.stream()
+                    .anyMatch(c -> c.equalsIgnoreCase(shopCity));
+
+            if (samePincode) {
+                samePincodeSuppliers.add(supplier);
+            } else if (sameCity) {
+                sameCitySuppliers.add(supplier);
+            } else {
+                otherCitySuppliers.add(supplier);
+            }
+        }
+
+        List<DiscoverSupplierDTO> response = new ArrayList<>();
+
+        response.add(convertToDiscoverSupplierDTO("Your Zone", samePincodeSuppliers));
+        response.add(convertToDiscoverSupplierDTO("Your City", sameCitySuppliers));
+        response.add(convertToDiscoverSupplierDTO("Other Cities", otherCitySuppliers));
+
+        return response;
+    }
+
+    private DiscoverSupplierDTO convertToDiscoverSupplierDTO(String id, List<Supplier> suppliers) {
+        return DiscoverSupplierDTO.builder()
+                .id(id)
+                .supplierCount(String.valueOf(suppliers.size()))
+                .suppliers(suppliers.stream()
+                        .map(this::convertToListDTO)
+                        .collect(Collectors.toList()))
+                .build();
     }
 }
