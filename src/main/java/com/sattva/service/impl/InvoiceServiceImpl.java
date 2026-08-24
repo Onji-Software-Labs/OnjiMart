@@ -2,8 +2,11 @@ package com.sattva.service.impl;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
+import com.sattva.dto.NotificationsDTO;
+import com.sattva.service.NotificationsService;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -34,6 +37,9 @@ public class InvoiceServiceImpl implements InvoiceService {
     @Autowired
     private ModelMapper modelMapper;
 
+    @Autowired
+    private NotificationsService notificationsService;
+
     @Transactional
     @Override
     public InvoiceDTO generateInvoice(String supplierId, String orderId, Double deliveryCharge) {
@@ -44,10 +50,12 @@ public class InvoiceServiceImpl implements InvoiceService {
 
         // Create invoice
         Invoice invoice = new Invoice();
+        invoice.setId(UUID.randomUUID().toString());
         invoice.setSupplier(order.getSupplier()); // ✅ use order
         invoice.setRetailer(order.getRetailer());
         invoice.setShop(order.getShop());
         invoice.setInvoiceDate(LocalDateTime.now());
+        invoice.setSupplierBusinessName(order.getSupplier().getBusinesses().get(0).getName());
 
         // Create invoice items (ONLY fulfilled items)
         List<InvoiceOrderItem> invoiceOrderItems = order.getItems().stream()
@@ -87,6 +95,18 @@ public class InvoiceServiceImpl implements InvoiceService {
 
         // Save
         invoiceRepository.save(invoice);
+
+        NotificationsDTO notificationData = NotificationsDTO.builder()
+                .retailerId(order.getRetailer().getId())
+                .supplierId(order.getSupplier().getId())
+                .orderId(order.getId())
+                .invoiceId(invoice.getId())
+                .status(order.getStatus())
+                .notificationText("Your order has been approved by " + order.getSupplier().getBusinesses().get(0).getName())
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        notificationsService.createNotifications(notificationData);
 
         InvoiceDTO dto = modelMapper.map(invoice, InvoiceDTO.class);
         dto.setTotalPrice(invoice.getGrandTotal()); // ✅ fix mapping
