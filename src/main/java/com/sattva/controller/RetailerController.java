@@ -2,15 +2,12 @@ package com.sattva.controller;
 
 import java.util.List;
 
-import com.sattva.dto.PaginatedResponseDTO;
-import com.sattva.dto.SupplierListDTO;
+import com.sattva.dto.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 //import com.netflix.discovery.converters.Auto;
-import com.sattva.dto.SupplierFilterRequest;
-import com.sattva.dto.SupplierDTO;
 import com.sattva.service.RetailerService;
 
 //Added newly
@@ -49,6 +46,15 @@ public class RetailerController {
             @RequestParam(defaultValue = "10") int size) {
         PaginatedResponseDTO<SupplierListDTO> suppliers =
                 retailerService.getUnconnectedSuppliersForRetailer(retailerId, page, size);
+        return ResponseEntity.ok(suppliers);
+    }
+
+    @GetMapping("/{retailerId}/{shopId}/discoverSuppliers")
+    public ResponseEntity<List<DiscoverSupplierDTO>> getSuppliersByLocation (
+            @PathVariable String retailerId,
+            @PathVariable String shopId) {
+        List<DiscoverSupplierDTO> suppliers =
+                retailerService.getSuppliersByLocation(retailerId, shopId);
         return ResponseEntity.ok(suppliers);
     }
 

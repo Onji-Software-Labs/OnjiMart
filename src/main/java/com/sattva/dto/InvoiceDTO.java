@@ -34,4 +34,6 @@ public class InvoiceDTO {
     private LocalDateTime dateModified; // Date when the invoice was last modified
 
     private String modifiedUserId; // ID of the user who last modified the invoice
+
+    private String supplierBusinessName;
 }

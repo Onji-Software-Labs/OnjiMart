@@ -18,4 +18,5 @@ public interface RetailerService {
     RetailerDTO updateBusinessAndCategories(String businessId, RetailerBusinessRequestDTO dto);
     void deleteBusinessAndCategories(String businessId);
     PaginatedResponseDTO<SupplierListDTO> getUnconnectedSuppliersForRetailer(String retailerId,int page, int size);
+    List<DiscoverSupplierDTO> getSuppliersByLocation(String retailerId, String shopId);
 }
