@@ -4,5 +4,6 @@ public enum OrderStatus {
     NEW,          // Newly created order
     PROCESSING,   // Order is being processed
     COMPLETED,    // Order is completed
-    CANCELLED     // Order is cancelled
+    CANCELLED,   // Order is cancelled
+    APPROVED
 }

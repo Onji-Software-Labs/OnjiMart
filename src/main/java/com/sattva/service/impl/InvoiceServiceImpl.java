@@ -90,7 +90,7 @@ public class InvoiceServiceImpl implements InvoiceService {
         // Set final values
         invoice.setInvoiceOrderItems(invoiceOrderItems);
         invoice.setGrandTotal(total);
-        invoice.setStatus(InvoiceStatus.GENERATED);
+        invoice.setStatus(InvoiceStatus.APPROVED);
         invoice.setModifiedUserId(SecurityUtil.getCurrentUserId());
 
         // Save

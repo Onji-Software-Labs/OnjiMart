@@ -543,7 +543,7 @@ public class OrderServiceImpl implements OrderService {
 
         // Update the order status only if at least one item was fulfilled
         if (hasFulfilledItems) {
-                order.setStatus(OrderStatus.PROCESSING);
+                order.setStatus(OrderStatus.APPROVED);
         }
 
         // Save the updated order

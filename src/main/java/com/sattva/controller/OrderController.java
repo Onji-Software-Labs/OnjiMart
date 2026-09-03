@@ -87,7 +87,8 @@ public class OrderController {
         if (filter.equalsIgnoreCase("ACTIVE")) {
             statuses = Arrays.asList(
                     OrderStatus.NEW,
-                    OrderStatus.PROCESSING
+                    OrderStatus.PROCESSING,
+                    OrderStatus.APPROVED
             );
         } else if (filter.equalsIgnoreCase("DELIVERED")) {
             statuses = Arrays.asList(
@@ -136,7 +137,8 @@ public class OrderController {
             );
             } else if (filter.equalsIgnoreCase("ACTIVE")) {
                 statuses = Arrays.asList(
-                        OrderStatus.PROCESSING
+                        OrderStatus.PROCESSING,
+                        OrderStatus.APPROVED
                 );
             } else if (filter.equalsIgnoreCase("DELIVERED")) {
                 statuses = Arrays.asList(
