@@ -27,6 +27,8 @@ public class SupplierBusiness {
     private String pincode;
 
     private String contactNumber;
+    private String deliveryDuration;
+    private String gst;
 
     private String profilePicture;
 

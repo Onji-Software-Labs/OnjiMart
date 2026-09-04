@@ -98,6 +98,8 @@ public class SupplierServiceImpl implements SupplierService {
                     .city(existingBusiness.getCity())
                     .pincode(existingBusiness.getPincode())
                     .contactNumber(existingBusiness.getContactNumber())
+                    .deliveryDuration(existingBusiness.getDeliveryDuration())
+                    .gst(existingBusiness.getGst())
                     .profilePicture(existingBusiness.getProfilePicture())  // ← ADD THIS
                     .isActive(existingBusiness.isActive())
                     .supplierId(supplier.getId())
@@ -122,6 +124,8 @@ public class SupplierServiceImpl implements SupplierService {
                 .city(dto.getCity())
                 .pincode(dto.getPincode())
                 .contactNumber(dto.getContactNumber())
+                .deliveryDuration(dto.getDeliveryDuration())
+                .gst(dto.getGst())
                 .profilePicture(dto.getProfilePicture())  // ← ADD THIS
                 .isActive(true)
                 .build();
@@ -172,6 +176,8 @@ public class SupplierServiceImpl implements SupplierService {
                 .city(business.getCity())
                 .pincode(business.getPincode())
                 .contactNumber(business.getContactNumber())
+                .deliveryDuration(business.getDeliveryDuration())
+                .gst(business.getGst())
                 .isActive(business.isActive())
                 .profilePicture(business.getProfilePicture())  // ← ADD THIS
                 .supplierId(savedSupplier.getId())
@@ -222,7 +228,7 @@ public class SupplierServiceImpl implements SupplierService {
 
 
         @Override
-        public SupplierDTO updateBusinessAndCategories(String businessId, SupplierBusinessRequestDTO dto) {
+       public SupplierBusinessResponseDTO updateBusinessAndCategories(String businessId, SupplierBusinessRequestDTO dto) {
         SupplierBusiness business = supplierBusinessRepository.findById(businessId)
                 .orElseThrow(() -> new ResourceNotFoundException("Business not found"));
 
@@ -231,6 +237,8 @@ public class SupplierServiceImpl implements SupplierService {
         business.setCity(dto.getCity());
         business.setPincode(dto.getPincode());
         business.setContactNumber(dto.getContactNumber());
+        business.setDeliveryDuration(dto.getDeliveryDuration());
+        business.setGst(dto.getGst());
         business.setProfilePicture(dto.getProfilePicture());  // ← ADD THIS
 
 
@@ -239,7 +247,28 @@ public class SupplierServiceImpl implements SupplierService {
         Supplier supplier = business.getSupplier();
         updateSupplierCategoriesAndSubCategories(supplier, dto.getCategoryIds(), dto.getSubCategoryIds());
 
-        return modelMapper.map(supplierRepository.save(supplier), SupplierDTO.class);
+        return SupplierBusinessResponseDTO.builder()
+        .BusinessName(business.getName())
+        .address(business.getAddress())
+        .city(business.getCity())
+        .pincode(business.getPincode())
+        .contactNumber(business.getContactNumber())
+        .deliveryDuration(business.getDeliveryDuration())
+        .gst(business.getGst())
+        .profilePicture(business.getProfilePicture())
+        .isActive(business.isActive())
+        .supplierId(supplier.getId())
+        .categoryIds(
+                supplier.getCategories().stream()
+                        .map(Category::getId)
+                        .collect(Collectors.toSet())
+        )
+        .subCategoryIds(
+                supplier.getSubCategories().stream()
+                        .map(SubCategory::getId)
+                        .collect(Collectors.toSet())
+        )
+        .build();
         }
 
         @Override
