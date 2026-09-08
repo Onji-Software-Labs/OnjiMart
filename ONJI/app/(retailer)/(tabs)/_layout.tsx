@@ -41,6 +41,12 @@ export default function RetailerTabs() {
           tabBarIcon: ({ color }) => <FontAwesome5 name="file-invoice" size={22} color={color} />,
         }}
       />
+      <Tabs.Screen
+  name="invoiceDetails"
+  options={{
+    href: null,
+  }}
+/>
     </Tabs>
   );
 }
@@ -50,13 +56,15 @@ function RetailerTabBar({ state, descriptors }: any) {
 
   return (
     <View className="flex-row bg-white border-t border-gray-200 pb-safe">
-      {state.routes.map((route: any, index: number) => {
-        const isFocused = state.index === index;
+      {state.routes
+      .filter((route: any) => route.name !== 'invoiceDetails')
+      .map((route: any, index: number) => {
+        const isFocused = state.routes[state.index]?.name === route.name;
         const { options } = descriptors[route.key];
 
         const onPress = () => {
           if (!isFocused) {
-            router.push(`/${route.name}` as Href);
+            router.navigate(`/${route.name}` as Href);
           }
         };
 

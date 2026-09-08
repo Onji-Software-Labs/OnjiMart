@@ -8,7 +8,8 @@
     "scheme": "onji",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.hasthik.onjimart"
     },
     "android": {
       "adaptiveIcon": {
@@ -34,17 +35,16 @@
       "expo-secure-store",
       "expo-image",
       "expo-web-browser",
-      ["expo-build-properties",
-
-    {
-      "android": {
-        "usesCleartextTraffic": true
-      },
-      "ios": {}
-    }]
-  
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          },
+          "ios": {}
+        }
+      ]
     ],
-
     "experiments": {
       "typedRoutes": true
     },
