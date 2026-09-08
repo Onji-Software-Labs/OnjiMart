@@ -18,6 +18,8 @@ public class SupplierBusinessResponseDTO {
     private String city;
     private String pincode;
     private String contactNumber;
+    private String deliveryDuration;
+    private String gst;
     private boolean isActive;
 
     // Supplier fields

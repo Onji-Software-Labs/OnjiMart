@@ -13,6 +13,8 @@ import org.springframework.web.bind.annotation.*;
 import com.sattva.dto.SupplierBusinessRequestDTO;
 import com.sattva.dto.SupplierDTO;
 import com.sattva.service.SupplierService;
+import com.sattva.dto.SupplierBusinessRequestDTO;
+import com.sattva.dto.SupplierBusinessResponseDTO;
 
 //Added newly
 @CrossOrigin
@@ -54,11 +56,11 @@ public class SupplierBusinessController {
 
     @PutMapping("/{businessId}")
     @PreAuthorize("hasRole('ROLE_SUPPLIER')")
-    public ResponseEntity<SupplierDTO> updateBusinessWithCategories(
+    public ResponseEntity<SupplierBusinessResponseDTO> updateBusinessWithCategories(
             @PathVariable String businessId,
             @RequestBody SupplierBusinessRequestDTO dto) {
-        SupplierDTO updatedSupplier = supplierService.updateBusinessAndCategories(businessId, dto);
-        return ResponseEntity.ok(updatedSupplier);
+        SupplierBusinessResponseDTO updatedBusiness = supplierService.updateBusinessAndCategories(businessId, dto);
+        return ResponseEntity.ok(updatedBusiness);
     }
 
     @DeleteMapping("/{businessId}")
