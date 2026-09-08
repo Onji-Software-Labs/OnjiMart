@@ -254,7 +254,7 @@ function InvoiceCard({ item }: any) {
           </TouchableOpacity>
         </View>
         <TouchableOpacity 
-        onPress={() => router.push("/invoiceDetails")}
+        onPress={() => router.push({pathname: "/invoiceDetails", params: { invoiceId: item.id },})}
           style={{ backgroundColor: "#2E7D32", paddingHorizontal: 24, paddingVertical: 10, borderRadius: 8, justifyContent: "center" }}
         >
           <Text style={{ color: "#fff", fontWeight: "600", fontSize: 13 }}>

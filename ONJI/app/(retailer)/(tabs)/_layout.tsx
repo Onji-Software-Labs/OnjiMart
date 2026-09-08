@@ -64,7 +64,7 @@ function RetailerTabBar({ state, descriptors }: any) {
 
         const onPress = () => {
           if (!isFocused) {
-            router.push(`/${route.name}` as Href);
+            router.navigate(`/${route.name}` as Href);
           }
         };
 
