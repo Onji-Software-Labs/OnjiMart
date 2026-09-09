@@ -20,6 +20,8 @@ import com.sattva.repository.SupplierRepository;
 import com.sattva.service.ProductService;
 import com.sattva.model.Supplier;
 
+import javax.transaction.Transactional;
+
 @Service
 public class ProductServiceImpl implements ProductService {
 
@@ -205,4 +207,18 @@ public void mapProductsToSupplier(String supplierId, List<String> productIds) {
 
     //     System.out.println("All products mapped to supplier successfully");
     // }
+
+    @Override
+    @Transactional
+    public void deleteMultipleProductsByIds(List<String> productIds) {
+        if (productIds == null || productIds.isEmpty()) {
+            throw new IllegalArgumentException("No product IDs provided");
+        }
+        List<String> existingIds = productRepository.findAllById(productIds)
+                .stream()
+                .map(Product::getProductId)
+                .toList();
+
+        productRepository.deleteAllByIdInBatch(existingIds);
+    }
 }
