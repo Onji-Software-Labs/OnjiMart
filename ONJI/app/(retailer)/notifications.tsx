@@ -44,25 +44,56 @@ const COLORS = {
 
       try {
         const date = new Date(dateStr);
+        const now = new Date();
 
-        const day = date.toLocaleDateString([], {
-          weekday: 'long',
-        });
+        // Same day → show only time
+        if (date.toDateString() === now.toDateString()) {
+          return date
+            .toLocaleTimeString([], {
+              hour: 'numeric',
+              minute: '2-digit',
+              hour12: true,
+            })
+            .toLowerCase();
+        }
 
-        const datePart = date.toLocaleDateString([], {
+        // Check if the date is in the current week
+        const startOfWeek = new Date(now);
+        const dayOfWeek = now.getDay(); // Sunday = 0
+        startOfWeek.setDate(now.getDate() - dayOfWeek);
+        startOfWeek.setHours(0, 0, 0, 0);
+
+        const endOfWeek = new Date(startOfWeek);
+        endOfWeek.setDate(startOfWeek.getDate() + 7);
+
+        if (date >= startOfWeek && date < endOfWeek) {
+          return `${date.toLocaleDateString([], {
+            weekday: 'long',
+          })}, ${date
+            .toLocaleTimeString([], {
+              hour: 'numeric',
+              minute: '2-digit',
+              hour12: true,
+            })
+            .toLowerCase()}`;
+        }
+
+        // Older date → DD/MM/YYYY, Time
+        const datePart = date.toLocaleDateString('en-GB', {
           day: '2-digit',
-          month: 'long',
+          month: '2-digit',
           year: 'numeric',
         });
 
         const time = date
           .toLocaleTimeString([], {
-            hour: '2-digit',
+            hour: 'numeric',
             minute: '2-digit',
+            hour12: true,
           })
           .toLowerCase();
 
-        return `${day}, ${datePart}, ${time}`;
+        return `${datePart}, ${time}`;
       } catch {
         return '';
       }
