@@ -1,298 +1,382 @@
-/*
-import React from "react";
-import { View, Text } from "react-native";
-import { Feather } from "@expo/vector-icons";
-
-export default function Invoice() {
-  return (
-    <View
-      style={{
-        flex: 1,
-        backgroundColor: "#FFFFFF",
-        justifyContent: "center",
-        alignItems: "center",
-      }}
-    >
-    
-      <Feather name="shopping-cart" size={40} color="#D1D5DB" />
-
-    
-      <Text
-        style={{
-          marginTop: 16,
-          fontSize: 18,
-          fontWeight: "600",
-          color: "#9CA3AF",
-        }}
-      >
-        Looks like your cart's empty.
-      </Text>
-
-    
-      <Text
-        style={{
-          marginTop: 6,
-          fontSize: 13,
-          color: "#D1D5DB",
-          textAlign: "center",
-        }}
-      >
-        Browse suppliers and add items you love.
-      </Text>
-    </View>
-  );
-}
-
-*/
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
   TextInput,
   ScrollView,
   TouchableOpacity,
+  Pressable,
   Image,
+  Share,
+  ActivityIndicator,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
+import { getSupplierInvoices, InvoiceItem } from "@/lib/api/invoice";
+import { secureStorage } from "@/lib/secureStorage";
 import { router } from "expo-router";
-import { Share } from "react-native";
+
+// Resolves the business name shown on a card.
+// 1. Uses a real backend-provided name if one exists and isn't a known placeholder value.
+// 2. Otherwise falls back to a substitute name that increments with the card's
+//    position in the filtered list, so cards never collide even if their
+//    underlying retailerId happens to be the same.
+const getDisplayRetailerName = (item: any, index: number): string => {
+  const explicitName =
+    item?.retailerBusinessName ||
+    item?.retailerName ||
+    item?.retailer?.businessName ||
+    item?.retailer?.name;
+
+  if (
+    explicitName &&
+    explicitName.trim() !== "" &&
+    explicitName.toLowerCase() !== "retailer customer" &&
+    explicitName.toLowerCase() !== "unknown retailer"
+  ) {
+    return explicitName;
+  }
+
+  // No real name from the backend yet — fall back to a substitute that's
+  // stable and incremental based on this card's position in the list.
+  return `Retailer Name ${index + 1}`;
+};
 
 export default function Invoice() {
-  const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState("all");
+  const [activeTab, setActiveTab] = useState<"Approved" | "Delivered">("Approved");
+  const [searchQuery, setSearchQuery] = useState("");
 
-  // Hard-coded data
-  const invoices = [
-    {
-    id: 1,
-    supplier: "Sunways trading",
-    date: "12 Aug, 4:30 PM",
-    status: "active",
-  },
-  {
-    id: 2,
-    supplier: "Green Valley Farms",
-    date: "11 Aug, 3:20 PM",
-    status: "active",
-  },
-  {
-    id: 3,
-    supplier: "Coastal Fresh Market",
-    date: "10 Aug, 1:10 PM",
-    status: "successful",
-  },
-  {
-    id: 4,
-    supplier: "Mountain Harvest",
-    date: "9 Aug, 9:00 AM",
-    status: "successful",
-  },
-  {
-    id: 5,
-    supplier: "Sunways trading",
-    date: "8 Aug, 6:45 PM",
-    status: "failed",
-  },
-];
+  const [invoices, setInvoices] = useState<InvoiceItem[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [supplierId, setSupplierId] = useState<string | null>(null);
 
-  //  Filter logic
-  const filteredInvoices = invoices.filter((item) => {
-  const matchesSearch = item.supplier
-    .toLowerCase()
-    .includes(search.toLowerCase());
+  // Step 1: Get the logged-in supplier's ID
+  useEffect(() => {
+    const loadSupplierId = async () => {
+      const storedId = await secureStorage.getItem("userId");
+      setSupplierId(storedId);
+    };
+    loadSupplierId();
+  }, []);
 
-  const matchesFilter =
-    filter === "all" || item.status === filter;
+  // Step 2: Fetch invoices once supplierId is available
+  useEffect(() => {
+    if (!supplierId) return;
 
-  return matchesSearch && matchesFilter;
-});
+    const fetchInvoicesData = async () => {
+      try {
+        setLoading(true);
+        const data = await getSupplierInvoices(supplierId);
+        if (data && data.length > 0) {
+          setInvoices(data);
+        }
+      } catch (err) {
+        console.warn("Could not retrieve invoices from backend.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchInvoicesData();
+  }, [supplierId]);
+
+  // Step 3: Filter by Active Tab and Search Input
+  const filteredInvoices = invoices.filter((item: any) => {
+    const status = item.status?.toUpperCase();
+
+    // Tab Filtering
+    let matchesTab = false;
+    if (activeTab === "Approved") {
+      matchesTab = status === "APPROVED" || status === "PENDING" || status === "GENERATED";
+    } else {
+      matchesTab = status === "DELIVERED";
+    }
+
+    // Search Filtering (Checks against Retailer Name, Invoice ID, or Order ID)
+    const nameToMatch = (item.retailerBusinessName || item.retailerName || "").toLowerCase();
+    const query = searchQuery.toLowerCase().trim();
+    const matchesSearch = query === "" || nameToMatch.includes(query) || String(item.id).includes(query);
+
+    return matchesTab && matchesSearch;
+  });
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: "#fff", padding: 16 }}>
-
-      
-      <Text style={{ fontSize: 22, fontWeight: "700", color: "#2E7D32" }}>
-        Invoices
-      </Text>
-
-     
+    <View style={{ flex: 1, backgroundColor: "#FFFFFF" }}>
+      {/* Page Header */}
       <View
         style={{
-          flexDirection: "row",
-          alignItems: "center",
-          backgroundColor: "#F3F4F6",
-          borderRadius: 10,
-          paddingHorizontal: 12,
-          marginTop: 12,
+          paddingHorizontal: 16,
+          paddingTop: 40,
+          paddingBottom: 10,
+          backgroundColor: "#FFFFFF",
         }}
       >
-        <Feather name="search" size={18} color="#9CA3AF" />
-        <TextInput
-          placeholder="Search"
-          value={search}
-          onChangeText={setSearch}
-          style={{ marginLeft: 8, flex: 1 }}
-        />
+        <Text style={{ fontSize: 22, fontWeight: "600", color: "#2A6B2D" }}>Invoice</Text>
       </View>
 
-     
-      <View
-        style={{
-          flexDirection: "row",
-          marginTop: 16,
-          justifyContent: "space-between",
-        }}
+      <ScrollView
+        style={{ flex: 1, backgroundColor: "#F9FAFB" }}
+        contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
       >
-        {["all", "active", "successful", "failed"].map((item) => (
-          <TouchableOpacity
-            key={item}
-            onPress={() => setFilter(item)}
-            style={{
-              paddingVertical: 6,
-              paddingHorizontal: 12,
-              borderRadius: 20,
-              backgroundColor:
-                filter === item ? "#E6F4EA" : "transparent",
-              borderWidth: 1,
-              borderColor:
-                filter === item ? "#2E7D32" : "#E5E7EB",
-            }}
-          >
-            <Text
+        {/* Top Segmented Control */}
+        <View style={{ flexDirection: "row", backgroundColor: "#E2E2E2", padding: 4, borderRadius: 16, marginBottom: 16 }}>
+          {(["Approved", "Delivered"] as const).map((tab) => (
+            <TouchableOpacity
+              key={tab}
+              onPress={() => setActiveTab(tab)}
               style={{
-                color: filter === item ? "#2E7D32" : "#6B7280",
-                fontWeight: "500",
+                flex: 1,
+                paddingVertical: 10,
+                borderRadius: 16,
+                alignItems: "center",
+                backgroundColor: activeTab === tab ? "#FFFFFF" : "transparent",
+                ...(activeTab === tab
+                  ? {
+                      shadowColor: "#000",
+                      shadowOpacity: 0.05,
+                      shadowRadius: 4,
+                      shadowOffset: { width: 0, height: 2 },
+                      elevation: 2,
+                    }
+                  : {}),
               }}
             >
-              {item.charAt(0).toUpperCase() + item.slice(1)}
-            </Text>
+              <Text
+                style={{
+                  color: activeTab === tab ? "#2E7D32" : "#6B7280",
+                  fontWeight: activeTab === tab ? "600" : "500",
+                }}
+              >
+                {tab}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* Search and Filter Row */}
+        <View style={{ flexDirection: "row", marginBottom: 20 }}>
+          <View
+            style={{
+              flex: 1,
+              flexDirection: "row",
+              alignItems: "center",
+              backgroundColor: "#FFFFFF",
+              borderWidth: 1,
+              borderColor: "#E5E7EB",
+              borderRadius: 16,
+              paddingHorizontal: 16,
+            }}
+          >
+            <TextInput
+              placeholder="Search by retailer name..."
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              style={{ flex: 1, paddingVertical: 12, color: "#111827", fontSize: 14 }}
+              placeholderTextColor="#9CA3AF"
+            />
+            <Feather name="search" size={18} color="#9CA3AF" />
+          </View>
+
+          <TouchableOpacity
+            style={{
+              marginLeft: 12,
+              backgroundColor: "#F1F5EC",
+              paddingHorizontal: 14,
+              borderRadius: 12,
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            <Feather name="filter" size={20} color="#2E7D32" />
           </TouchableOpacity>
-        ))}
-      </View>
-
-     
-      {filter === "all" || filter === "active" ? (
-        <View style={{ marginTop: 20 }}>
-          <Text style={{ fontWeight: "600", marginBottom: 10 }}>
-            Active Orders
-          </Text>
-
-          {filteredInvoices
-            .filter((i) => i.status === "active")
-            .map((item) => (
-              <InvoiceCard key={item.id} item={item} type="active" />
-            ))}
         </View>
-      ) : null}
 
-      {filter === "all" || filter === "successful" ? (
-        <View style={{ marginTop: 20 }}>
-          <Text style={{ fontWeight: "600", marginBottom: 10 }}>
-            Successful Orders
-          </Text>
+        {/* Loading and Empty States */}
+        {loading ? (
+          <ActivityIndicator size="large" color="#2E7D32" style={{ marginTop: 40 }} />
+        ) : filteredInvoices.length === 0 ? (
+          <View style={{ alignItems: "center", marginTop: 40 }}>
+            <Text style={{ color: "#6B7280", fontSize: 14 }}>No invoices found.</Text>
+          </View>
+        ) : (
+          filteredInvoices.map((item, index) => (
+            <InvoiceCard key={item.id} item={item} index={index} />
+          ))
+        )}
 
-          {filteredInvoices
-            .filter((i) => i.status === "successful")
-            .map((item) => (
-              <InvoiceCard key={item.id} item={item} type="success" />
-            ))}
-        </View>
-      ) : null}
-
-    
-      {filter === "all" || filter === "failed" ? (
-  <View style={{ marginTop: 20 }}>
-    <Text style={{ fontWeight: "600", marginBottom: 10 }}>
-      Failed Orders
-    </Text>
-
-    {filteredInvoices
-      .filter((i) => i.status === "failed")
-      .map((item) => (
-        <InvoiceCard key={item.id} item={item} type="failed" />
-      ))}
-  </View>
-) : null}
-    </ScrollView>
+        <View style={{ height: 40 }} />
+      </ScrollView>
+    </View>
   );
 }
 
-
-
 // Invoice Card Component
-function InvoiceCard({ item, type }: any) {
+function InvoiceCard({ item, index }: { item: any; index: number }) {
+  const [isExpanded, setIsExpanded] = useState(item.expanded || false);
+
+  // Real name if the backend provides one, otherwise a substitute that
+  // increments with this card's position in the list.
+  const retailerName = getDisplayRetailerName(item, index);
+
   const handleShare = async () => {
-  try {
-    await Share.share({
-      message: `Invoice from ${item.supplier} (${item.date})`,
-    });
-  } catch (error) {
-    console.log(error);
-  }
-};
+    try {
+      await Share.share({
+        message: `Invoice #${item.id} from ${retailerName} for ₹${item.totalPrice}`,
+      });
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
   return (
     <View
       style={{
-        backgroundColor: type === "failed" ? "#FDECEC" : "#fff",
-        borderRadius: 12,
-        padding: 12,
-        marginBottom: 12,
+        backgroundColor: "#fff",
+        borderRadius: 16,
+        padding: 16,
+        marginBottom: 16,
         borderWidth: 1,
-        borderColor: "#E5E7EB",
+        borderColor: "#F3F4F6",
       }}
     >
-      <View
-  style={{
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  }}
->
-  <View style={{ flexDirection: "row", alignItems: "center" }}>
-    <Image
-      source={require("../../../assets/images/3davatar.png")}
-      style={{ width: 40, height: 40, borderRadius: 20 }}
-    />
-
-    <View style={{ marginLeft: 10 }}>
-      <Text style={{ fontWeight: "600" }}>{item.supplier}</Text>
-      <Text style={{ color: "#6B7280", fontSize: 12 }}>
-        {item.date}
-      </Text>
-    </View>
-  </View>
-
-  {/* Share Icon */}
-  <TouchableOpacity onPress={handleShare}>
-    <Feather name="share-2" size={18} color="#2E7D32" />
-  </TouchableOpacity>
-</View>
-
-    
-      <View
-        style={{
-          flexDirection: "row",
-          justifyContent: "space-between",
-          marginTop: 12,
-        }}
-      >
-      <TouchableOpacity
-        onPress={() => router.push("../invoiceSummary")}
-        >
-  <Text style={{ color: "#2E7D32", fontWeight: "600" }}>
-    View Invoice
-  </Text>
-</TouchableOpacity>
-  
-
-        {type === "active" && (
-          <TouchableOpacity>
-            <Text style={{ color: "#6B7280" }}>
-              Track Order
+      {/* Header Row */}
+      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <Image
+            source={require("../../../assets/images/3davatar.png")}
+            style={{ width: 44, height: 44, borderRadius: 22 }}
+          />
+          <View style={{ marginLeft: 12 }}>
+            <Text style={{ fontSize: 16, fontWeight: "600", color: "#111827" }}>
+              {retailerName}
             </Text>
-          </TouchableOpacity>
-        )}
+            <View style={{ backgroundColor: "#F3F4F6", alignSelf: "flex-start", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, marginTop: 4 }}>
+              <Text style={{ fontSize: 11, color: "#6B7280", fontWeight: "500" }}>
+                {item.invoiceOrderItems?.length || 0} Invoices
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        <TouchableOpacity onPress={() => setIsExpanded(!isExpanded)} style={{ padding: 4 }}>
+          <Feather name={isExpanded ? "chevron-up" : "chevron-down"} size={20} color="#9CA3AF" />
+        </TouchableOpacity>
       </View>
+
+      {/* Status & Date Row */}
+      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 16 }}>
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: "#2A6B2D", marginRight: 6 }} />
+          <Text style={{ fontSize: 12, color: "#6B7280", fontWeight: "500" }}>{item.status}</Text>
+        </View>
+        <Text style={{ fontSize: 11, color: "#6B7280" }}>
+          {item.invoiceDate
+            ? `${new Date(item.invoiceDate).toLocaleDateString()} • ${new Date(item.invoiceDate).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+            : "N/A"}
+        </Text>
+      </View>
+
+      {/* Order Info Row */}
+      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", marginTop: 12 }}>
+        <View>
+          <Text style={{ fontSize: 11, color: "#6B7280", marginBottom: 4 }}>Latest Order Id</Text>
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <Text style={{ fontSize: 13, fontWeight: "600", color: "#181D18", marginRight: 6 }}>
+              #{item.invoiceOrderItems?.[0]?.orderItemId || item.id}
+            </Text>
+            <Feather name="copy" size={14} color="#2E7D32" />
+          </View>
+        </View>
+        <Text style={{ fontSize: 20, fontWeight: "700", color: "#2E7D32" }}>
+          ₹{item.totalPrice != null ? Number(item.totalPrice).toFixed(2) : "0.00"}
+        </Text>
+      </View>
+
+      {/* Action Buttons Row */}
+      <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 16 }}>
+        <View style={{ flexDirection: "row" }}>
+          <TouchableOpacity style={{ padding: 10, backgroundColor: "#F7F9F5CC", borderRadius: 8, marginRight: 8, borderWidth: 1, borderColor: "#F3F4F6" }}>
+            <Feather name="download" size={16} color="#0C5217" />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleShare} style={{ padding: 10, backgroundColor: "#F7F9F5CC", borderRadius: 8, borderWidth: 1, borderColor: "#F3F4F6" }}>
+            <Feather name="share-2" size={16} color="#0C5217" />
+          </TouchableOpacity>
+        </View>
+        <TouchableOpacity
+          onPress={() =>
+            router.push({
+              pathname: "/invoiceDetails",
+              // retailerName carries over whatever this card is showing (real
+              // name or substitute) so the details screen matches exactly —
+              // it doesn't have to redo the numbering logic on its own.
+              params: { invoiceId: item.id, retailerName },
+            })
+          }
+          style={{ backgroundColor: "#2E7D32", paddingHorizontal: 24, paddingVertical: 10, borderRadius: 8, justifyContent: "center" }}
+        >
+          <Text style={{ color: "#fff", fontWeight: "600", fontSize: 13 }}>Invoice Details</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Expanded grid */}
+      {isExpanded && (
+        <View style={{ marginTop: 20, paddingTop: 16, borderTopWidth: 1, borderTopColor: "#E5E7EB", borderStyle: "dashed" }}>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <Feather name="rotate-ccw" size={14} color="#0C5217CC" style={{ marginRight: 6 }} />
+              <Text style={{ fontSize: 12, color: "#000000CC", fontWeight: "500" }}>
+                +{Math.max((item.invoiceOrderItems?.length || 1) - 1, 0)} previous invoices
+              </Text>
+            </View>
+            <Text style={{ fontSize: 12, color: "#2E7D32", fontWeight: "600" }}>View all</Text>
+          </View>
+
+          <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between" }}>
+            {item.invoiceOrderItems?.map((subItem: any, idx: number) => (
+              <View
+                key={subItem.id || idx}
+                style={{
+                  flexDirection: "row",
+                  width: "48%",
+                  backgroundColor: "#F9FAFB",
+                  borderRadius: 12,
+                  marginBottom: 12,
+                  borderWidth: 1,
+                  borderColor: "#F3F4F6",
+                  overflow: "hidden",
+                }}
+              >
+                <View style={{ padding: 10, flex: 1 }}>
+                  <Text style={{ fontSize: 8, color: "#6B7280" }}>
+                    {item.invoiceDate
+                      ? `${new Date(item.invoiceDate).toLocaleDateString()} • ${new Date(item.invoiceDate).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+                      : "N/A"}
+                  </Text>
+                  <Text style={{ fontSize: 9, color: "#6B7280", marginTop: 4 }}>
+                    Order Id <Text style={{ fontWeight: "600", color: "#111827" }}>{subItem.orderItemId}</Text>
+                  </Text>
+                  <Text style={{ fontSize: 13, fontWeight: "700", color: "#111827", marginTop: 6 }}>
+                    ₹{subItem.totalPrice != null ? Number(subItem.totalPrice).toFixed(2) : "0.00"}
+                  </Text>
+                </View>
+
+                {/* React Native Touch Indicator replacing Web Hover */}
+                <Pressable
+                  style={({ pressed }) => ({
+                    width: 24,
+                    backgroundColor: pressed ? "#4C8A5A" : "transparent",
+                    justifyContent: "center",
+                    alignItems: "center",
+                  })}
+                >
+                  {({ pressed }) => (
+                    <Feather name="chevron-right" size={14} color={pressed ? "#fff" : "#9CA3AF"} />
+                  )}
+                </Pressable>
+              </View>
+            ))}
+          </View>
+        </View>
+      )}
     </View>
   );
 }

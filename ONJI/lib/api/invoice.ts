@@ -1,16 +1,17 @@
 import api from "./axiosConfig";
 
-// 1. This export fixes the red underline on line 12
+// 1. Updated interface aligned with backend schema
 export interface InvoiceItem {
   id: string;
-  shopId: string;
-  retailerId: string;
-  supplierId: string;
+  shopId?: string | null;
+  retailerId?: string | null;
+  supplierId?: string | null;
   invoiceDate: string;
   totalPrice: number;
   deliveryCharge: number;
   status: string;
-  supplierBusinessName?: string;
+  supplierBusinessName?: string | null;
+  retailerBusinessName?: string | null;
 }
 
 // 2. Order item details
@@ -21,18 +22,18 @@ export interface InvoiceOrderItem {
   quantity: number;
   unitPrice: number;
   totalPrice: number;
-  orderItemId: string;
+  orderItemId: string | null;
 }
 
-// 3. Detailed invoice response
+// 3. Detailed invoice response matching Swagger schema
 export interface InvoiceDetailsResponse extends InvoiceItem {
   invoiceOrderItems: InvoiceOrderItem[];
-  dateEntered?: string;
-  dateModified?: string;
-  modifiedUserId?: string;
+  dateEntered?: string | null;
+  dateModified?: string | null;
+  modifiedUserId?: string | null;
 }
 
-// Fetch list of invoices
+// Fetch list of invoices for a Retailer
 export const getRetailerInvoices = async (
   retailerId: string
 ): Promise<InvoiceItem[]> => {
@@ -47,7 +48,22 @@ export const getRetailerInvoices = async (
   }
 };
 
-// Fetch single invoice
+// Fetch list of invoices for a Supplier
+export const getSupplierInvoices = async (
+  supplierId: string
+): Promise<InvoiceItem[]> => {
+  try {
+    const response = await api.get<InvoiceItem[]>(
+      `/api/invoices/supplier/${supplierId}`
+    );
+    return response.data || [];
+  } catch (error) {
+    console.error("Error fetching supplier invoices:", error);
+    return [];
+  }
+};
+
+// Fetch single invoice by ID
 export const getInvoiceById = async (
   invoiceId: string
 ): Promise<InvoiceDetailsResponse | null> => {
