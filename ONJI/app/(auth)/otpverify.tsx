@@ -330,7 +330,9 @@ export default function OTPVerification() {
         }
       }
     } catch (error: any) {
-      console.error('OTP verification error:', error.response?.data || error.message);
+      // Verification failures are handled below with an in-app message. Keep this
+      // diagnostic out of console.error so Expo LogBox is reserved for unhandled errors.
+      console.log('OTP verification failed:', error.response?.data || error.message);
       setIsError(true);
 
       if (error.response?.status === 400) {

@@ -34,7 +34,7 @@ public class SupplierBusinessController {
     }
 
     @GetMapping("/{businessId}")
-    @PreAuthorize("hasRole('ROLE_SUPPLIER')")
+    @PreAuthorize("hasAnyRole('ROLE_SUPPLIER', 'ROLE_RETAILER')")
     public ResponseEntity<SupplierBusinessRequestDTO> getBusiness(@PathVariable String businessId) {
         SupplierBusinessRequestDTO business = supplierService.getBusinessDetails(businessId);
         return ResponseEntity.ok(business);
