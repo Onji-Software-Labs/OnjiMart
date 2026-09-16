@@ -38,16 +38,66 @@ const COLORS = {
   connectedBorder: '#86EFAC',
 };
 
-// ─── Helper: Format Time ─────────────────────────────────────────────
-const formatTime = (dateStr: string) => {
-  if (!dateStr) return '';
-  try {
-    const date = new Date(dateStr);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }).toLowerCase();
-  } catch {
-    return '';
-  }
-};
+  // ─── Helper: Format Time ─────────────────────────────────────────────
+    const formatTime = (dateStr: string) => {
+      if (!dateStr) return '';
+
+      try {
+        const date = new Date(dateStr);
+        const now = new Date();
+
+        // Same day → show only time
+        if (date.toDateString() === now.toDateString()) {
+          return date
+            .toLocaleTimeString([], {
+              hour: 'numeric',
+              minute: '2-digit',
+              hour12: true,
+            })
+            .toLowerCase();
+        }
+
+        // Check if the date is in the current week
+        const startOfWeek = new Date(now);
+        const dayOfWeek = now.getDay(); // Sunday = 0
+        startOfWeek.setDate(now.getDate() - dayOfWeek);
+        startOfWeek.setHours(0, 0, 0, 0);
+
+        const endOfWeek = new Date(startOfWeek);
+        endOfWeek.setDate(startOfWeek.getDate() + 7);
+
+        if (date >= startOfWeek && date < endOfWeek) {
+          return `${date.toLocaleDateString([], {
+            weekday: 'long',
+          })}, ${date
+            .toLocaleTimeString([], {
+              hour: 'numeric',
+              minute: '2-digit',
+              hour12: true,
+            })
+            .toLowerCase()}`;
+        }
+
+        // Older date → DD/MM/YYYY, Time
+        const datePart = date.toLocaleDateString('en-GB', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+        });
+
+        const time = date
+          .toLocaleTimeString([], {
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true,
+          })
+          .toLowerCase();
+
+        return `${datePart}, ${time}`;
+      } catch {
+        return '';
+      }
+    };
 
 // ─── Helper: Check if date is today ──────────────────────────────────
 const isToday = (dateStr: string) => {
@@ -411,8 +461,10 @@ export default function NotificationsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [showAllRequests, setShowAllRequests] = useState(false);
 
-  const [ordersList, setOrdersList] = useState<any[]>([]);
-  const [loadingOrders, setLoadingOrders] = useState(true);
+  // const [ordersList, setOrdersList] = useState<any[]>([]);
+  // const [loadingOrders, setLoadingOrders] = useState(true);
+  const [notificationsList, setNotificationsList] = useState<any[]>([]);
+  const [loadingNotifications, setLoadingNotifications] = useState(true);
 
   const fetchData = useCallback(async () => {
     try {
@@ -481,69 +533,89 @@ export default function NotificationsScreen() {
         console.error("Error fetching connection requests:", err);
       }
 
-      // ── Fetch Orders ──
-      try {
-        const ordersRes = await axiosInstance.get(`/api/orders/retailer/${retailerId}`);
-        const rawOrders = ordersRes.data || [];
+      // // ── Fetch Orders ──
+      // try {
+      //   const ordersRes = await axiosInstance.get(`/api/orders/retailer/${retailerId}`);
+      //   const rawOrders = ordersRes.data || [];
 
-        if (rawOrders.length > 0) {
-          const mappedOrders = await Promise.all(
-            rawOrders.map(async (order: any) => {
-              // ── Resolve Supplier Business Name ──
-              let supplierName = order.supplierName && order.supplierName !== 'string' ? order.supplierName : '';
+      //   if (rawOrders.length > 0) {
+      //     const mappedOrders = await Promise.all(
+      //       rawOrders.map(async (order: any) => {
+      //         // ── Resolve Supplier Business Name ──
+      //         let supplierName = order.supplierName && order.supplierName !== 'string' ? order.supplierName : '';
 
-              if (order.supplierId) {
-                const biz = allBusinesses.find((b: any) => b.supplierId === order.supplierId);
-                if (biz?.name && biz.name !== 'string') {
-                  supplierName = biz.name;
-                }
-              }
+      //         if (order.supplierId) {
+      //           const biz = allBusinesses.find((b: any) => b.supplierId === order.supplierId);
+      //           if (biz?.name && biz.name !== 'string') {
+      //             supplierName = biz.name;
+      //           }
+      //         }
 
-              if (!supplierName) {
-                try {
-                  const userRes = await axiosInstance.get(`/api/users/${order.supplierId}`);
-                  const { fullName, username } = userRes.data;
+      //         if (!supplierName) {
+      //           try {
+      //             const userRes = await axiosInstance.get(`/api/users/${order.supplierId}`);
+      //             const { fullName, username } = userRes.data;
 
-                  if (fullName && fullName !== 'string' && fullName.trim() !== '') {
-                    supplierName = fullName;
-                  } else if (username && username !== 'string' && username.trim() !== '' && !username.includes('-')) {
-                    supplierName = username;
-                  }
-                } catch (userErr) {
-                  console.warn(`Could not fetch user for supplierId: ${order.supplierId}`);
-                }
-              }
+      //             if (fullName && fullName !== 'string' && fullName.trim() !== '') {
+      //               supplierName = fullName;
+      //             } else if (username && username !== 'string' && username.trim() !== '' && !username.includes('-')) {
+      //               supplierName = username;
+      //             }
+      //           } catch (userErr) {
+      //             console.warn(`Could not fetch user for supplierId: ${order.supplierId}`);
+      //           }
+      //         }
 
-              if (!supplierName) supplierName = 'Supplier';
+      //         if (!supplierName) supplierName = 'Supplier';
 
-              const actualDate = order.orderDate || order.createdAt || new Date().toISOString();
+      //         const actualDate = order.orderDate || order.createdAt || new Date().toISOString();
 
-              let message = `Order with ${supplierName} is placed. Click to get info`;
-              if (order.status === 'PROCESSING' || order.status === 'COMPLETED') {
-                message = `Your order has been approved by ${supplierName}. Tap to view details.`;
-              } else if (order.status === 'CANCELLED') {
-                message = `Your order has been cancelled by ${supplierName}.`;
-              }
+      //         let message = `Order with ${supplierName} is placed. Click to get info`;
+      //         if (order.status === 'PROCESSING' || order.status === 'COMPLETED') {
+      //           message = `Your order has been approved by ${supplierName}. Tap to view details.`;
+      //         } else if (order.status === 'CANCELLED') {
+      //           message = `Your order has been cancelled by ${supplierName}.`;
+      //         }
 
-              return {
-                ...order,
-                message,
-                createdAt: actualDate
-              };
-            })
+      //         return {
+      //           ...order,
+      //           message,
+      //           createdAt: actualDate
+      //         };
+      //       })
+      //     );
+
+      //     mappedOrders.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      //     setOrdersList(mappedOrders);
+      //   } else {
+      //     setOrdersList([]);
+      //   }
+      // } catch (err) {
+      //   console.error("Error fetching orders:", err);
+      //   setOrdersList([]);
+      // } finally {
+      //   setLoadingOrders(false);
+      // }
+      // ── Fetch Order Notifications ──
+        try {
+          const notificationsRes = await axiosInstance.get(
+            `/api/notifications/${retailerId}`
           );
 
-          mappedOrders.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-          setOrdersList(mappedOrders);
-        } else {
-          setOrdersList([]);
+          const notifications = notificationsRes.data || [];
+
+          notifications.sort(
+            (a: any, b: any) =>
+              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          );
+
+          setNotificationsList(notifications);
+        } catch (err) {
+          console.error("Error fetching notifications:", err);
+          setNotificationsList([]);
+        } finally {
+          setLoadingNotifications(false);
         }
-      } catch (err) {
-        console.error("Error fetching orders:", err);
-        setOrdersList([]);
-      } finally {
-        setLoadingOrders(false);
-      }
     } catch (error) {
       console.error("Error in fetchData:", error);
     } finally {
@@ -559,7 +631,7 @@ export default function NotificationsScreen() {
   const handleRefresh = useCallback(() => {
     setRefreshing(true);
     setLoading(true);
-    setLoadingOrders(true);
+    setLoadingNotifications(true);
     fetchData();
   }, [fetchData]);
 
@@ -598,10 +670,16 @@ export default function NotificationsScreen() {
   };
 
   // Split orders into today and past
-  const todayOrders = ordersList.filter(o => isToday(o.createdAt));
-  const pastOrders = ordersList.filter(o => !isToday(o.createdAt));
+  const todayNotifications = notificationsList.filter(
+    n => isToday(n.createdAt)
+  );
 
-  const isAllEmpty = requestsList.length === 0 && ordersList.length === 0;
+  const pastNotifications = notificationsList.filter(
+    n => !isToday(n.createdAt)
+  );
+
+  const isAllEmpty =
+    requestsList.length === 0 && notificationsList.length === 0;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }}>
@@ -660,7 +738,7 @@ export default function NotificationsScreen() {
         }
         contentContainerStyle={{ 
           paddingBottom: 40,
-          ...(isAllEmpty && !loading && !loadingOrders ? { flex: 1 } : {}),
+          ...(isAllEmpty && !loading && !loadingNotifications ? { flex: 1 } : {}),
         }}
       >
         <View style={{ paddingHorizontal: 16, paddingTop: 20 }}>
@@ -725,7 +803,7 @@ export default function NotificationsScreen() {
           )}
 
           {/* ─── Divider ─── */}
-          {(requestsList.length > 0 || !loading) && (ordersList.length > 0 || !loadingOrders) && (
+          {(requestsList.length > 0 || !loading) &&(notificationsList.length > 0 || !loadingNotifications)&& (
             <View style={{ 
               height: 1, 
               backgroundColor: COLORS.border, 
@@ -735,49 +813,49 @@ export default function NotificationsScreen() {
           )}
 
           {/* ─── Order Notifications ─── */}
-          {loadingOrders ? (
+          {loadingNotifications ? (
             <View style={{ paddingVertical: 20 }}>
               <ActivityIndicator size="small" color={COLORS.primary} />
             </View>
           ) : (
             <View style={{ marginTop: 4 }}>
               
-              {/* ─── Today Section ─── */}
-              {todayOrders.map((order: any, idx: number) => (
+             {/* ─── Today Section ─── */}
+              {todayNotifications.map((notification: any, idx: number) => (
                 <OrderNotificationItem
-                  key={order.id || idx}
-                  message={order.message}
-                  timeString={formatTime(order.createdAt)}
-                  onPress={() =>
-                    router.push({
-                      pathname: "/(supplier)/orderDetails",
-                      params: {
-                        orderId: order.id,
-                      },
-                    })
-                  }
+                  key={notification.id || idx}
+                  message={notification.notificationText}
+                  timeString={formatTime(notification.createdAt)}
+                  onPress={() => {}}
+                  //   router.push({
+                  //     pathname: "/(supplier)/orderDetails",
+                  //     params: {
+                  //       orderId: notification.orderId,
+                  //     },
+                  //   })
+                  // }
                 />
               ))}
 
               {/* ─── Last 30 Days Section ─── */}
-              {pastOrders.map((order: any, idx: number) => (
+              {pastNotifications.map((notification: any, idx: number) => (
                 <OrderNotificationItem
-                  key={order.id || `past-${idx}`}
-                  message={order.message}
-                  timeString={formatTime(order.createdAt)}
-                  onPress={() =>
-                    router.push({
-                      pathname: "/(supplier)/orderDetails",
-                      params: {
-                        orderId: order.id,
-                      },
-                    })
-                  }
+                  key={notification.id || `past-${idx}`}
+                  message={notification.notificationText}
+                  timeString={formatTime(notification.createdAt)}
+                  onPress={() => {}}
+                  //   router.push({
+                  //     pathname: "/(supplier)/orderDetails",
+                  //     params: {
+                  //       orderId: notification.orderId,
+                  //     },
+                  //   })
+                  // }
                 />
               ))}
 
               {/* Show empty state only if everything is empty */}
-              {isAllEmpty && !loading && (
+              {isAllEmpty && !loading && !loadingNotifications && (
                 <EmptyState message="No notifications yet" icon="bell-off" />
               )}
             </View>

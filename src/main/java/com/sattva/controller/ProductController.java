@@ -93,5 +93,9 @@ public class ProductController {
     //     return ResponseEntity.ok("Products mapped successfully");
     // }
 
-
+    @DeleteMapping("/deleteProducts")
+    public ResponseEntity<Void> deleteMultipleProducts(@RequestBody List<String> productIds) {
+        productService.deleteMultipleProductsByIds(productIds);
+        return ResponseEntity.noContent().build();
+    }
 }

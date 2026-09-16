@@ -2,7 +2,7 @@
 
 ## Authentication API
 
-**Base URL**: `https://example.ngrok-free.app/api/auth`
+**Base URL**: `http://35.207.226.72:5000/swagger-ui/index.html`
 
 ---
 
