@@ -313,7 +313,7 @@ const deleteItem = async (productId: string) => {
               console.log("Order success:", order);
               router.replace({
                 pathname: "/(retailer)/(tabs)/cart",
-                params: { success: "true" },
+                params: { success: "true", tab: "orders" },   // ✅ ajout de tab: "orders"
               });
             } catch (err) {
               console.log(err);

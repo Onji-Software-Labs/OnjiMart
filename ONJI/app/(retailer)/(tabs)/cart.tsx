@@ -94,66 +94,66 @@ const PLACEHOLDER_AVATAR = require("../../../assets/images/3davatar.png");
 // DUMMY DATA
 // ─────────────────────────────────────────────────────────────
 
-const dummyOrders: Order[] = [
-  {
-    id: "1",
-    supplierName: "Harvest Ledger Sourcing",
-    avatarUri: PLACEHOLDER_AVATAR,
-    totalOrdersCompleted: 3,
-    amount: "$1,240.00",
-    latestOrderId: "#HL-99284",
-    status: "active",
-    date: "Oct 24, 2023",
-    time: "09:45 AM",
-    previousOrders: [
-      { orderId: "#HL-99283", date: "Oct 24, 2023", time: "09:45 AM", amount: "$1,240.00" },
-      { orderId: "#HL-99282", date: "Oct 24, 2023", time: "09:45 AM", amount: "$1,240.00" },
-      { orderId: "#HL-99281", date: "Oct 24, 2023", time: "09:45 AM", amount: "$1,240.00" },
-      { orderId: "#HL-99280", date: "Oct 24, 2023", time: "09:45 AM", amount: "$1,240.00" },
-    ],
-  },
-  {
-    id: "2",
-    supplierName: "Harvest Ledger Sourcing",
-    avatarUri: PLACEHOLDER_AVATAR,
-    totalOrdersCompleted: 3,
-    amount: "$1,240.00",
-    latestOrderId: "#HL-99284",
-    status: "active",
-    date: "Oct 24, 2023",
-    time: "09:45 AM",
-    previousOrders: [
-      { orderId: "#HL-99280", date: "Oct 24, 2023", time: "09:45 AM", amount: "$980.00" },
-    ],
-  },
-  {
-    id: "3",
-    supplierName: "Harvest Ledger Sourcing",
-    avatarUri: PLACEHOLDER_AVATAR,
-    totalOrdersCompleted: 5,
-    amount: "$2,100.00",
-    latestOrderId: "#HL-88102",
-    status: "delivered",
-    date: "Oct 20, 2023",
-    time: "11:00 AM",
-    previousOrders: [
-      { orderId: "#HL-88101", date: "Oct 18, 2023", time: "10:30 AM", amount: "$1,500.00" },
-      { orderId: "#HL-88100", date: "Oct 15, 2023", time: "08:00 AM", amount: "$900.00" },
-    ],
-  },
-  {
-    id: "4",
-    supplierName: "Harvest Ledger Sourcing",
-    avatarUri: PLACEHOLDER_AVATAR,
-    totalOrdersCompleted: 2,
-    amount: "$750.00",
-    latestOrderId: "#HL-77021",
-    status: "delivered",
-    date: "Oct 12, 2023",
-    time: "02:15 PM",
-    previousOrders: [],
-  },
-];
+// const dummyOrders: Order[] = [
+//   {
+//     id: "1",
+//     supplierName: "Harvest Ledger Sourcing",
+//     avatarUri: PLACEHOLDER_AVATAR,
+//     totalOrdersCompleted: 3,
+//     amount: "$1,240.00",
+//     latestOrderId: "#HL-99284",
+//     status: "active",
+//     date: "Oct 24, 2023",
+//     time: "09:45 AM",
+//     previousOrders: [
+//       { orderId: "#HL-99283", date: "Oct 24, 2023", time: "09:45 AM", amount: "$1,240.00" },
+//       { orderId: "#HL-99282", date: "Oct 24, 2023", time: "09:45 AM", amount: "$1,240.00" },
+//       { orderId: "#HL-99281", date: "Oct 24, 2023", time: "09:45 AM", amount: "$1,240.00" },
+//       { orderId: "#HL-99280", date: "Oct 24, 2023", time: "09:45 AM", amount: "$1,240.00" },
+//     ],
+//   },
+//   {
+//     id: "2",
+//     supplierName: "Harvest Ledger Sourcing",
+//     avatarUri: PLACEHOLDER_AVATAR,
+//     totalOrdersCompleted: 3,
+//     amount: "$1,240.00",
+//     latestOrderId: "#HL-99284",
+//     status: "active",
+//     date: "Oct 24, 2023",
+//     time: "09:45 AM",
+//     previousOrders: [
+//       { orderId: "#HL-99280", date: "Oct 24, 2023", time: "09:45 AM", amount: "$980.00" },
+//     ],
+//   },
+//   {
+//     id: "3",
+//     supplierName: "Harvest Ledger Sourcing",
+//     avatarUri: PLACEHOLDER_AVATAR,
+//     totalOrdersCompleted: 5,
+//     amount: "$2,100.00",
+//     latestOrderId: "#HL-88102",
+//     status: "delivered",
+//     date: "Oct 20, 2023",
+//     time: "11:00 AM",
+//     previousOrders: [
+//       { orderId: "#HL-88101", date: "Oct 18, 2023", time: "10:30 AM", amount: "$1,500.00" },
+//       { orderId: "#HL-88100", date: "Oct 15, 2023", time: "08:00 AM", amount: "$900.00" },
+//     ],
+//   },
+//   {
+//     id: "4",
+//     supplierName: "Harvest Ledger Sourcing",
+//     avatarUri: PLACEHOLDER_AVATAR,
+//     totalOrdersCompleted: 2,
+//     amount: "$750.00",
+//     latestOrderId: "#HL-77021",
+//     status: "delivered",
+//     date: "Oct 12, 2023",
+//     time: "02:15 PM",
+//     previousOrders: [],
+//   },
+// ];
 
 // ─────────────────────────────────────────────────────────────
 // TYPES
@@ -684,7 +684,7 @@ const removeSupplier = async (cartId: string) => {
           }}
         >
           <TouchableOpacity
-            onPress={() => console.log("Order clicked", item.id)}
+            onPress={() => router.push({ pathname: '/orderDetails', params: { orderId: item.id } })}
             style={{
               flex: 1,
               backgroundColor: "#2E7D32",
@@ -830,29 +830,27 @@ const removeSupplier = async (cartId: string) => {
       <View style={{ paddingHorizontal: 20, paddingTop: 12 }}>
         <View
           style={{
-            backgroundColor: "#E5E7EB",
-            borderRadius: 20,
-            flexDirection: "row",
-            padding: 4,
+    backgroundColor: '#ECEDEE',
+  borderRadius: 12,          // was 20
+  flexDirection: 'row',
+  padding: 3,                 // was 4
+  marginBottom: 12,           // was 16
+  marginTop:10,
+  height:45,
           }}
         >
           <TouchableOpacity
             onPress={() => setActiveTab("cart")}
             style={{
-              flex: 1,
-              backgroundColor: activeTab === "cart" ? "#fff" : "transparent",
-              paddingVertical: 14,
-              borderRadius: 16,
-              alignItems: "center",
+      flex: 1,
+      backgroundColor: activeTab === 'cart' ? '#fff' : 'transparent',
+      paddingVertical: 9,      // was 14
+      borderRadius: 8,        // was 16
+      alignItems: 'center',
             }}
           >
-            <Text
-              style={{
-                color: activeTab === "cart" ? "#15803D" : "#4B5563",
-                fontWeight: "600",
-                fontSize: 16,
-              }}
-            >
+    <Text style={{ color: activeTab === 'cart' ? '#2E7D32' : '#353637', fontWeight: '600', fontSize: 13 }}>
+
               Cart
             </Text>
           </TouchableOpacity>
@@ -860,20 +858,15 @@ const removeSupplier = async (cartId: string) => {
           <TouchableOpacity
             onPress={() => setActiveTab("orders")}
             style={{
-              flex: 1,
-              backgroundColor: activeTab === "orders" ? "#fff" : "transparent",
-              paddingVertical: 14,
-              borderRadius: 16,
-              alignItems: "center",
+      flex: 1,
+      backgroundColor: activeTab === 'orders' ? '#fff' : 'transparent',
+      paddingVertical: 9,      // was 14
+      borderRadius: 8,        // was 16
+      alignItems: 'center',
             }}
           >
-            <Text
-              style={{
-                color: activeTab === "orders" ? "#15803D" : "#4B5563",
-                fontWeight: "600",
-                fontSize: 16,
-              }}
-            >
+    <Text style={{ color: activeTab === 'orders' ? '#2E7D32' : '#353637', fontWeight: '600', fontSize: 13 }}>
+
               Orders
             </Text>
           </TouchableOpacity>

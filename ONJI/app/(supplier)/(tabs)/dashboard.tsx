@@ -589,7 +589,9 @@ export default function Dashboard() {
                 </View>
               )}
             </TouchableOpacity>
-            <TouchableOpacity style={{
+            <TouchableOpacity 
+            onPress={() => router.push('/(supplier)/profile' as any)}
+            style={{
               width: isWeb ? 44 : 40,
               height: isWeb ? 44 : 40,
               borderRadius: isWeb ? 22 : 20,
@@ -599,6 +601,7 @@ export default function Dashboard() {
               alignItems: 'center',
               justifyContent: 'center'
             }}>
+              
               <Ionicons name="person-outline" size={isWeb ? 24 : 20} color="#2E7D32" />
             </TouchableOpacity>
           </View>

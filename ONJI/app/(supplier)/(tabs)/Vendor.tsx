@@ -68,19 +68,18 @@ export default function Dashboard() {
   const [connectionStatuses, setConnectionStatuses] = useState<Record<string, string>>({});
   const [favouriteIds, setFavouriteIds] = useState<string[]>([]);
 
-  useEffect(() => {
-    const loadFavs = async () => {
-      const savedFavs = await localStorage.getItem(
-        'supplierFavouriteIds'
-      );
-
-      if (savedFavs) {
-        setFavouriteIds(JSON.parse(savedFavs));
-      }
-    };
-
-    loadFavs();
-  }, []);
+useEffect(() => {
+  const loadFavs = async () => {
+    const savedFavs = await localStorage.getItem('supplierFavouriteIds');
+    if (savedFavs) {
+      const parsed: string[] = JSON.parse(savedFavs);
+      const cleaned = parsed.filter((id) => id && id !== 'undefined');
+      setFavouriteIds(cleaned);
+      await localStorage.setItem('supplierFavouriteIds', JSON.stringify(cleaned));
+    }
+  };
+  loadFavs();
+}, []);
 
   const [myVendors, setMyVendors] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -112,7 +111,7 @@ export default function Dashboard() {
       console.log('MY VENDORS RESPONSE:', accepted);
 
       const mappedVendors = accepted.map((r: any) => ({
-        id: r.id,
+        id: String(r.retailerId ?? r.id ?? r.userId ?? ''),   // ✅ fallback chain + stringified
         businessId: '',
         name: r.fullName || 'Unknown',
         description: r.address || '',
@@ -154,7 +153,7 @@ const fetchAllVendors = useCallback(async () => {
     const data = await getUnconnectedRetailers(supplierId);
 
     const vendors = data.map((r: any) => ({
-      id: r.retailerId,
+  id: String(r.retailerId ?? r.id ?? r.userId ?? ''),   // ✅ fallback chain + stringified
       businessId: r.businessId,
       name: r.name,
       description: r.address || '',
@@ -266,22 +265,33 @@ const fetchAllVendors = useCallback(async () => {
       }
     };
 
-  const handleToggleFav = async (id: string) => {
-    const newFavs = favouriteIds.includes(id)
-      ? favouriteIds.filter(fid => fid !== id)
-      : [...favouriteIds, id];
+const handleToggleFav = async (id: string) => {
+  const vendorId = String(id);
+  const newFavs = favouriteIds.includes(vendorId)
+    ? favouriteIds.filter((fid) => fid !== vendorId)
+    : [...favouriteIds, vendorId];
 
-    setFavouriteIds(newFavs);
+  console.log('🩷 handleToggleFav called with id:', vendorId);
+  console.log('🩷 favouriteIds BEFORE:', favouriteIds);
+  console.log('🩷 favouriteIds AFTER:', newFavs);
 
-    await localStorage.setItem(
-      'supplierFavouriteIds',
-      JSON.stringify(newFavs)
-    );
-  };
+  setFavouriteIds(newFavs);
+  await localStorage.setItem('supplierFavouriteIds', JSON.stringify(newFavs));
+};
 
-const favouriteSuppliers = allVendors.filter(
-  s => favouriteIds.includes(s.id)
+const allVendorsCombined = [...allVendors, ...myVendors];
+
+// dedupe by id in case a vendor appears in both lists
+const uniqueVendorsMap = new Map(allVendorsCombined.map((s) => [s.id, s]));
+const dedupedVendors = Array.from(uniqueVendorsMap.values());
+
+const favouriteSuppliers = dedupedVendors.filter(
+  (s) => s.id && favouriteIds.includes(String(s.id))
 );
+
+console.log('❤️ favouriteIds:', favouriteIds);
+console.log('❤️ allVendors ids:', allVendors.map(v => v.id));
+console.log('❤️ favouriteSuppliers result:', favouriteSuppliers);
 
   // Decide which list to show based on the active tab
   const activeList = activeTab === 'find'
@@ -304,11 +314,13 @@ const favouriteSuppliers = allVendors.filter(
         <View className="px-4 pt-2">
 {/* Tab toggle — same pill style as Cart screen */}
 <View style={{
-  backgroundColor: '#E5E7EB',
-  borderRadius: 16,          // was 20
+  backgroundColor: '#ECEDEE',
+  borderRadius: 12,          // was 20
   flexDirection: 'row',
   padding: 3,                 // was 4
   marginBottom: 12,           // was 16
+  marginTop:10,
+  height:45,
 }}>
   <TouchableOpacity
     onPress={() => handleTabSwitch('find')}
@@ -316,11 +328,11 @@ const favouriteSuppliers = allVendors.filter(
       flex: 1,
       backgroundColor: activeTab === 'find' ? '#fff' : 'transparent',
       paddingVertical: 9,      // was 14
-      borderRadius: 13,        // was 16
+      borderRadius: 8,        // was 16
       alignItems: 'center',
     }}
   >
-    <Text style={{ color: activeTab === 'find' ? '#15803D' : '#4B5563', fontWeight: '600', fontSize: 13 }}>
+    <Text style={{ color: activeTab === 'find' ? '#2E7D32' : '#353637', fontWeight: '600', fontSize: 13 }}>
       Find new vendors
     </Text>
   </TouchableOpacity>
@@ -330,11 +342,11 @@ const favouriteSuppliers = allVendors.filter(
       flex: 1,
       backgroundColor: activeTab === 'my' ? '#fff' : 'transparent',
       paddingVertical: 9,      // was 14
-      borderRadius: 13,        // was 16
+      borderRadius: 8,        // was 16
       alignItems: 'center',
     }}
   >
-    <Text style={{ color: activeTab === 'my' ? '#15803D' : '#4B5563', fontWeight: '600', fontSize: 13 }}>
+    <Text style={{ color: activeTab === 'my' ? '#2E7D32' : '#353637', fontWeight: '600', fontSize: 13 }}>
       My Vendors
     </Text>
   </TouchableOpacity>
@@ -351,7 +363,7 @@ const favouriteSuppliers = allVendors.filter(
                 onChangeText={handleSearch}
               />
               <Pressable className="absolute right-3 top-3">
-                <Feather name="search" size={20} color="#9CA3AF" />
+                <Feather name="search" size={24} color="#92999E" />
               </Pressable>
             </View>
             <View className="flex-row items-center space-x-2">
@@ -417,14 +429,13 @@ const favouriteSuppliers = allVendors.filter(
             <FindVendorCard
               supplier={item}
               connectionStatus={connectionStatuses[item.id] || 'NONE'}
-              isFavourite={favouriteIds.includes(item.id)}
-              onConnect={handleConnect}
+              isFavourite={favouriteIds.includes(String(item.id))}              onConnect={handleConnect}
               onToggleFavourite={handleToggleFav}
             />
           ) : (
             <MyVendorCard
               supplier={item}
-              isFavourite={favouriteIds.includes(item.id)}
+              isFavourite={favouriteIds.includes(String(item.id))}
               onToggleFavourite={handleToggleFav}
             />
           )
@@ -576,13 +587,14 @@ const favouriteSuppliers = allVendors.filter(
   </View>
 )}
       {/* Favourite Modal */}
-      <FavouriteModal
-        visible={isFavouriteModalVisible}
-        onClose={() => setIsFavouriteModalVisible(false)}
-        favourites={favouriteSuppliers}
-        connectionStatuses={connectionStatuses}
-        onConnect={handleConnect}
-      />
+ <FavouriteModal
+  visible={isFavouriteModalVisible}
+  onClose={() => setIsFavouriteModalVisible(false)}
+  favourites={favouriteSuppliers}
+  connectionStatuses={connectionStatuses}
+  onConnect={handleConnect}
+  onToggleFavourite={handleToggleFav}
+/>
     </View>
   );
 }

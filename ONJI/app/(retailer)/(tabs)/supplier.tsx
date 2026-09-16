@@ -28,7 +28,7 @@ import { getUnconnectedSuppliers } from '@/lib/api/supplier';
 
 // Maps backend ISupplierResponse → INewSupplier used by the card component
 const mapSupplier = (s: BusinessSupplier): INewSupplier => ({
-  id: s.supplierId,
+  id: s.userId,
   businessId: s.businessId || '', // fallback to empty string if undefined
   businessName: s.businessName ,
   address: s.address ,
@@ -42,7 +42,7 @@ const mapSupplier = (s: BusinessSupplier): INewSupplier => ({
 });
 
 const mapUnconnectedSupplier = (s: any): INewSupplier => ({
-  id: s.userId,                          // ✅ matches SupplierListDTO.userId
+  id: String(s.userId),                          // ✅ matches SupplierListDTO.userId
   businessId: '',                         // not present in this DTO
   businessName: s.businessName ,
   address: s.address ,
@@ -149,31 +149,30 @@ const fetchUnconnectedSuppliers = useCallback(async () => {
 
 const fetchMySuppliers = useCallback(async () => {
   try {
-
     const retailerId = await secureStorage.getItem('userId');
-
     if (!retailerId) {
       throw new Error("Retailer ID not found");
     }
 
-
     const myData = await getMySuppliers(retailerId);
+    const mapped = myData.map(mapSupplier);
 
-    setMySuppliers(
-      myData.map(mapSupplier)
-    );
+    setMySuppliers(mapped);
+
+    // ✅ mark all my-suppliers as ACCEPTED in the shared status map
+    setConnectionStatuses((prev) => {
+      const updated = { ...prev };
+      mapped.forEach((s: { id: string }) => {
+        updated[s.id] = 'ACCEPTED';
+      });
+      return updated;
+    });
 
     setHasLoadedMySuppliers(true);
-
-
   } catch (err: any) {
-
     console.error('Failed to fetch my suppliers:', err);
-
     setMySuppliers([]);
-
   }
-
 }, []);
 
 useFocusEffect(
@@ -270,7 +269,7 @@ const handleTabSwitch = (tab: 'find' | 'my') => {
     const current = connectionStatuses[id] ?? 'NONE';
     try {
       const retailerId = await secureStorage.getItem('userId');
-      if (current === 'NONE' || current === 'REJECTED') {
+      if (current === 'NONE' || current === 'REJECTED' || current==='CANCELLED') {
         await axiosInstance.post('/api/connections/connect', null, {
           params: { retailerId, supplierId: id, initiatedBy: 'RETAILER' },
         });
@@ -291,28 +290,35 @@ const handleTabSwitch = (tab: 'find' | 'my') => {
       console.log('Connection error:', err);
     }
   };
+const handleToggleFav = async (id: string) => {
+  const supplierId = String(id);
 
-  const handleToggleFav = async (id: string) => {
-    const newFavs = favouriteIds.includes(id)
-      ? favouriteIds.filter((fid) => fid !== id)
-      : [...favouriteIds, id];
+  const newFavs = favouriteIds.includes(supplierId)
+    ? favouriteIds.filter((fid) => fid !== supplierId)
+    : [...favouriteIds, supplierId];
 
-    setFavouriteIds(newFavs);
-    await localStorage.setItem('favouriteIds', JSON.stringify(newFavs));
-  };
+  setFavouriteIds(newFavs);
 
-  const favouriteSuppliers = suppliers.filter((s) => favouriteIds.includes(s.id));
-
-  // Decide which list to search based on the active tab
-  const activeList = activeTab === 'find' ? suppliers : mySuppliers;
-
-  // Filter the chosen list by search query
-  const filteredSuppliers = activeList.filter(
-    (s) =>
-      s.businessName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      s.address?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      s.city?.toLowerCase().includes(searchQuery.toLowerCase()),
+  await localStorage.setItem(
+    'favouriteIds',
+    JSON.stringify(newFavs)
   );
+};
+
+const allSuppliers = [...suppliers, ...mySuppliers];
+
+const favouriteSuppliers = allSuppliers.filter(
+  (s) => favouriteIds.includes(String(s.id))
+);
+
+const activeList = activeTab === 'find' ? suppliers : mySuppliers;
+
+const filteredSuppliers = activeList.filter(
+  (s) =>
+    s.businessName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    s.address?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    s.city?.toLowerCase().includes(searchQuery.toLowerCase())
+);
 
   return (
 <View className="flex-1 bg-white">
@@ -322,11 +328,13 @@ const handleTabSwitch = (tab: 'find' | 'my') => {
 
   {/* Tab toggle — same pill style as Cart screen */}
 <View style={{
-  backgroundColor: '#E5E7EB',
-  borderRadius: 16,          // was 20
+  backgroundColor: '#ECEDEE',
+  borderRadius: 12,          // was 20
   flexDirection: 'row',
   padding: 3,                 // was 4
   marginBottom: 12,           // was 16
+  marginTop:10,
+  height:45,
 }}>
   <TouchableOpacity
     onPress={() => handleTabSwitch('find')}
@@ -334,11 +342,11 @@ const handleTabSwitch = (tab: 'find' | 'my') => {
       flex: 1,
       backgroundColor: activeTab === 'find' ? '#fff' : 'transparent',
       paddingVertical: 9,      // was 14
-      borderRadius: 13,        // was 16
+      borderRadius: 8,        // was 16
       alignItems: 'center',
     }}
   >
-    <Text style={{ color: activeTab === 'find' ? '#15803D' : '#4B5563', fontWeight: '600', fontSize: 13 }}>
+    <Text style={{ color: activeTab === 'find' ? '#2E7D32' : '#353637', fontWeight: '600', fontSize: 13 }}>
       Find new suppliers
     </Text>
   </TouchableOpacity>
@@ -348,11 +356,11 @@ const handleTabSwitch = (tab: 'find' | 'my') => {
       flex: 1,
       backgroundColor: activeTab === 'my' ? '#fff' : 'transparent',
       paddingVertical: 9,      // was 14
-      borderRadius: 13,        // was 16
+      borderRadius: 8,        // was 16
       alignItems: 'center',
     }}
   >
-    <Text style={{ color: activeTab === 'my' ? '#15803D' : '#4B5563', fontWeight: '600', fontSize: 13 }}>
+    <Text style={{ color: activeTab === 'my' ? '#2E7D32' : '#353637', fontWeight: '600', fontSize: 13 }}>
       My Suppliers
     </Text>
   </TouchableOpacity>
@@ -439,7 +447,7 @@ const handleTabSwitch = (tab: 'find' | 'my') => {
               <NewSupplierCard
                 supplier={item}
                 connectionStatus={connectionStatuses[item.id] ?? 'NONE'}
-                isFavourite={favouriteIds.includes(item.id)}
+                isFavourite={favouriteIds.includes(String(item.id))}
                 onConnect={handleConnect}
                 onToggleFavourite={handleToggleFav}
               />
@@ -448,7 +456,7 @@ const handleTabSwitch = (tab: 'find' | 'my') => {
             return (
               <MySupplierCard
                 supplier={item}
-                isFavourite={favouriteIds.includes(item.id)}
+                isFavourite={favouriteIds.includes(String(item.id))}
                 onToggleFavourite={handleToggleFav}
               />
             );
@@ -607,13 +615,14 @@ ListEmptyComponent={
   </View>
 )}
       {/* Favourite Modal */}
-      <FavouriteModal
-        visible={isFavouriteModalVisible}
-        onClose={() => setIsFavouriteModalVisible(false)}
-        favourites={favouriteSuppliers}
-        connectionStatuses={connectionStatuses}
-        onConnect={handleConnect}
-      />
+<FavouriteModal
+  visible={isFavouriteModalVisible}
+  onClose={() => setIsFavouriteModalVisible(false)}
+  favourites={favouriteSuppliers}
+  connectionStatuses={connectionStatuses}
+  onConnect={handleConnect}
+  onToggleFavourite={handleToggleFav}  
+/>
     </View>
   );
 }

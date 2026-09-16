@@ -93,9 +93,10 @@ const FindVendorCard: React.FC<Props> = ({
         {supplier.imageUrl ? (
           <Image source={{ uri: supplier.imageUrl }} style={styles.avatar} onError={() => {}} />
         ) : (
-          <View style={styles.avatarPlaceholder}>
-            <FontAwesome5 name="user-alt" size={20} color="#9CA3AF" />
-          </View>
+         <Image
+            source={require('../../assets/images/3davatar.png')}
+            style={styles.avatar}
+          />
         )}
       </View>
 
@@ -154,29 +155,36 @@ const FindVendorCard: React.FC<Props> = ({
 const styles = StyleSheet.create({
   card: {
     backgroundColor: 'white',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    padding: 14,
-    marginBottom: 12,
+    borderRadius: 6,
+    borderWidth: 0.2,
+    borderColor: '#92999e6b',
+    padding:10,
+    // marginEnd: 20,
+    // marginStart: 20,
+    // marginTop: 8,
+    // marginBottom: 4,
     flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
+    // shadowColor: '#000',
+    // shadowOffset: { width: 0, height: 2 },
+    // shadowOpacity: 0.06,
+    // shadowRadius: 6,
     elevation: 3,
   },
  favoriteButton: {
     position: 'absolute',
-    top: 12,
-    right: 12,
-    padding: 6,
+    top: 6,
+    right: 6,
+    padding: 2,
     zIndex: 10,
   },
   avatarContainer: {
-    flexShrink: 0,
-    marginRight: 12,
+    // flexShrink: 0,
+    // marginRight: 1,
+    width: 72,
+    height: 60,
+    alignItems: 'center',
+    justifyContent: 'center', // Vertical center
   },
   avatar: {
     width: 60,
@@ -193,8 +201,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   infoContainer: {
-    flex: 1,
-    paddingRight: 90,
+    flex:1,
+    // marginBottom: 4,
+    // marginTop:4,
+    // marginEnd:8,
   },
   name: {
     fontSize: 16,
@@ -203,13 +213,13 @@ const styles = StyleSheet.create({
     marginBottom: 1,
   },
   description: {
-    fontSize: 13,
-    color: '#4B5563',
+    fontSize: 12,
+    color: '#3F4245',
     marginBottom: 1,
   },
   location: {
     fontSize: 12,
-    color: '#9CA3AF',
+    color: '#72797D',
     marginTop: 1,
     marginBottom: 4,
     flexShrink: 1,

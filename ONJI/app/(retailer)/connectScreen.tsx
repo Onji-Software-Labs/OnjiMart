@@ -154,7 +154,7 @@ const modalAnim = useRef(new Animated.Value(0)).current;
     console.log("Retailer:", retailerId);
     console.log("Supplier:", supplierId);
 
-    if (connectionStatus === "NONE" || connectionStatus === "REJECTED") {
+    if (connectionStatus === "NONE" || connectionStatus === "REJECTED" || connectionStatus==='CANCELLED') {
 
       await axiosInstance.post("/api/connections/connect", null, {
         params: {
@@ -521,7 +521,7 @@ onPress={() => {
                 onPressIn={handlePressIn}
                 onPressOut={handlePressOut}
               >
-                {!connectionStatus || connectionStatus === "NONE" || connectionStatus === "REJECTED" ? (
+                {!connectionStatus || connectionStatus === "NONE" || connectionStatus === "REJECTED" || connectionStatus==='CANCELLED' ? (
                   <Animated.View
                     style={[
                       styles.connectButton,

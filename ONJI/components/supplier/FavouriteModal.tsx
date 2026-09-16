@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { AntDesign, Ionicons } from '@expo/vector-icons';
 import FavouriteCard from './FavouriteCard';
 import { useRouter } from 'expo-router';
 import { INewSupplier } from '@/app/(supplier)/(tabs)/Vendor';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-const CARD_MARGIN = 8;
+const COLUMN_GAP = 6;
+const ROW_GAP = 42;
 
 interface FavouriteModalProps {
   visible: boolean;
@@ -13,17 +15,33 @@ interface FavouriteModalProps {
   favourites: INewSupplier[];   // ← only the suppliers the user hearted
   connectionStatuses?: Record<string, string>;
   onConnect?: (id: string) => void;
+  onToggleFavourite: (id: string) => void;   // ✅ added
 }
 
-export default function FavouriteModal({ visible, onClose, favourites, connectionStatuses, onConnect }: FavouriteModalProps) {
+// Split favourites into pairs
+const chunkIntoRows = (items: INewSupplier[], size = 2) => {
+  const rows: INewSupplier[][] = [];
+  for (let i = 0; i < items.length; i += size) {
+    rows.push(items.slice(i, i + size));
+  }
+  return rows;
+};
+
+export default function FavouriteModal({
+  visible,
+  onClose,
+  favourites,
+  connectionStatuses,
+  onConnect,
+  onToggleFavourite,   // ✅ added
+}: FavouriteModalProps) {
   const router = useRouter();
-  
 
   if (!visible) return null;
 
   const handleConnect = (id: string) => {
-  onConnect?.(id);
-};
+    onConnect?.(id);
+  };
 
   const handleOrder = () => {
     onClose();
@@ -32,66 +50,74 @@ export default function FavouriteModal({ visible, onClose, favourites, connectio
 
   return (
     <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'white', zIndex: 50 }}>
-      {/* Header */}
-      <View className="flex-row items-center px-4 py-4 border-b border-gray-200 bg-white">
-        <TouchableOpacity onPress={onClose} className="mr-4">
-          <AntDesign name="arrow-left" size={24} color="#10B981" />
-        </TouchableOpacity>
-        <Text className="text-xl font-semibold text-green-600">Favourite</Text>
-        {favourites.length > 0 && (
-          <Text style={{ fontSize: 12, color: '#6B7280', marginLeft: 8 }}>
-            ({favourites.length})
-          </Text>
-        )}
-      </View>
+      <SafeAreaView style={{ flex: 1, backgroundColor: 'white' }} edges={['top']}>
 
-      {/* Empty state */}
-      {favourites.length === 0 ? (
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 }}>
-          <Ionicons name="heart-outline" size={48} color="#E5E7EB" style={{ marginBottom: 16 }} />
-          <Text style={{ fontSize: 16, fontWeight: '600', color: '#6B7280', textAlign: 'center', marginBottom: 8 }}>
-            No favourites yet
+        {/* Header */}
+        <View className="flex-row items-center px-4 py-4 border-b border-gray-200 bg-white">
+          <TouchableOpacity onPress={onClose} className="mr-4">
+            <AntDesign name="arrow-left" size={24} color="#2E7D32" />
+          </TouchableOpacity>
+          <Text style={{ fontSize: 20, fontWeight: '700', color: '#2E7D32' }}>
+            Favourite
           </Text>
-          <Text style={{ fontSize: 13, color: '#9CA3AF', textAlign: 'center', lineHeight: 20 }}>
-            Tap the heart ♡ on a supplier card to add them here.
-          </Text>
+          {favourites.length > 0 && (
+            <Text style={{ fontSize: 20, color: '#2E7D32', marginLeft: 6 }}>
+              ({favourites.length})
+            </Text>
+          )}
         </View>
-      ) : (
-        /* Cards Grid */
-        <ScrollView contentContainerStyle={{ padding: 12 }}>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
-            {favourites.map((item) => {
-              const cardKey = item.id;
 
-              const status =
-                connectionStatuses?.[cardKey] || 'NONE';
-              return (
-                <FavouriteCard
-                  key={cardKey}
-                  data={{
-                    id: item.id,
-                    name: item.name,
-                    phoneNumber: item.contactNumber,
-                    person: item.description,
-                    distance: item.location,
-                    rating: item.rating,
-                    reviews: item.reviews,
-                    activeOrder: false,
-                    lastActive: '',
-                    showOrder: false,
-                    showConnect: true,
-                  }}
-                  connectionStatus={status}
-                  onConnect={() => handleConnect(cardKey)}
-                  onOrder={handleOrder}
-                  style={{ marginBottom: CARD_MARGIN }}
-                />
-              );
-            })}
+        {/* Empty state */}
+        {favourites.length === 0 ? (
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 }}>
+            <Ionicons name="heart-outline" size={48} color="#E5E7EB" style={{ marginBottom: 16 }} />
+            <Text style={{ fontSize: 16, fontWeight: '600', color: '#6B7280', textAlign: 'center', marginBottom: 8 }}>
+              No favourites yet
+            </Text>
+            <Text style={{ fontSize: 13, color: '#9CA3AF', textAlign: 'center', lineHeight: 20 }}>
+              Tap the heart ♡ on a supplier card to add them here.
+            </Text>
           </View>
-        </ScrollView>
-      )}
+        ) : (
+          /* Cards Grid — 2 columns per row, each row is its own card */
+          <ScrollView contentContainerStyle={{ paddingTop: 20 }}>
+            {chunkIntoRows(favourites, 2).map((row, rowIndex) => (
+              <View
+                key={rowIndex}
+                style={{
+                  flexDirection: 'row',
+                  backgroundColor: '#F7E8FF',
+                  margin: 8,
+                  padding: 5,
+                  columnGap: COLUMN_GAP,
+                  marginBottom: ROW_GAP,
+                }}
+              >
+                {row.map((item) => (
+                  <View key={item.id} style={{ flex: 1 }}>
+                    <FavouriteCard
+                      data={{
+                        id: item.id,
+                        name: item.name,
+                        description:item.description,
+                        phoneNumber: item.contactNumber,
+                        distance: item.location,
+                        rating: item.rating,
+                        reviews: item.reviews,
+                      }}
+                      connectionStatus={connectionStatuses?.[item.id] ?? 'NONE'}
+                      onConnect={() => handleConnect(item.id)}
+                      onOrder={handleOrder}
+                      onToggleFavourite={onToggleFavourite}
+                    />
+                  </View>
+                ))}
+                {row.length === 1 && <View style={{ flex: 1 }} />}
+              </View>
+            ))}
+          </ScrollView>
+        )}
+      </SafeAreaView>
     </View>
   );
 }
-
