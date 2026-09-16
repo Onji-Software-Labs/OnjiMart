@@ -28,8 +28,12 @@ import { getUnconnectedSuppliers } from '@/lib/api/supplier';
 
 // Maps backend ISupplierResponse → INewSupplier used by the card component
 const mapSupplier = (s: BusinessSupplier): INewSupplier => ({
-  id: s.userId,
-  businessId: s.businessId || '', // fallback to empty string if undefined
+  // The connected-suppliers API exposes the supplier UUID as `userId`.
+  // Use it for both route params: orderSupplierScreen fetches products with
+  // `supplierId`, and its existing navigation contract also expects a
+  // non-empty `businessId` query parameter.
+  id: s.userId || s.supplierId,
+  businessId: s.businessId || s.userId || s.supplierId,
   businessName: s.businessName ,
   address: s.address ,
   city: s.city ,

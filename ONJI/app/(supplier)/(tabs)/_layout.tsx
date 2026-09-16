@@ -6,7 +6,6 @@ import { Feather, MaterialIcons, Octicons } from '@expo/vector-icons';
 export default function SupplierTabs() {
   return (
     <Tabs
-      initialRouteName="dashboard"
       screenOptions={{
         headerShown: false,
         tabBarHideOnKeyboard: true,
@@ -21,7 +20,7 @@ export default function SupplierTabs() {
         }}
       />
       <Tabs.Screen
-        name="Vendor" // ✅ FIXED (lowercase)
+        name="Vendor"
         options={{
           title: 'Vendor',
           tabBarIcon: ({ color }) => <MaterialIcons name="assignment" size={24} color={color} />,
@@ -48,12 +47,23 @@ export default function SupplierTabs() {
           tabBarIcon: ({ color }) => <MaterialIcons name="receipt-long" size={24} color={color} />,
         }}
       />
+      {/* Hide detail routes completely from bottom bar */}
+      <Tabs.Screen
+        name="invoiceDetails"
+        options={{
+          href: null,
+          tabBarItemStyle: { display: 'none' },
+        }}
+      />
     </Tabs>
   );
 }
 
 function SupplierTabBar({ state, descriptors }: any) {
   const router = useRouter();
+
+  // Define allowed tabs explicitly so extra route files never create pill slots
+  const allowedTabs = ['dashboard', 'Vendor', 'store', 'cart', 'invoice'];
 
   return (
     <View
@@ -69,12 +79,15 @@ function SupplierTabBar({ state, descriptors }: any) {
       }}
     >
       {state.routes.map((route: any, index: number) => {
+        // Skip rendering any route not in allowedTabs (like invoiceDetails)
+        if (!allowedTabs.includes(route.name)) return null;
+
         const isFocused = state.index === index;
         const { options } = descriptors[route.key];
 
         const onPress = () => {
           if (!isFocused) {
-            router.push(`/${route.name}` as Href);
+            router.push(`/(supplier)/(tabs)/${route.name}` as Href);
           }
         };
 

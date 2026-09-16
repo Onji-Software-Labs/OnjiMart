@@ -16,6 +16,7 @@ import { TextInput } from "react-native";
 import { submitOrder } from "@/lib/api/order";
 import axiosInstance from "@/lib/api/axiosConfig";
 import { secureStorage } from "@/lib/secureStorage";
+import SuccessPopup from "@/components/retailer/SuccessPopup";
 
 const days = [
   { day: "Sun", date: "Mar 24", available: true },
@@ -47,6 +48,8 @@ const supplierName = parsedCart?.supplierName;
 const [selectedDay, setSelectedDay] = useState("Thu");
 const [selectedTime, setSelectedTime] = useState("Morning0");
 const [loading, setLoading] = useState(false);
+const [showSuccessPopup, setShowSuccessPopup] = useState(false);
+const [submittedOrderId, setSubmittedOrderId] = useState<string | number | null>(null);
 const [quantities, setQuantities] = useState<{ [key: string]: string }>({});
 
 
@@ -328,6 +331,25 @@ const deleteItem = async (productId: string) => {
           </Text>
         </TouchableOpacity>
       </View>
+      <SuccessPopup
+        visible={showSuccessPopup}
+        supplierName={supplierName || "Supplier"}
+        onViewOrderDetail={() => {
+          setShowSuccessPopup(false);
+          if (submittedOrderId) {
+            router.replace({
+              pathname: "/(supplier)/orderDetails",
+              params: { orderId: String(submittedOrderId) },
+            });
+            return;
+          }
+          router.replace("/(retailer)/(tabs)/cart");
+        }}
+        onCheckNotifications={() => {
+          setShowSuccessPopup(false);
+          router.replace("/(retailer)/notifications");
+        }}
+      />
     </SafeAreaView>
   );
 }

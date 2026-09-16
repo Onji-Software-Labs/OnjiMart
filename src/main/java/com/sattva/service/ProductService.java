@@ -20,4 +20,5 @@ public interface ProductService {
 
     //Map all products of a category to a supplier
     // void mapProductsByCategory(String categoryId, String supplierId);
+    void deleteMultipleProductsByIds(List<String> productIds);
 }

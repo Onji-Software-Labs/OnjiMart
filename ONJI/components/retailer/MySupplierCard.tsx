@@ -126,7 +126,9 @@ const MySupplierCard = ({
               pathname: '/(retailer)/orderSupplierScreen',
               params: {
                 supplierId: supplier.id,
-                businessId: supplier.businessId,
+                // Connected-supplier responses identify the supplier by UUID.
+                // Keep the route usable if an older response omitted businessId.
+                businessId: supplier.businessId || supplier.id,
                 supplierName: supplier.businessName,
               },
             })
