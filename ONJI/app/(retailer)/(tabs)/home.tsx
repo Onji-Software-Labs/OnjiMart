@@ -12,11 +12,29 @@ import {
 import { useRouter } from "expo-router";
 import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useFocusEffect } from "expo-router";
 import { secureStorage } from '@/lib/secureStorage';
 import axiosInstance from '@/lib/api/axiosConfig';
 import { Shop } from '@/constants/StorageKeys'; // adjust path to your project structure
+import {
+  createSearchHistory,
+  getSearchHistory,
+  getSuggestions,
+  type CreateSearchPayload,
+  type SearchHistoryItem,
+  type SuggestionItem,
+} from '@/lib/api/retailerSearch';
+
+const isSearchPayloadValid = (
+  payload: CreateSearchPayload,
+): boolean =>
+  Boolean(
+    payload.retailerId.trim() &&
+      payload.searchText.trim() &&
+      payload.searchedId.trim() &&
+      (payload.type === 'PRODUCT' || payload.type === 'SUPPLIER'),
+  );
 
 export default function RetailerHomeScreen() {
   const router = useRouter();
@@ -26,6 +44,12 @@ export default function RetailerHomeScreen() {
   const isWeb = Platform.OS === 'web';
 
   const [notificationCount, setNotificationCount] = useState(0);
+  const [searchText, setSearchText] = useState('');
+  const [searchHistory, setSearchHistory] = useState<SearchHistoryItem[]>([]);
+  const [suggestions, setSuggestions] = useState<SuggestionItem[]>([]);
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const latestSuggestionRequest = useRef(0);
+  const latestHistoryRequest = useRef(0);
 // Add near your other state
 const [shops, setShops] = useState<Shop[]>([]);
 // State — note selectedShop holds a full Shop object, not just a string
@@ -74,6 +98,142 @@ const handleSelectShop = async (shop: Shop) => {
       fetchNotificationCount();
     }, [])
   );
+
+  const loadSearchHistory = useCallback(async () => {
+    const requestId = ++latestHistoryRequest.current;
+
+    try {
+      const retailerId = await secureStorage.getItem('userId');
+      if (!retailerId) {
+        setSearchHistory([]);
+        return;
+      }
+
+      const history = await getSearchHistory(retailerId);
+      if (requestId === latestHistoryRequest.current) {
+        setSearchHistory(history);
+      }
+    } catch (error: any) {
+      if (requestId !== latestHistoryRequest.current) return;
+
+      if (error?.response?.status === 404) {
+        setSearchHistory([]);
+        return;
+      }
+
+      console.warn('Unable to load search history:', error?.message ?? error);
+    }
+  }, []);
+
+  useEffect(() => {
+    const keyword = searchText.trim();
+    if (!keyword) {
+      latestSuggestionRequest.current += 1;
+      setSuggestions([]);
+      if (isSearchFocused) loadSearchHistory();
+      return;
+    }
+
+    if (!isSearchFocused) {
+      setSuggestions([]);
+      return;
+    }
+
+    const timeout = setTimeout(async () => {
+      const requestId = ++latestSuggestionRequest.current;
+
+      try {
+        const results = await getSuggestions(keyword);
+        if (
+          requestId === latestSuggestionRequest.current &&
+          searchText.trim() === keyword
+        ) {
+          setSuggestions(results);
+        }
+      } catch (error: any) {
+        if (requestId === latestSuggestionRequest.current) {
+          setSuggestions([]);
+          console.warn('Unable to load search suggestions:', error?.message ?? error);
+        }
+      }
+    }, 350);
+
+    return () => clearTimeout(timeout);
+  }, [searchText, isSearchFocused, loadSearchHistory]);
+
+  const handleSearchFocus = () => {
+    setIsSearchFocused(true);
+    if (!searchText.trim()) loadSearchHistory();
+  };
+
+  const handleSearchSelection = async (
+    item: SuggestionItem | SearchHistoryItem,
+    source: 'suggestion' | 'history',
+  ) => {
+    const retailerId = await secureStorage.getItem('userId');
+    const searchTextForPayload =
+      source === 'suggestion'
+        ? (item as SuggestionItem).name
+        : (item as SearchHistoryItem).searchText;
+    const searchedIdForPayload =
+      source === 'suggestion'
+        ? (item as SuggestionItem).id
+        : (item as SearchHistoryItem).searchedId;
+    const payload: CreateSearchPayload = {
+      retailerId: retailerId ?? '',
+      searchText: searchTextForPayload,
+      searchedId: searchedIdForPayload,
+      type: item.type,
+    };
+
+    if (!isSearchPayloadValid(payload)) {
+      console.warn('Ignoring invalid retailer search payload');
+      return;
+    }
+
+    try {
+      // Results are shown only after the search has been recorded successfully.
+      await createSearchHistory(payload);
+      setSearchText(payload.searchText);
+      setSuggestions([]);
+      setIsSearchFocused(false);
+      router.push({
+        pathname: '/(retailer)/searchResults',
+        params: {
+          searchText: payload.searchText,
+          searchedId: payload.searchedId,
+          type: payload.type,
+        },
+      });
+    } catch (error: any) {
+      console.warn('Unable to save search history:', error?.message ?? error);
+      Alert.alert('Search unavailable', 'Please try again.');
+    }
+  };
+
+  const handleSearchSubmit = async () => {
+    const keyword = searchText.trim();
+    if (!keyword) return;
+
+    try {
+      const currentSuggestions = await getSuggestions(keyword);
+      const matchingSuggestion = currentSuggestions.find(
+        (item) => item.name.trim().toLocaleLowerCase() === keyword.toLocaleLowerCase(),
+      );
+
+      if (!matchingSuggestion) {
+        setSuggestions(currentSuggestions);
+        setIsSearchFocused(true);
+        Alert.alert('Choose a suggestion', 'Select a product or supplier from the matching results.');
+        return;
+      }
+
+      await handleSearchSelection(matchingSuggestion, 'suggestion');
+    } catch (error: any) {
+      console.warn('Unable to load search suggestions:', error?.message ?? error);
+      Alert.alert('Search unavailable', 'Please try again.');
+    }
+  };
 
     // dynamic measurements
   const horizontalPadding = 16;
@@ -310,8 +470,62 @@ const handleSelectShop = async (shop: Shop) => {
               placeholder='Search "Random kaka"'
               placeholderTextColor="#999"
               style={styles.searchInput}
+              value={searchText}
+              onChangeText={setSearchText}
+              onFocus={handleSearchFocus}
+              onSubmitEditing={handleSearchSubmit}
+              returnKeyType="search"
             />
+            <TouchableOpacity
+              accessibilityLabel="Search"
+              onPress={handleSearchSubmit}
+              hitSlop={8}
+            >
+              <Ionicons name="arrow-forward-circle" size={22} color="#2E7D32" />
+            </TouchableOpacity>
           </View>
+          {isSearchFocused && !searchText.trim() && searchHistory.length > 0 && (
+            <View style={styles.searchHistorySection}>
+              <Text style={styles.searchSectionLabel}>Recent searches</Text>
+              <View style={styles.searchChipRow}>
+                {searchHistory.map((item) => (
+                  <TouchableOpacity
+                    key={item.id}
+                    style={styles.searchChip}
+                    onPress={() => handleSearchSelection(item, 'history')}
+                  >
+                    <Ionicons name="time-outline" size={14} color="#2E7D32" />
+                    <Text style={styles.searchChipText} numberOfLines={1}>
+                      {item.searchText}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          )}
+          {isSearchFocused && searchText.trim().length > 0 && (
+            <View style={styles.suggestionList}>
+              {suggestions.map((item) => (
+                <TouchableOpacity
+                  key={`${item.type}-${item.id}`}
+                  style={styles.suggestionItem}
+                  onPress={() => handleSearchSelection(item, 'suggestion')}
+                >
+                  <Ionicons
+                    name={item.type === 'PRODUCT' ? 'cube-outline' : 'storefront-outline'}
+                    size={18}
+                    color="#2E7D32"
+                  />
+                  <View style={styles.suggestionTextWrapper}>
+                    <Text style={styles.suggestionName}>{item.name}</Text>
+                    <Text style={styles.suggestionType}>
+                      {item.type === 'PRODUCT' ? 'Product' : 'Supplier'}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
         </View>
 
         {/* Banner */}
@@ -504,6 +718,16 @@ const styles = StyleSheet.create({
   searchBarWrapper: { backgroundColor: "#fff", paddingHorizontal: 16, paddingVertical: 10 },
   searchBar: { flexDirection: "row", alignItems: "center", backgroundColor: "#F5F5F5", borderRadius: 12, paddingHorizontal: 12, paddingVertical: 11, gap: 8 },
   searchInput: { flex: 1, fontSize: 14, color: "#333" },
+  searchHistorySection: { marginTop: 12 },
+  searchSectionLabel: { fontSize: 12, fontWeight: '600', color: '#6B7280', marginBottom: 8 },
+  searchChipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  searchChip: { flexDirection: 'row', alignItems: 'center', gap: 5, maxWidth: '100%', backgroundColor: '#E8F5E9', borderWidth: 1, borderColor: '#A5D6A7', borderRadius: 18, paddingHorizontal: 10, paddingVertical: 7 },
+  searchChipText: { color: '#2E7D32', fontSize: 13, fontWeight: '500', maxWidth: 180 },
+  suggestionList: { backgroundColor: '#FFFFFF', borderRadius: 12, borderColor: '#E5E7EB', borderWidth: 1, marginTop: 8, overflow: 'hidden' },
+  suggestionItem: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 12, borderBottomColor: '#F3F4F6', borderBottomWidth: 1 },
+  suggestionTextWrapper: { flex: 1 },
+  suggestionName: { color: '#1F2937', fontSize: 14, fontWeight: '500' },
+  suggestionType: { color: '#6B7280', fontSize: 12, marginTop: 2 },
 
   /* Banner */
   bannerSection: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 16, width: "100%" },
