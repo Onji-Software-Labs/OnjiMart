@@ -23,4 +23,6 @@ public interface ProductRepository extends JpaRepository<Product, String> {
     // List<Product> findByCategory_Id(String categoryId);
 
     List<Product> findTop5ByNameIgnoreCaseContaining(String keyword);
+
+    void deleteAllByIdInBatch(Iterable<String> ids);
 }
