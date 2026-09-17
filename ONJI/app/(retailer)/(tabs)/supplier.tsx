@@ -32,8 +32,8 @@ const mapSupplier = (s: BusinessSupplier): INewSupplier => ({
   // Use it for both route params: orderSupplierScreen fetches products with
   // `supplierId`, and its existing navigation contract also expects a
   // non-empty `businessId` query parameter.
-  id: s.userId || s.supplierId,
-  businessId: s.businessId || s.userId || s.supplierId,
+  id: s.userId ,
+  businessId: s.businessId ,  // fallback to userId if businessId is missing
   businessName: s.businessName ,
   address: s.address ,
   city: s.city ,

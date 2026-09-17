@@ -22,7 +22,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 export interface INewSupplier {
   id: string;
-  businessId: string;
+  businessId?: string;
   businessName: string;
   fullName: string;
   address: string;
