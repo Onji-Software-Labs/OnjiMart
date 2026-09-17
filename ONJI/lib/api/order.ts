@@ -49,3 +49,17 @@ export const fulfillOrder = async (orderId: string) => {
     throw error;
   }
 };
+
+export const getOrderDetails = async (orderId: string) => {
+  try {
+    const res = await axiosInstance.get(`/api/orders/${orderId}`);
+
+    return res.data;
+  } catch (error: any) {
+    console.error(
+      "Get Order Details error:",
+      error.response?.data || error.message
+    );
+    throw error;
+  }
+};

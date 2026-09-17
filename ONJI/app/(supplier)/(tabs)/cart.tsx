@@ -796,18 +796,20 @@ export default function OrderRequestScreen() {
       <View style={{ paddingHorizontal: 16, paddingTop: 10 }}>
 
         {/* TITLE */}
-        <Text style={{ color: '#2F8F2F', fontSize: 18, fontWeight: '700' }}>
+        {/* <Text style={{ color: '#2F8F2F', fontSize: 18, fontWeight: '700' }}>
           Order Requests
-        </Text>
+        </Text> */}
 
         {/* AGGREGATE / RETAILER ORDERS TOGGLE */}
         <View
           style={{
-            flexDirection: 'row',
-            backgroundColor: '#E5E7EB',
-            borderRadius: 16,
-            padding: 4,
-            marginTop: 16,
+          backgroundColor: '#ECEDEE',
+  borderRadius: 12,          // was 20
+  flexDirection: 'row',
+  padding: 3,                 // was 4
+  marginBottom: 12,           // was 16
+  marginTop:10,
+  height:45,
           }}
         >
           <TouchableOpacity
@@ -815,18 +817,13 @@ export default function OrderRequestScreen() {
             style={{
               flex: 1,
               backgroundColor: viewMode === 'aggregate' ? '#fff' : 'transparent',
-              paddingVertical: 12,
-              borderRadius: 12,
-              alignItems: 'center',
+      paddingVertical: 9,      // was 14
+      borderRadius: 8,        // was 16
+      alignItems: 'center',
             }}
           >
-            <Text
-              style={{
-                color: viewMode === 'aggregate' ? '#2F8F2F' : '#525252',
-                fontSize: 13,
-                fontWeight: viewMode === 'aggregate' ? '600' : '400',
-              }}
-            >
+    <Text style={{ color: viewMode === 'aggregate' ? '#2E7D32' : '#353637', fontWeight: '600', fontSize: 13 }}>
+
               Aggregate
             </Text>
           </TouchableOpacity>
@@ -836,18 +833,12 @@ export default function OrderRequestScreen() {
             style={{
               flex: 1,
               backgroundColor: viewMode === 'retailer' ? '#fff' : 'transparent',
-              paddingVertical: 12,
-              borderRadius: 12,
-              alignItems: 'center',
+      paddingVertical: 9,      // was 14
+      borderRadius: 8,        // was 16
+      alignItems: 'center',
             }}
           >
-            <Text
-              style={{
-                color: viewMode === 'retailer' ? '#2F8F2F' : '#525252',
-                fontSize: 13,
-                fontWeight: viewMode === 'retailer' ? '600' : '400',
-              }}
-            >
+       <Text style={{ color: viewMode === 'retailer' ? '#2E7D32' : '#353637', fontWeight: '600', fontSize: 13 }}>
               Retailer Orders
             </Text>
           </TouchableOpacity>
@@ -858,7 +849,7 @@ export default function OrderRequestScreen() {
           style={{
             flexDirection: 'row',
             alignItems: 'center',
-            marginTop: 18,
+            // marginTop: 8,
             gap: 10,
           }}
         >
@@ -867,22 +858,24 @@ export default function OrderRequestScreen() {
               flex: 1,
               flexDirection: 'row',
               alignItems: 'center',
-              backgroundColor: '#fff',
-              borderRadius: 14,
-              borderWidth: 1,
+              backgroundColor: '#F7F8F8',
+              borderRadius: 4,
+              borderWidth: 0.5,
               borderColor: '#E5E7EB',
-              paddingHorizontal: 14,
-              height: 52,
+              paddingHorizontal: 12,
+              paddingVertical:6,
+              height: 50,
             }}
           >
-            <Feather name="search" size={20} color="#9CA3AF" />
             <TextInput
               value={searchQuery}
               onChangeText={setSearchQuery}
               placeholder='Search "Random kaka"'
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor="#92999E"
               style={{ flex: 1, marginLeft: 10, color: '#111827' }}
             />
+            <Feather name="search" size={24} color="#92999E" />
+
           </View>
 
           <TouchableOpacity

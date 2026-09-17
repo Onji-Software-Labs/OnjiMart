@@ -17,11 +17,12 @@ import {
 } from 'react-native';
 
 import { ConnectionStatus } from '../../lib/api/connection';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 
 export interface INewSupplier {
   id: string;
-  businessId: string;
+  businessId?: string;
   businessName: string;
   fullName: string;
   address: string;
@@ -30,6 +31,7 @@ export interface INewSupplier {
   contactNumber: string;
   rating: number;
   profilePicture?: string;
+  reviews?: number;
 }
 
 interface Props {
@@ -55,7 +57,7 @@ const handlePress = () => {
         supplierName: supplier.businessName,
       },
     });
-  } else if (connectionStatus === 'NONE' || connectionStatus === 'REJECTED') {
+  } else if (connectionStatus === 'NONE' || connectionStatus === 'REJECTED'|| connectionStatus === 'CANCELLED') {
     // ✅ open ConnectScreen
     router.push({
       pathname: '/(retailer)/connectScreen',
@@ -122,6 +124,7 @@ const handlePress = () => {
 
   return (
     <View style={styles.card}>
+      
 {/* Favourite Button */}
 <TouchableOpacity onPress={toggleFavorite} style={styles.favoriteButton} activeOpacity={0.7}>
   <Animated.View style={{ transform: [{ scale: heartScale }, { rotate: rotateHeart }] }}>
@@ -157,15 +160,19 @@ const handlePress = () => {
   </Text>
 
   {supplier.city && supplier.pincode ? (
-    <Text style={styles.location}>{supplier.city}, {supplier.pincode}</Text>
+    <Text style={styles.location}>{supplier.address},{supplier.city}</Text>
   ) : null}
 
   {/* Rating Row */}
   {/* {supplier.rating ? ( */}
-    <View style={styles.ratingRow}>
-      <FontAwesome name="star" size={14} color="#43A047" />
-      <Text style={styles.ratingText}> {supplier.rating}</Text>
+   <View style={styles.ratingRow}>
+  <View style={styles.ratingBadge}>
+    <FontAwesome name="star" size={14} color="#43A047" />
+    <Text style={styles.ratingText}> {supplier.rating ?? 4.5} ({supplier.reviews ?? 6})</Text>
+  </View>
 
+  
+</View>
       {/* <Text style={styles.reviewCount}> ({supplier.reviews})</Text>
       {supplier.credit && (
         <View style={styles.creditBadge}>
@@ -173,7 +180,7 @@ const handlePress = () => {
           <Text style={styles.creditText}>Credit</Text>
         </View>
       )} */}
-    </View>
+    {/* </View> */}
   {/* ) : null} */}
 </View>
 
@@ -223,15 +230,17 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     borderRadius: 8,
     borderWidth: 0.2,
-    borderColor: '#92999E',
+    borderColor: '#92999e6b',
     padding: 12,
     marginBottom: 15,
     flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
+      height: 'auto',
+  width: '100%',
+    // shadowColor: '#000',
+    // shadowOffset: { width: 0, height: 2 },
+    // shadowOpacity: 0.06,
+    // shadowRadius: 6,
     elevation: 3,
   },
   favoriteButton: {
@@ -244,7 +253,7 @@ const styles = StyleSheet.create({
 
   avatarContainer: {
     flexShrink: 0,
-    // marginRight: 12,
+    marginRight: 10,
     width: 72,
     height: 60,
     alignItems: 'center',
@@ -255,15 +264,15 @@ const styles = StyleSheet.create({
     height: 60,
     borderRadius: 32,
     resizeMode: 'cover',
-      alignSelf: 'center',
+    alignSelf: 'center',
 
   },
 
   infoContainer: {
     flex:1,
-    marginRight:8,
-    marginTop:4,
-    marginEnd:4,
+    // marginRight:8,
+    // marginTop:4,
+    // marginEnd:4,
 
     // paddingRight:110,
 },
@@ -287,19 +296,31 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     flexShrink: 1,
   },
-  ratingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
   ratingText: {
-    fontSize: 13,
-    color: '#43A047',
+    fontSize: 10,
     fontWeight: '600',
+    color: '#43A047',
   },
+  ratingRow: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  marginTop: 4,
+},
   reviewCount: {
-    fontSize: 13,
-    color: '#6B7280',
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#43A047',
   },
+  ratingBadge: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  alignSelf: 'flex-start',   // ✅ pill only wraps its own content, doesn't stretch
+  backgroundColor: '#E6F4EA',
+  borderRadius: 6,
+  paddingHorizontal: 8,
+  paddingVertical: 3,
+},
+
   creditBadge: {
     flexDirection: 'row',
     alignItems: 'center',

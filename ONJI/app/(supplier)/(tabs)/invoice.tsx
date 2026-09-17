@@ -11,9 +11,17 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
+import { router, useRouter } from "expo-router";
 import { getSupplierInvoices, InvoiceItem } from "@/lib/api/invoice";
 import { secureStorage } from "@/lib/secureStorage";
-import { router } from "expo-router";
+import CreditSummaryCard from "@/components/credit/CreditSummaryCard";
+import CreditInsightsBanner from "@/components/credit/CreditInsightsBanner";
+import SegmentedControl from "@/components/credit/SegmentedControl";
+import SearchFilterBar from "@/components/SearchFilterBar";
+import CreditCard, { CreditItem } from "@/components/credit/CreditCard"; // TODO: confirm this is the real path/export for CreditCard + CreditItem
+
+const ONGOING_CREDITS: CreditItem[] = [];
+const NEW_REQUESTS: CreditItem[] = [];
 
 // Resolves the business name shown on a card.
 // 1. Uses a real backend-provided name if one exists and isn't a known placeholder value.
@@ -41,13 +49,26 @@ const getDisplayRetailerName = (item: any, index: number): string => {
   return `Retailer Name ${index + 1}`;
 };
 
-export default function Invoice() {
-  const [activeTab, setActiveTab] = useState<"Approved" | "Delivered">("Approved");
-  const [searchQuery, setSearchQuery] = useState("");
+// ─────────────────────────────────────────────────────────────
+// MAIN SCREEN — ONE tab, internal switch between Invoice and Credit
+// ─────────────────────────────────────────────────────────────
+export default function FinanceScreen() {
+  const routerHook = useRouter();
 
+  // top-level switch: which "page" are we showing inside this single tab
+  const [view, setView] = useState<"Invoice" | "Credit">("Invoice");
+
+  // ---- Invoice-only state (moved over from the old Invoice() screen) ----
+  const [invoiceStatusTab, setInvoiceStatusTab] = useState<"Approved" | "Delivered">("Approved");
+  const [searchQuery, setSearchQuery] = useState("");
   const [invoices, setInvoices] = useState<InvoiceItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [supplierId, setSupplierId] = useState<string | null>(null);
+
+  // ---- Credit-only state ----
+  const [creditSubTab, setCreditSubTab] = useState<"New Requests (5+)" | "Ongoing Credit">(
+    "New Requests (5+)"
+  );
 
   // Step 1: Get the logged-in supplier's ID
   useEffect(() => {
@@ -58,7 +79,7 @@ export default function Invoice() {
     loadSupplierId();
   }, []);
 
-  // Step 2: Fetch invoices once supplierId is available
+  // Step 2: Fetch real invoices once supplierId is available
   useEffect(() => {
     if (!supplierId) return;
 
@@ -79,19 +100,17 @@ export default function Invoice() {
     fetchInvoicesData();
   }, [supplierId]);
 
-  // Step 3: Filter by Active Tab and Search Input
+  // Step 3: Filter by active tab + search input (uses real fetched `invoices`, not mock data)
   const filteredInvoices = invoices.filter((item: any) => {
     const status = item.status?.toUpperCase();
 
-    // Tab Filtering
     let matchesTab = false;
-    if (activeTab === "Approved") {
+    if (invoiceStatusTab === "Approved") {
       matchesTab = status === "APPROVED" || status === "PENDING" || status === "GENERATED";
     } else {
       matchesTab = status === "DELIVERED";
     }
 
-    // Search Filtering (Checks against Retailer Name, Invoice ID, or Order ID)
     const nameToMatch = (item.retailerBusinessName || item.retailerName || "").toLowerCase();
     const query = searchQuery.toLowerCase().trim();
     const matchesSearch = query === "" || nameToMatch.includes(query) || String(item.id).includes(query);
@@ -99,108 +118,142 @@ export default function Invoice() {
     return matchesTab && matchesSearch;
   });
 
+  const creditList = creditSubTab === "Ongoing Credit" ? ONGOING_CREDITS : NEW_REQUESTS;
+  const creditVariant = creditSubTab === "Ongoing Credit" ? "ongoing" : "request";
+
+  const openCreditDetails = (item: CreditItem) => {
+    routerHook.push({
+      pathname: "/(supplier)/CreditDetailsScreen",
+      params: { creditId: item.id },
+    });
+  };
+
   return (
     <View style={{ flex: 1, backgroundColor: "#FFFFFF" }}>
-      {/* Page Header */}
-      <View
-        style={{
-          paddingHorizontal: 16,
-          paddingTop: 40,
-          paddingBottom: 10,
-          backgroundColor: "#FFFFFF",
-        }}
-      >
-        <Text style={{ fontSize: 22, fontWeight: "600", color: "#2A6B2D" }}>Invoice</Text>
+      {/* HEADER */}
+      <View style={{ paddingHorizontal: 16, paddingTop: 40, paddingBottom: 10 }}>
+        <Text style={{ fontSize: 22, fontWeight: "700", color: "#2E7D32" }}>Finance</Text>
       </View>
 
       <ScrollView
         style={{ flex: 1, backgroundColor: "#F9FAFB" }}
         contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
+        showsVerticalScrollIndicator={false}
       >
-        {/* Top Segmented Control */}
-        <View style={{ flexDirection: "row", backgroundColor: "#E2E2E2", padding: 4, borderRadius: 16, marginBottom: 16 }}>
-          {(["Approved", "Delivered"] as const).map((tab) => (
-            <TouchableOpacity
-              key={tab}
-              onPress={() => setActiveTab(tab)}
-              style={{
-                flex: 1,
-                paddingVertical: 10,
-                borderRadius: 16,
-                alignItems: "center",
-                backgroundColor: activeTab === tab ? "#FFFFFF" : "transparent",
-                ...(activeTab === tab
-                  ? {
-                      shadowColor: "#000",
-                      shadowOpacity: 0.05,
-                      shadowRadius: 4,
-                      shadowOffset: { width: 0, height: 2 },
-                      elevation: 2,
-                    }
-                  : {}),
-              }}
-            >
-              <Text
+        {/* ── The ONE switch that decides what renders below ── */}
+        <View style={{ marginBottom: 16 }}>
+          <SegmentedControl
+            options={["Invoice", "Credit"]}
+            activeOption={view}
+            onChange={(option) => setView(option as "Invoice" | "Credit")}
+          />
+        </View>
+
+        {view === "Invoice" ? (
+          <>
+            <View style={{ marginBottom: 16 }}>
+              <SegmentedControl
+                options={["Approved", "Delivered"]}
+                activeOption={invoiceStatusTab}
+                onChange={(tab) => setInvoiceStatusTab(tab as typeof invoiceStatusTab)}
+              />
+            </View>
+
+            {/* Search and Filter Row */}
+            <View style={{ flexDirection: "row", marginBottom: 20 }}>
+              <View
                 style={{
-                  color: activeTab === tab ? "#2E7D32" : "#6B7280",
-                  fontWeight: activeTab === tab ? "600" : "500",
+                  flex: 1,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  backgroundColor: "#FFFFFF",
+                  borderWidth: 1,
+                  borderColor: "#E5E7EB",
+                  borderRadius: 16,
+                  paddingHorizontal: 16,
                 }}
               >
-                {tab}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+                <TextInput
+                  placeholder="Search by retailer name..."
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  style={{ flex: 1, paddingVertical: 12, color: "#111827", fontSize: 14 }}
+                  placeholderTextColor="#9CA3AF"
+                />
+                <Feather name="search" size={18} color="#9CA3AF" />
+              </View>
 
-        {/* Search and Filter Row */}
-        <View style={{ flexDirection: "row", marginBottom: 20 }}>
-          <View
-            style={{
-              flex: 1,
-              flexDirection: "row",
-              alignItems: "center",
-              backgroundColor: "#FFFFFF",
-              borderWidth: 1,
-              borderColor: "#E5E7EB",
-              borderRadius: 16,
-              paddingHorizontal: 16,
-            }}
-          >
-            <TextInput
-              placeholder="Search by retailer name..."
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              style={{ flex: 1, paddingVertical: 12, color: "#111827", fontSize: 14 }}
-              placeholderTextColor="#9CA3AF"
-            />
-            <Feather name="search" size={18} color="#9CA3AF" />
-          </View>
+              <TouchableOpacity
+                style={{
+                  marginLeft: 12,
+                  backgroundColor: "#F1F5EC",
+                  paddingHorizontal: 14,
+                  borderRadius: 12,
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
+              >
+                <Feather name="filter" size={20} color="#2E7D32" />
+              </TouchableOpacity>
+            </View>
 
-          <TouchableOpacity
-            style={{
-              marginLeft: 12,
-              backgroundColor: "#F1F5EC",
-              paddingHorizontal: 14,
-              borderRadius: 12,
-              justifyContent: "center",
-              alignItems: "center",
-            }}
-          >
-            <Feather name="filter" size={20} color="#2E7D32" />
-          </TouchableOpacity>
-        </View>
-
-        {/* Loading and Empty States */}
-        {loading ? (
-          <ActivityIndicator size="large" color="#2E7D32" style={{ marginTop: 40 }} />
-        ) : filteredInvoices.length === 0 ? (
-          <View style={{ alignItems: "center", marginTop: 40 }}>
-            <Text style={{ color: "#6B7280", fontSize: 14 }}>No invoices found.</Text>
-          </View>
+            {/* Loading and Empty States */}
+            {loading ? (
+              <ActivityIndicator size="large" color="#2E7D32" style={{ marginTop: 40 }} />
+            ) : filteredInvoices.length === 0 ? (
+              <View style={{ alignItems: "center", marginTop: 40 }}>
+                <Text style={{ color: "#6B7280", fontSize: 14 }}>No invoices found.</Text>
+              </View>
+            ) : (
+              filteredInvoices.map((item, index) => (
+                <InvoiceCard key={item.id} item={item} index={index} />
+              ))
+            )}
+          </>
         ) : (
-          filteredInvoices.map((item, index) => (
-            <InvoiceCard key={item.id} item={item} index={index} />
-          ))
+          <>
+            <Text style={{ fontSize: 17, fontWeight: "700", color: "#111827", marginBottom: 2 }}>
+              Supplier Credit
+            </Text>
+            <Text style={{ fontSize: 12.5, color: "#6B7280", marginBottom: 16 }}>
+              Manage & track outstanding balances for your wholesale partners.
+            </Text>
+
+            <CreditSummaryCard
+              totalCreditAvailable="$18,500"
+              utilizationRate="64.2%"
+              activeAccounts={28}
+              outstandingTotal="92,590"
+              upcomingPayments={5}
+              priorityLabel="Priority"
+            />
+
+            <CreditInsightsBanner />
+
+            <View style={{ marginBottom: 16 }}>
+              <SegmentedControl
+                options={["New Requests (5+)", "Ongoing Credit"]}
+                activeOption={creditSubTab}
+                onChange={(tab) => setCreditSubTab(tab as typeof creditSubTab)}
+              />
+            </View>
+
+            <SearchFilterBar value={searchQuery} onChangeText={setSearchQuery} />
+
+            {creditList.map((item) => (
+              <CreditCard
+                key={item.id}
+                item={item}
+                variant={creditVariant}
+                onNudge={openCreditDetails}
+                onDetails={openCreditDetails}
+                onCall={(i) => console.log("Call supplier:", i.supplierName)}
+                onAccept={(i) => console.log("Accept request:", i.id)}
+                onDecline={(i) => console.log("Decline request:", i.id)}
+                onViewExisting={openCreditDetails}
+              />
+            ))}
+          </>
         )}
 
         <View style={{ height: 40 }} />
@@ -209,7 +262,9 @@ export default function Invoice() {
   );
 }
 
+// ─────────────────────────────────────────────────────────────
 // Invoice Card Component
+// ─────────────────────────────────────────────────────────────
 function InvoiceCard({ item, index }: { item: any; index: number }) {
   const [isExpanded, setIsExpanded] = useState(item.expanded || false);
 

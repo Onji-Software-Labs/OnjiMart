@@ -12,7 +12,7 @@
     "format": "prettier --write ."
   },
   "dependencies": {
-    "@expo-google-fonts/albert-sans": "^0.4.1",
+    "@expo-google-fonts/albert-sans": "^0.4.2",
     "@expo-google-fonts/inter": "^0.4.1",
     "@expo-google-fonts/poppins": "^0.4.0",
     "@expo/vector-icons": "^15.0.2",
@@ -30,7 +30,8 @@
     "expo-checkbox": "~55.0.4",
     "expo-constants": "~55.0.17",
     "expo-crypto": "~55.0.17",
-    "expo-font": "~55.0.6",
+    "expo-dev-client": "~55.0.37",
+    "expo-font": "~55.0.8",
     "expo-haptics": "~55.0.16",
     "expo-image": "~55.0.10",
     "expo-image-picker": "~55.0.22",

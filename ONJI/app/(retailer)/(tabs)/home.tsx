@@ -17,6 +17,7 @@ import { useFocusEffect } from "expo-router";
 import { secureStorage } from '@/lib/secureStorage';
 import axiosInstance from '@/lib/api/axiosConfig';
 import { Shop } from '@/constants/StorageKeys'; // adjust path to your project structure
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   createSearchHistory,
   getSearchHistory,
@@ -267,6 +268,8 @@ const handleSelectShop = async (shop: Shop) => {
   
   return (
     <View style={styles.container}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: 'white' }} edges={['top']}>
+    
       <ScrollView 
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 100 }} 
@@ -282,7 +285,7 @@ const handleSelectShop = async (shop: Shop) => {
     paddingBottom: 8,
     backgroundColor: '#FFFFFF',
     zIndex: 10,
-    position: 'relative'
+    position: 'relative',
   }}>
 
   {/* Decorative Image */}
@@ -695,6 +698,7 @@ const handleSelectShop = async (shop: Shop) => {
         </View>
 
       </ScrollView>
+      </SafeAreaView>
     </View>
   );
 }
@@ -715,8 +719,8 @@ const styles = StyleSheet.create({
   greenCircleButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: "#C8E6C9", justifyContent: "center", alignItems: "center", position: "relative" },
 
   /* Search */
-  searchBarWrapper: { backgroundColor: "#fff", paddingHorizontal: 16, paddingVertical: 10 },
-  searchBar: { flexDirection: "row", alignItems: "center", backgroundColor: "#F5F5F5", borderRadius: 12, paddingHorizontal: 12, paddingVertical: 11, gap: 8 },
+  searchBarWrapper: { backgroundColor: "#fff", paddingHorizontal: 16, paddingVertical: 5 },
+  searchBar: { flexDirection: "row", alignItems: "center", backgroundColor: "#F5F5F5", borderRadius: 12, paddingHorizontal: 12, paddingVertical: 5, gap: 10 },
   searchInput: { flex: 1, fontSize: 14, color: "#333" },
   searchHistorySection: { marginTop: 12 },
   searchSectionLabel: { fontSize: 12, fontWeight: '600', color: '#6B7280', marginBottom: 8 },
