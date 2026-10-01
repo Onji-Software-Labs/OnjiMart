@@ -1227,7 +1227,7 @@ const styles = StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: "#fff",
-    paddingTop: Platform.OS === "ios" ? 55 : StatusBar.currentHeight,
+    paddingTop: Platform.OS === "ios" ? 55 : 10,
   },
   scroll: { padding: 15, paddingBottom: 220 },
   backBtn: {

@@ -3,7 +3,7 @@
 import axiosInstance from '@/lib/api/axiosConfig';
 
 export interface BusinessSupplier {
-  supplierId: string;
+  retailerId: string;
   businessId?: string;
   name: string;
   address: string;
@@ -12,7 +12,7 @@ export interface BusinessSupplier {
   contactNumber?: string;
   categoryIds: string[];
   subCategoryIds: string[];
-  userId?: string;
+  userId: string;
   fullName: string;
   businessName: string;
   rating: number;
@@ -63,4 +63,9 @@ export const getUnconnectedSuppliers = async (retailerId: string) => {
   );
 
   return response.data.content;
+};
+
+export const getUnconnectedRetailers = async (supplierId: string) => {
+  const response = await axiosInstance.get(`/suppliers/${supplierId}/retailers/unconnected`);
+  return response.data?.content || [];
 };

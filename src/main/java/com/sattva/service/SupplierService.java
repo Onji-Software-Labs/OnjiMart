@@ -14,7 +14,7 @@ public interface SupplierService {
     void deleteBusinessAndCategories(String businessId);
     List<SupplierBusinessRequestDTO> getAllBusinesses();
     List<SupplierBusinessRequestDTO> getBusinessesByPincode(String pincode);
-
+    PaginatedResponseDTO<RetailerListDTO> getUnconnectedRetailersForSupplier(String supplierId, int page, int size);
     List<RetailerDTO> getConnectedRetailers(String supplierId);
     SupplierDTO addRatingToSupplier(String supplierId, Double rating);
 }

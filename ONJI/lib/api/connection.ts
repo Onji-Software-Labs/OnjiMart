@@ -1,7 +1,7 @@
 import axiosInstance from './axiosConfig';
 import { secureStorage } from '@/lib/secureStorage';
 
-export type ConnectionStatus = 'NONE' | 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'RECEIVED_PENDING';
+export type ConnectionStatus = 'NONE' | 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'RECEIVED_PENDING'| 'CANCELLED';
 
 export const getConnectionStatus = async (supplierId: string): Promise<ConnectionStatus> => {
   try {

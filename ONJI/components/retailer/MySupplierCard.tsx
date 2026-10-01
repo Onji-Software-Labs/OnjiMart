@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,8 @@ import {
   Pressable,
   TouchableOpacity,
   StyleSheet,
+  Animated,
+  Easing,
 } from 'react-native';
 import {
   AntDesign,
@@ -27,20 +29,41 @@ const MySupplierCard = ({
 }) => {
   const router = useRouter();
 
+  // Heart animation refs
+  const heartScale = useRef(new Animated.Value(1)).current;
+  const heartRotation = useRef(new Animated.Value(0)).current;
+
+  const toggleFavorite = () => {
+    onToggleFavourite(supplier.id);
+    heartScale.setValue(1);
+    heartRotation.setValue(0);
+    Animated.parallel([
+      Animated.spring(heartScale, { toValue: 1.3, friction: 3, useNativeDriver: true }),
+      Animated.timing(heartRotation, { toValue: 1, duration: 200, easing: Easing.linear, useNativeDriver: true }),
+    ]).start(() => {
+      Animated.spring(heartScale, { toValue: 1, friction: 7, useNativeDriver: true }).start();
+      heartRotation.setValue(0);
+    });
+  };
+
+  const rotateHeart = heartRotation.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '12deg'],
+  });
+
+
   return (
     <View style={styles.card}>
       {/* Favourite */}
-      <TouchableOpacity
-        style={styles.favoriteButton}
-        onPress={() => onToggleFavourite(supplier.id)}
-      >
-        {isFavourite ? (
-          <AntDesign name="heart" size={20} color="#EF4444" />
-        ) : (
-          <Ionicons name="heart-outline" size={20} color="#9CA3AF" />
-        )}
-      </TouchableOpacity>
-
+<TouchableOpacity onPress={toggleFavorite} style={styles.favoriteButton} activeOpacity={0.7}>
+  <Animated.View style={{ transform: [{ scale: heartScale }, { rotate: rotateHeart }] }}>
+    <Ionicons
+      name={isFavourite ? 'heart' : 'heart-outline'}
+      size={20}
+      color={isFavourite ? '#EF4444' : '#9CA3AF'}
+    />
+  </Animated.View>
+</TouchableOpacity>
       
       
       {/* Profile */}
@@ -64,23 +87,24 @@ const MySupplierCard = ({
 
         <Text style={styles.description}>
           {supplier.fullName }
-        </Text>
+        </Text>      
+
   {supplier.city && supplier.pincode ? (
 
         <Text style={styles.location}>
-          {supplier.city},{supplier.pincode}
+          {supplier.address},{supplier.city}
         </Text>
   ): null}
- {/* {supplier.rating ? ( */}
-        <View style={styles.ratingRow}>
-          <FontAwesome name="star" size={14} color="#43A047" />
-          <Text style={styles.ratingText}> {supplier.rating}</Text>
-          {/* <Text style={styles.reviewCount}> (6)</Text> */}
-          <View style={styles.creditBadge}>
-            {/* <Text>🥔 🍏</Text> */}
-          </View>
-        </View>
-        {/* ): null}  */}
+   <View style={styles.ratingRow}>
+  <View style={styles.ratingBadge}>
+    <FontAwesome name="star" size={14} color="#43A047" />
+    <Text style={styles.ratingText}> {supplier.rating ?? 4.5} ({supplier.reviews ?? 6})</Text>
+  </View>
+
+  <View style={styles.creditBadge}>
+    <Text>🥔 🍏</Text>
+  </View>
+</View>
 
         <View style={styles.bottomInfo}>
           <Feather name="box" size={10} color="#92999E" />
@@ -127,15 +151,18 @@ export default MySupplierCard;
 
 const styles = StyleSheet.create({
   card: {
+  height: 'auto',
+  width: '100%',
   backgroundColor: '#fff',
-  borderRadius: 8,
+  borderRadius: 6,
   borderWidth: 0.2,
-  borderColor: '#92999E',
+  borderColor: '#92999e6b',
   padding: 12,
-  // marginBottom: 15,
+  marginBottom: 15,
   marginEnd: 6,
   flexDirection: 'row',
-  alignItems: 'flex-start',
+  alignItems: 'center',
+    // backgroundColor:'#e72b2b',
 
   minHeight: 120,   // <-- add this
 
@@ -156,29 +183,28 @@ const styles = StyleSheet.create({
   },
 
   avatarContainer: {
-  width: 72,
-  height: 60,
-  flexShrink: 0,
-  // marginRight: 12,
-  alignItems: 'center',
-  justifyContent: 'center', // Vertical center
-
-},
+    flexShrink: 0,
+    marginRight: 10,
+    width: 72,
+    height: 60,
+    alignItems: 'center',
+    justifyContent: 'center', // Vertical center
+  },
 
  avatar: {
     width: 60,
     height: 60,
-  // alignSelf: 'center',
+    borderRadius: 32,
+    resizeMode: 'cover',
+    alignSelf: 'center',
 
-  borderRadius: 32,
-  resizeMode: 'cover',
 },
 
   infoContainer: {
     flex:1,
-    marginRight:8,
-    marginTop:4,
-    marginEnd:4,
+    // marginRight:8,
+    // marginTop:0,
+    // marginEnd:4,
     // paddingRight:110,
 },
 
@@ -198,7 +224,7 @@ const styles = StyleSheet.create({
   },
 
   location: {
-    fontSize: 10,
+    fontSize: 11,
     color: '#72797D',
     marginTop: 1,
     marginBottom: 4,
@@ -213,17 +239,30 @@ const styles = StyleSheet.create({
   creditBadge: {
     marginLeft: 8,
   },
-
   ratingText: {
-    fontSize: 13,
-    color: '#43A047',
+    fontSize: 10,
     fontWeight: '600',
+    color: '#43A047',
   },
-
   reviewCount: {
-    fontSize: 9,
-    color: '#6B7280',
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#43A047',
   },
+  ratingBadge: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  alignSelf: 'flex-start',   // ✅ pill only wraps its own content, doesn't stretch
+  backgroundColor: '#E6F4EA',
+  borderRadius: 6,
+  paddingHorizontal: 8,
+  paddingVertical: 3,
+},
+
+  // reviewCount: {
+  //   fontSize: 9,
+  //   color: '#6B7280',
+  // },
 
   bottomInfo: {
     flexDirection: 'row',

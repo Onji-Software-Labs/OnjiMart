@@ -314,8 +314,10 @@ const deleteItem = async (productId: string) => {
               setLoading(true);
               const order = await submitOrder(cartId, selectedDay, selectedTime);
               console.log("Order success:", order);
-              setSubmittedOrderId(order?.id ?? order?.orderId ?? null);
-              setShowSuccessPopup(true);
+              router.replace({
+                pathname: "/(retailer)/(tabs)/cart",
+                params: { success: "true", tab: "orders" },   // ✅ ajout de tab: "orders"
+              });
             } catch (err) {
               console.log(err);
               alert("Order failed. Try again.");

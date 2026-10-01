@@ -2,21 +2,11 @@ package com.sattva.controller;
 
 import java.util.List;
 
+import com.sattva.dto.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
-import com.sattva.dto.CategoryDTO;
-import com.sattva.dto.RetailerDTO;
-import com.sattva.dto.SubCategoryDTO;
-import com.sattva.dto.SupplierCategoriesSubCategoriesRequest;
-import com.sattva.dto.SupplierDTO;
 import com.sattva.service.SupplierService;
 @RestController
 @RequestMapping("/suppliers")
@@ -82,4 +72,13 @@ public class SupplierController {
         return ResponseEntity.ok(updatedSupplier);
     }
 
+    @GetMapping("/{supplierId}/retailers/unconnected")
+    public ResponseEntity<PaginatedResponseDTO<RetailerListDTO>> getUnconnectedRetailers(
+            @PathVariable String supplierId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        PaginatedResponseDTO<RetailerListDTO> retailers =
+                supplierService.getUnconnectedRetailersForSupplier(supplierId, page, size);
+        return ResponseEntity.ok(retailers);
+    }
 }
