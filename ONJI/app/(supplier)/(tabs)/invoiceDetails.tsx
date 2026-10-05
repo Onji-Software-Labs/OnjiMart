@@ -109,10 +109,15 @@ export default function SupplierInvoiceDetails() {
     );
   }
 
-  const items = invoice.invoiceOrderItems ?? [];
-  const subtotal = invoice.totalPrice ?? 0;
-  const deliveryCharge = invoice.deliveryCharge ?? 0;
-  const grandTotal = subtotal + deliveryCharge;
+ const items = invoice.invoiceOrderItems ?? [];
+
+const itemsSum = items.reduce((s, i) => s + (i.totalPrice ?? 0), 0);
+const deliveryCharge = invoice.deliveryCharge ?? 0;
+const gstAmount = invoice.gstAmount ?? 0;
+const subtotal = invoice.subtotal ?? itemsSum;
+
+// totalPrice from the backend is already the grand total
+const grandTotal = invoice.totalPrice || subtotal + gstAmount + deliveryCharge;
 
   const orderDate = invoice.invoiceDate ? new Date(invoice.invoiceDate) : null;
   const formattedDate = orderDate
@@ -360,10 +365,19 @@ export default function SupplierInvoiceDetails() {
             <Text style={{ fontSize: 13, color: "#6B7280" }}>Subtotal</Text>
             <Text style={{ fontSize: 13, fontWeight: "600", color: "#181D18" }}>₹{subtotal.toFixed(2)}</Text>
           </View>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 10 }}>
+  <Text style={{ fontSize: 13, color: "#6B7280" }}>
+    GST ({invoice.gstRate ?? 5}%)
+  </Text>
+  <Text style={{ fontSize: 13, fontWeight: "600", color: "#181D18" }}>
+    ₹{gstAmount.toFixed(2)}
+  </Text>
+</View>
           <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 12 }}>
             <Text style={{ fontSize: 13, color: "#6B7280" }}>Delivery Charge</Text>
             <Text style={{ fontSize: 13, fontWeight: "600", color: "#181D18" }}>₹{deliveryCharge.toFixed(2)}</Text>
           </View>
+
           <View
             style={{
               flexDirection: "row",

@@ -11,4 +11,5 @@ public interface InvoiceService {
 
     // Fetch all invoices for a given retailer
     List<InvoiceDTO> getInvoicesForRetailer(String retailerId);
+    InvoiceDTO getInvoiceByOrderId(String orderId);
 }

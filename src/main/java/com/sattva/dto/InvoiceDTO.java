@@ -16,6 +16,8 @@ public class InvoiceDTO {
     private String shopId; // ID of the shop
 
     private String retailerId; // ID of the retailer
+    // InvoiceDTO
+    private String retailerBusinessName;
 
     private String supplierId; // ID of the supplier
 
@@ -36,4 +38,7 @@ public class InvoiceDTO {
     private String modifiedUserId; // ID of the user who last modified the invoice
 
     private String supplierBusinessName;
+    private Double subtotal;
+    private Double gstRate;
+    private Double gstAmount;
 }

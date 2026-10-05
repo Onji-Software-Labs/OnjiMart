@@ -57,5 +57,6 @@ public class OrderDTO {
     private Double subtotal;
     private Double taxAmount;
     private Double grandTotal;
+    private LocalDateTime approvedAt;
 }
 

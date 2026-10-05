@@ -22,6 +22,9 @@ import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.OneToOne;
 
 @Entity
 @Table(name = "invoices")
@@ -32,6 +35,10 @@ public class Invoice {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
+
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "order_id", unique = true)
+    private Order order;
 
     @ManyToOne
     @JoinColumn(name = "shop_id", nullable = false)
@@ -70,8 +77,20 @@ public class Invoice {
     @Column(name = "modified_user_id", nullable = false)
     private String modifiedUserId;
 
-    private String supplierBusinessName;
 
+    // ── GST breakdown ──
+    @Column(name = "subtotal", nullable = true)
+    private Double subtotal;     // sum of fulfilled items, before tax
+
+    @Column(name = "gst_rate", nullable = true)
+    private Double gstRate;      // 5.0
+
+    @Column(name = "gst_amount", nullable = true)
+    private Double gstAmount;    // subtotal * 5%
+
+    private String supplierBusinessName;
+    @Column(name = "retailer_business_name")
+    private String retailerBusinessName;
     @PrePersist
     protected void onCreate() {
         this.dateEntered = LocalDateTime.now();

@@ -82,6 +82,8 @@ public class Order {
     @Column(name = "delivery_time_slot")
     private String deliveryTimeSlot;
 
+    @Column(name = "ApprovedAt")
+    private LocalDateTime approvedAt;
     // Callback methods for setting dates and user IDs
     @PrePersist
     protected void onCreate() {

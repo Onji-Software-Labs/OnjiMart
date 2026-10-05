@@ -1,6 +1,7 @@
 package com.sattva.repository;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -16,4 +17,6 @@ public interface InvoiceRepository extends JpaRepository<Invoice, String> {
 
     // Fetch all invoices by shop ID
     List<Invoice> findByShop_Id(String shopId);
+    boolean existsByOrder_Id(String orderId);
+    Optional<Invoice> findByOrder_Id(String orderId);
 }

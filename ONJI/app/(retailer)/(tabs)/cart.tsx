@@ -16,6 +16,7 @@ import {
   LayoutAnimation,
   Platform,
   UIManager,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -25,14 +26,22 @@ import axiosInstance from "@/lib/api/axiosConfig";
 import { localStorage } from "@/lib/localStorage";
 import { secureStorage } from "@/lib/secureStorage";
 
-
+import * as Clipboard from "expo-clipboard";
 import { useFocusEffect } from "@react-navigation/native";
 import { useLocalSearchParams } from "expo-router";
 import { getCartByShopId, ICartDTO } from "@/lib/api/cart";
 
 import { useRouter } from "expo-router";
+import { fmtDate, fmtTime } from "@/lib/invoiceFormat";
+import { OrderDates } from "@/components/orderTime";
 
-
+const chip = {
+  backgroundColor: "#F3F4F6",
+  paddingHorizontal: 8,
+  paddingVertical: 2,
+  borderRadius: 10,
+  alignSelf: "center",
+} as const;
 
 // Enable LayoutAnimation on Android
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -64,6 +73,8 @@ interface SupplierCart {
   totalItems: number;
   totalQty: number;
   items: CartItem[];
+  deliveryDate?: string | null;        // ← add
+  deliveryTimeSlot?: string | null;    // ← add
 }
 
 interface PreviousOrder {
@@ -80,95 +91,34 @@ interface Order {
   totalOrdersCompleted: number;
   amount: string;
   latestOrderId: string;
-  status: "active" | "delivered";
+  status: "NEW" | "PROCESSING" | "COMPLETED" | "CANCELLED";
   date: string;
   time: string;
   previousOrders: PreviousOrder[];
+  supplierPhone?: string;
+ orderTimestamp: number;
+  approvedTimestamp: number | null;
+  approvedDate?: string;
+  approvedTime?: string;
 }
-
 // ─────────────────────────────────────────────────────────────
 // AVATAR — update this path to your actual PNG
 // ─────────────────────────────────────────────────────────────
 const PLACEHOLDER_AVATAR = require("../../../assets/images/3davatar.png");
-// ─────────────────────────────────────────────────────────────
-// DUMMY DATA
-// ─────────────────────────────────────────────────────────────
-
-// const dummyOrders: Order[] = [
-//   {
-//     id: "1",
-//     supplierName: "Harvest Ledger Sourcing",
-//     avatarUri: PLACEHOLDER_AVATAR,
-//     totalOrdersCompleted: 3,
-//     amount: "$1,240.00",
-//     latestOrderId: "#HL-99284",
-//     status: "active",
-//     date: "Oct 24, 2023",
-//     time: "09:45 AM",
-//     previousOrders: [
-//       { orderId: "#HL-99283", date: "Oct 24, 2023", time: "09:45 AM", amount: "$1,240.00" },
-//       { orderId: "#HL-99282", date: "Oct 24, 2023", time: "09:45 AM", amount: "$1,240.00" },
-//       { orderId: "#HL-99281", date: "Oct 24, 2023", time: "09:45 AM", amount: "$1,240.00" },
-//       { orderId: "#HL-99280", date: "Oct 24, 2023", time: "09:45 AM", amount: "$1,240.00" },
-//     ],
-//   },
-//   {
-//     id: "2",
-//     supplierName: "Harvest Ledger Sourcing",
-//     avatarUri: PLACEHOLDER_AVATAR,
-//     totalOrdersCompleted: 3,
-//     amount: "$1,240.00",
-//     latestOrderId: "#HL-99284",
-//     status: "active",
-//     date: "Oct 24, 2023",
-//     time: "09:45 AM",
-//     previousOrders: [
-//       { orderId: "#HL-99280", date: "Oct 24, 2023", time: "09:45 AM", amount: "$980.00" },
-//     ],
-//   },
-//   {
-//     id: "3",
-//     supplierName: "Harvest Ledger Sourcing",
-//     avatarUri: PLACEHOLDER_AVATAR,
-//     totalOrdersCompleted: 5,
-//     amount: "$2,100.00",
-//     latestOrderId: "#HL-88102",
-//     status: "delivered",
-//     date: "Oct 20, 2023",
-//     time: "11:00 AM",
-//     previousOrders: [
-//       { orderId: "#HL-88101", date: "Oct 18, 2023", time: "10:30 AM", amount: "$1,500.00" },
-//       { orderId: "#HL-88100", date: "Oct 15, 2023", time: "08:00 AM", amount: "$900.00" },
-//     ],
-//   },
-//   {
-//     id: "4",
-//     supplierName: "Harvest Ledger Sourcing",
-//     avatarUri: PLACEHOLDER_AVATAR,
-//     totalOrdersCompleted: 2,
-//     amount: "$750.00",
-//     latestOrderId: "#HL-77021",
-//     status: "delivered",
-//     date: "Oct 12, 2023",
-//     time: "02:15 PM",
-//     previousOrders: [],
-//   },
-// ];
 
 // ─────────────────────────────────────────────────────────────
 // TYPES
 // ─────────────────────────────────────────────────────────────
 
 type FilterChip = "This week" | "Recent" | "This Month" | "Custom Date";
-
+let lastActiveTab: "cart" | "orders" = "cart";
+let lastOrderStatusTab: "active" | "pending" | "approved" = "active";
 // ─────────────────────────────────────────────────────────────
 // MAIN SCREEN
 // ─────────────────────────────────────────────────────────────
 
 export default function CartScreen() {
   const { tab } = useLocalSearchParams<{ tab?: string }>();
-  const [activeTab, setActiveTab] = useState<"cart" | "orders">("cart");
-  const [orderStatusTab, setOrderStatusTab] = useState<"active" | "delivered">("active");
   const [cartData, setCartData] = useState<SupplierCart[]>([]);
 // ─── inside the component ───
 const router = useRouter();
@@ -181,18 +131,38 @@ const router = useRouter();
 const [ordersData, setOrdersData] = useState<Order[]>([]);
 const [ordersLoading, setOrdersLoading] = useState(false);
 const [ordersError, setOrdersError] = useState<string | null>(null);
+const [activeTab, setActiveTab] = useState<"cart" | "orders">(lastActiveTab);
+const [orderStatusTab, setOrderStatusTab] = useState<"active" | "pending" | "approved">(lastOrderStatusTab);
 
   const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
   const [activeChip, setActiveChip] = useState<FilterChip | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+const APPROVED_STATUSES = ["APPROVED", "COMPLETED", "DELIVERED"];
 
-const filteredOrders = ordersData.filter(
-  (item) => item.status === orderStatusTab
-);
+const filteredOrders = ordersData
+  .filter((item) => {
+    if (orderStatusTab === "active") return item.status === "NEW";
+    if (orderStatusTab === "pending") return item.status === "PROCESSING";
+    return APPROVED_STATUSES.includes(item.status);
+  })
+  .sort((a, b) => {
+    if (orderStatusTab === "approved") {
+      // latest approved first; old orders without approvedAt fall back to order date
+      const aTime = a.approvedTimestamp ?? a.orderTimestamp;
+      const bTime = b.approvedTimestamp ?? b.orderTimestamp;
+      return bTime - aTime;
+    }
+    return b.orderTimestamp - a.orderTimestamp;
+  });
 
   const [cartLoading, setCartLoading] = useState(false);
   const [cartError, setCartError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+
+useEffect(() => { lastActiveTab = activeTab; }, [activeTab]);
+useEffect(() => { lastOrderStatusTab = orderStatusTab; }, [orderStatusTab]);
 
 const fetchCart = useCallback(async () => {
   try {
@@ -204,7 +174,6 @@ const fetchCart = useCallback(async () => {
       setCartData([]);
       return;
     }
-
     // ✅ load cached product data (images, etc.) written by the order screen
     let cachedProducts: Record<string, any> = {};
     try {
@@ -236,12 +205,14 @@ const fetchCart = useCallback(async () => {
       const validItems = (cart.items ?? []).filter((i) => (i.quantity ?? 0) > 0);
       return {
         cartId: cart.id,
-        supplierId: cart.shopId,
-        supplierName: "Supplier",
+        supplierId: cart.supplierId ?? "",
+        supplierName: cart.supplierName || "Supplier",
         ownerName: "",
         avatarUri: PLACEHOLDER_AVATAR,
         totalItems: validItems.length,
         totalQty: validItems.reduce((sum, i) => sum + (i.quantity ?? 0), 0),
+        deliveryDate: cart.deliveryDate ?? null,           // ← add
+        deliveryTimeSlot: cart.deliveryTimeSlot ?? null,   // ← add
         items: validItems.map((i) => {
   const cached = cachedProducts[String(i.productId)];
   const unitPrice = i.price ?? cached?.price ?? 0;
@@ -300,38 +271,51 @@ const fetchOrders = useCallback(async () => {
   JSON.stringify(response.data, null, 2)
 );
 
-    const data = Array.isArray(response.data)
-      ? response.data
-      : [];
+const data = Array.isArray(response.data) ? response.data : [];
 
-    const formattedOrders: Order[] = data.map((order: any) => ({
-      id: order.id,
-      supplierName: order.supplierName ?? "Supplier",
-      avatarUri: PLACEHOLDER_AVATAR,
+// Newest first
+data.sort(
+  (a: any, b: any) =>
+    new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime()
+);
 
-      totalOrdersCompleted: order.items?.length ?? 0,
+const formattedOrders: Order[] = data.map((order: any) => {
+  const itemsTotal =
+    order.items?.reduce(
+      (sum: number, item: any) => sum + (item.totalPrice ?? 0),
+      0
+    ) ?? 0;
 
-      amount: `₹${
-        order.items?.reduce(
-          (sum: number, item: any) => sum + (item.totalPrice ?? 0),
-          0
-        ) ?? 0
-      }`,
+  const grandTotal =
+    order.grandTotal ??
+    order.totalAmount ??
+    itemsTotal + (order.gstAmount ?? order.taxAmount ?? 0);
+const approvedAt = order.approvedAt ? new Date(order.approvedAt) : null;
 
-      latestOrderId: `#${order.id.slice(0, 8)}`,
+  return {
+    id: order.id,
+    supplierName: order.supplierName ?? "Supplier",
+    avatarUri: PLACEHOLDER_AVATAR,
+    supplierPhone: order.supplierPhoneNumber ?? "",
+    totalOrdersCompleted: order.items?.length ?? 0,
+    amount: `₹${Number(grandTotal).toFixed(2)}`,
+    latestOrderId: `#${order.id.slice(0, 8)}`,
+    status: order.status ?? "NEW",
+    date: fmtDate(order.orderDate),
+    time: new Date(order.orderDate).toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    }),
+      orderTimestamp: new Date(order.orderDate).getTime(),
+  approvedTimestamp: approvedAt ? approvedAt.getTime() : null,
+  approvedDate: approvedAt ? fmtDate(approvedAt) : undefined,
+  approvedTime: approvedAt ? fmtTime(approvedAt) : undefined,
+    previousOrders: [],
+  };
+});
 
-      status: order.completed === true
-        ? "delivered"
-        : "active",
-
-      date: new Date(order.orderDate).toLocaleDateString(),
-
-      time: new Date(order.orderDate).toLocaleTimeString(),
-
-      previousOrders: [],
-    }));
-
-    setOrdersData(formattedOrders);
+setOrdersData(formattedOrders);
 
   } catch (err: any) {
     console.log(
@@ -411,6 +395,8 @@ const removeSupplier = async (cartId: string) => {
         supplierId: item.supplierId,
         supplierName: item.supplierName,
         cartId: item.cartId,
+        deliveryDate: item.deliveryDate ?? null,          // ← add
+        deliveryTimeSlot: item.deliveryTimeSlot ?? null,  // ← add
         items: item.items.map((it) => ({
           productId: it.productId,
           quantity: it.requestedQuantity,
@@ -423,6 +409,15 @@ const removeSupplier = async (cartId: string) => {
     },
   });
   };
+const handleNudge = async (item: Order) => {
+  try {
+    // await axiosInstance.post(`/api/orders/${item.id}/nudge`); // adjust to your real endpoint
+    Alert.alert("Reminder sent", `${item.supplierName} has been notified to review this order.`);
+  } catch (err: any) {
+    console.log("[handleNudge] error:", err?.response?.data || err?.message);
+    Alert.alert("Error", "Could not send reminder. Try again.");
+  }
+};
 
   // ─────────────────────────────────────────────────────────────
   // CART CARD
@@ -456,7 +451,7 @@ const removeSupplier = async (cartId: string) => {
             }}
           />
           <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 17, fontWeight: "700", color: "#111827" }}>
+            <Text style={{ fontSize: 16, fontWeight: "700", color: "#111827" }}>
               {item.supplierName}
             </Text>
             <Text style={{ fontSize: 13, color: "#6B7280", marginTop: 2 }}>
@@ -472,8 +467,8 @@ const removeSupplier = async (cartId: string) => {
         <View style={{ flexDirection: "row", flexWrap: "wrap", marginBottom: 18 }}>
   {visibleItems.map((cartItem, index) => (
   <View key={index} style={{
-    width: 58, height: 58, borderRadius: 14,
-    borderWidth: 1.5, borderColor: "#15803D",
+    width: 52, height: 54, borderRadius: 16,
+    borderWidth: 1.5, borderColor: "#2E7D32",
     alignItems: "center", justifyContent: "center",
     marginRight: 10, marginBottom: 10, backgroundColor: "#fff",
     overflow: "hidden",
@@ -503,9 +498,9 @@ const removeSupplier = async (cartId: string) => {
           {remaining > 0 && (
             <View
               style={{
-                width: 58,
-                height: 58,
-                borderRadius: 14,
+                width: 52,
+                height: 54,
+                borderRadius: 16,
                 borderWidth: 1.5,
                 borderColor: "#15803D",
                 alignItems: "center",
@@ -525,15 +520,15 @@ const removeSupplier = async (cartId: string) => {
         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end" }}>
           <View>
             <View style={{ flexDirection: "row", marginBottom: 6 }}>
-              <Text style={{ fontSize: 14, color: "#111827" }}>Total Shipment items</Text>
-              <Text style={{ fontSize: 14, fontWeight: "700", marginLeft: 10 }}>
+              <Text style={{ fontSize: 12, color: "#000000" }}>Total Shipment items</Text>
+              <Text style={{ fontSize: 12, fontWeight: "700", marginLeft: 10 }}>
                 {item.totalItems} Items
               </Text>
             </View>
             <View style={{ flexDirection: "row" }}>
-              <Text style={{ fontSize: 14, color: "#111827" }}>Total Quantity</Text>
-              <Text style={{ fontSize: 12, color: "#9CA3AF", marginLeft: 4 }}>(weight)</Text>
-              <Text style={{ fontSize: 14, fontWeight: "700", marginLeft: 10 }}>
+              <Text style={{ fontSize: 12, color: "#000000" }}>Total Quantity</Text>
+              <Text style={{ fontSize: 12, color: "#72797D", marginLeft: 4 }}>(weight)</Text>
+              <Text style={{ fontSize: 12, fontWeight: "700", marginLeft: 10 }}>
                 {item.totalQty} Kg
               </Text>
             </View>
@@ -544,17 +539,17 @@ const removeSupplier = async (cartId: string) => {
             onPress={() => handleCheckout(item)}
             style={{
               backgroundColor: "#2E7D32",
-              paddingHorizontal: 22,
-              paddingVertical: 14,
-              borderRadius: 14,
+              paddingHorizontal: 12,
+              paddingVertical: 10,
+              borderRadius: 12,
               flexDirection: "row",
               alignItems: "center",
             }}
           >
-            <Text style={{ color: "#fff", fontWeight: "700", fontSize: 16, marginRight: 10 }}>
+            <Text style={{ color: "#fff", fontWeight: "700", fontSize: 12, marginRight: 4 }}>
               Checkout
             </Text>
-            <Feather name="arrow-right" size={20} color="#fff" />
+            <Feather name="arrow-right" size={15} color="#fff" />
           </TouchableOpacity>
         </View>
       </View>
@@ -564,138 +559,218 @@ const removeSupplier = async (cartId: string) => {
   // ─────────────────────────────────────────────────────────────
   // ORDER CARD
   // ─────────────────────────────────────────────────────────────
+const ORDER_STATUS_STYLES: Record<Order["status"], { label: string; bg: string; color: string }> = {
+  NEW: { label: "New", bg: "#DBEAFE", color: "#1D4ED8" },
+  PROCESSING: { label: "Processing", bg: "#FEF3C7", color: "#B45309" },
+  COMPLETED: { label: "Approved", bg: "#DCFCE7", color: "#15803D" },
+  CANCELLED: { label: "Cancelled", bg: "#FEE2E2", color: "#B91C1C" },
+};
+const renderOrderCard = (item: Order) => {
+  const isExpanded = expandedOrders.has(item.id);
+  const hasPreviousOrders = item.previousOrders.length > 0;
+  const statusStyle = ORDER_STATUS_STYLES[item.status];
 
-  const renderOrderCard = (item: Order) => {
-    const isExpanded = expandedOrders.has(item.id);
-    const hasPreviousOrders = item.previousOrders.length > 0;
-
-    return (
-      <View
-        key={item.id}
-        style={{
-          backgroundColor: "#fff",
-          borderRadius: 18,
-          padding: 16,
-          marginBottom: 18,
-          borderWidth: 1,
-          borderColor: "#ECECEC",
-        }}
-      >
-        {/* TOP ROW */}
-        <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 6 }}>
-          <Image
-            source={item.avatarUri}
-            style={{
-              width: 46,
-              height: 46,
-              borderRadius: 23,
-              marginRight: 12,
-              backgroundColor: "#D1FAE5",
-            }}
-          />
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 17, fontWeight: "700", color: "#111827" }}>
-              {item.supplierName}
-            </Text>
-            <Text style={{ fontSize: 13, color: "#9CA3AF", marginTop: 2 }}>
-              {item.totalOrdersCompleted} Orders Completed
-            </Text>
-          </View>
-          <View
-            style={{
-              backgroundColor: item.status === "active" ? "#DCFCE7" : "#ECFCCB",
-              paddingHorizontal: 12,
-              paddingVertical: 6,
-              borderRadius: 20,
-            }}
+  return (
+    <View
+      key={item.id}
+      style={{
+        backgroundColor: "#fff",
+        borderRadius: 18,
+        padding: 16,
+        marginBottom: 18,
+        borderWidth: 1,
+        borderColor: "#ECECEC",
+      }}
+    >
+      {/* TOP: avatar + name + location/phone */}
+      <View style={{ flexDirection: "row", alignItems: "center" }}>
+        <Image
+          source={item.avatarUri}
+          style={{
+            width: 46,
+            height: 46,
+            borderRadius: 23,
+            marginRight: 12,
+            backgroundColor: "#D1FAE5",
+          }}
+        />
+        <View style={{ flex: 1 }}>
+          <Text
+            numberOfLines={2}
+            style={{ fontSize: 16, fontWeight: "700", color: "#111827" }}
           >
-            <Text
+            {item.supplierName}
+          </Text>
+
+          {( !!item.supplierPhone) && (
+            <View
               style={{
-                color: item.status === "active" ? "#15803D" : "#65A30D",
-                fontSize: 12,
-                fontWeight: "700",
+                flexDirection: "row",
+                flexWrap: "wrap",
+                alignItems: "flex-start",
+                gap: 6,
+                marginTop: 4,
               }}
             >
-              {item.status === "active" ? "Approved" : "Delivered"}
-            </Text>
-          </View>
+              {/* {!!item.supplierLocation && (
+                <View style={chip}>
+                  <Text style={{ fontSize: 10, color: "#6B7280" }}>
+                    {item.supplierLocation}
+                  </Text>
+                </View>
+              )} */}
+              {!!item.supplierPhone && (
+                <View style={chip}>
+                  <Text style={{ fontSize: 10, color: "#6B7280" }}>
+                    {item.supplierPhone}
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
+        </View> 
+      </View>
+
+      {/* ORDER ID + COPY + STATUS (same line) */}
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginTop: 12,
+        }}
+      >
+        <View style={{ flexDirection: "row", alignItems: "center", flexShrink: 1 }}>
+          <Text style={{ fontSize: 11, color: "#9CA3AF", marginRight: 6 }}>
+            Latest Order Id:
+          </Text>
+          <Text
+            numberOfLines={1}
+            ellipsizeMode="tail"
+            style={{ fontSize: 14, fontWeight: "700", color: "#111827", maxWidth: 110 }}
+          >
+            {item.latestOrderId}
+          </Text>
+          <TouchableOpacity
+            style={{ marginLeft: 4, padding: 4 }}
+            onPress={async () => {
+              try {
+                await Clipboard.setStringAsync(item.latestOrderId);
+                setCopiedId(item.id);
+                setTimeout(() => setCopiedId(null), 1500);
+              } catch (e) {
+                console.log("[copy] error:", e);
+              }
+            }}
+          >
+            <MaterialCommunityIcons
+              name={copiedId === item.id ? "check" : "content-copy"}
+              size={16}
+              color={copiedId === item.id ? "#15803D" : "#2A6B2D"}
+            />
+          </TouchableOpacity>
         </View>
 
-        {/* DATE + TIME */}
-        <View style={{ flexDirection: "row", marginBottom: 16 }}>
-          <Text style={{ color: "#6B7280", fontSize: 13, marginRight: 18 }}>{item.date}</Text>
-          <Text style={{ color: "#6B7280", fontSize: 13 }}>• {item.time}</Text>
-        </View>
-
-        {/* ORDER INFO */}
         <View
           style={{
+            backgroundColor: statusStyle.bg,
+            paddingHorizontal: 12,
+            paddingVertical: 5,
+            borderRadius: 20,
             flexDirection: "row",
-            justifyContent: "space-between",
             alignItems: "center",
-            marginBottom: 18,
+            gap: 5,
           }}
         >
-          <View style={{ flex: 1, marginRight: 10 }}>
-              <Text style={{ fontSize: 11, color: "#9CA3AF" }}>
-                Latest Order Id
-              </Text>
-
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  marginTop: 4,
-                }}
-              >
-                <Text
-                  numberOfLines={1}
-                  ellipsizeMode="tail"
-                  style={{
-                    flex: 1,
-                    fontSize: 14,
-                    fontWeight: "700",
-                    color: "#111827",
-                  }}
-                >
-                  {item.latestOrderId}
-                </Text>
-
-                <TouchableOpacity style={{ marginLeft: 8 }}>
-                  <MaterialCommunityIcons
-                    name="content-copy"
-                    size={16}
-                    color="#9CA3AF"
-                  />
-                </TouchableOpacity>
-              </View>
-            </View>
-          <Text style={{ color: "#15803D", fontSize: 26, fontWeight: "700" }}>
-            {item.amount}
+          <View
+            style={{
+              width: 6,
+              height: 6,
+              borderRadius: 3,
+              backgroundColor: statusStyle.color,
+            }}
+          />
+          <Text style={{ color: statusStyle.color, fontSize: 11, fontWeight: "700" }}>
+            {statusStyle.label}
           </Text>
         </View>
+      </View>
 
-        {/* ACTION BUTTONS */}
-        <View
+<OrderDates
+  placedDate={item.date}
+  placedTime={item.time}
+  approvedDate={item.approvedDate}
+  approvedTime={item.approvedTime}
+/>
+
+    {/* DASHED DIVIDER */}
+<View
+  style={{
+    borderTopWidth: 1,
+    borderStyle: "dashed",
+    borderColor: "#D1D5DB",
+    marginTop: 16,
+    marginBottom: 16,
+  }}
+/>
+
+    {/* GRAND TOTAL */}
+    <View
+      style={{
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: 14,
+      }}
+    >
+      <Text style={{ fontSize: 16, fontWeight: "700", color: "#1F2937" }}>Grand Total</Text>
+      <Text style={{ fontSize: 20, fontWeight: "700", color: "#0C5217" }}>{item.amount}</Text>
+    </View>
+
+      {/* ACTION BUTTONS */}
+      <View
+        style={{
+          flexDirection: "row",
+          justifyContent: "space-between",
+          marginBottom: hasPreviousOrders ? 16 : 0,
+        }}
+      >
+        <TouchableOpacity
+          onPress={() =>
+            router.push({ pathname: "/orderDetails", params: { orderId: item.id } })
+          }
           style={{
-            flexDirection: "row",
-            justifyContent: "space-between",
-            marginBottom: hasPreviousOrders ? 16 : 0,
+            flex: 1,
+            backgroundColor: "#2E7D32",
+            paddingVertical: 14,
+            borderRadius: 12,
+            alignItems: "center",
+            marginRight: 10,
           }}
         >
+          <Text style={{ color: "#fff", fontWeight: "600" }}>Order Details</Text>
+        </TouchableOpacity>
+
+        {["NEW", "PROCESSING"].includes(item.status) && (
           <TouchableOpacity
-            onPress={() => router.push({ pathname: '/orderDetails', params: { orderId: item.id } })}
+            onPress={() => handleNudge(item)}
             style={{
               flex: 1,
-              backgroundColor: "#2E7D32",
+              backgroundColor: "#EAF6EE",
               paddingVertical: 14,
               borderRadius: 12,
               alignItems: "center",
-              marginRight: 10,
+              flexDirection: "row",
+              justifyContent: "center",
+              gap: 6,
             }}
           >
-            <Text style={{ color: "#fff", fontWeight: "700" }}>Order Details</Text>
+            <Ionicons name="notifications-outline" size={16} color="#15803D" />
+            <Text style={{ color: "#15803D", fontWeight: "600" }}>Nudge</Text>
           </TouchableOpacity>
+        )}
+
+        {["COMPLETED", "APPROVED", "DELIVERED"].includes(item.status) && (
           <TouchableOpacity
             style={{
               flex: 1,
@@ -705,118 +780,119 @@ const removeSupplier = async (cartId: string) => {
               alignItems: "center",
             }}
           >
-            <Text style={{ color: "#15803D", fontWeight: "700" }}>
-              {item.status === "active" ? "Track Order" : "Rate Order"}
-            </Text>
+            <Text style={{ color: "#15803D", fontWeight: "700" }}>Rate Order</Text>
           </TouchableOpacity>
-        </View>
+        )}
+      </View>
 
-        {/* PREVIOUS ORDERS ACCORDION */}
-        {hasPreviousOrders && (
-          <View>
-            <View style={{ height: 1, backgroundColor: "#F3F4F6", marginBottom: 14 }} />
+      {/* PREVIOUS ORDERS ACCORDION */}
+      {hasPreviousOrders && (
+        <View>
+          <View style={{ height: 1, backgroundColor: "#F3F4F6", marginBottom: 14 }} />
 
-            <TouchableOpacity
-              onPress={() => toggleAccordion(item.id)}
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "space-between",
-              }}
-            >
-              <View style={{ flexDirection: "row", alignItems: "center" }}>
-                <MaterialCommunityIcons
-                  name="history"
-                  size={18}
-                  color="#6B7280"
-                  style={{ marginRight: 6 }}
-                />
-                <Text style={{ fontSize: 13, color: "#6B7280", fontWeight: "600" }}>
-                  +{item.previousOrders.length} previous order
-                  {item.previousOrders.length > 1 ? "s" : ""}
-                </Text>
-              </View>
-              <View style={{ flexDirection: "row", alignItems: "center" }}>
-                <Text style={{ fontSize: 13, color: "#15803D", fontWeight: "600", marginRight: 4 }}>
-                  {isExpanded ? "Hide" : "View all"}
-                </Text>
-                <Feather
-                  name={isExpanded ? "chevron-up" : "chevron-down"}
-                  size={16}
-                  color="#15803D"
-                />
-              </View>
-            </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => toggleAccordion(item.id)}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <MaterialCommunityIcons
+                name="history"
+                size={18}
+                color="#6B7280"
+                style={{ marginRight: 6 }}
+              />
+              <Text style={{ fontSize: 13, color: "#6B7280", fontWeight: "600" }}>
+                +{item.previousOrders.length} previous order
+                {item.previousOrders.length > 1 ? "s" : ""}
+              </Text>
+            </View>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <Text
+                style={{ fontSize: 13, color: "#15803D", fontWeight: "600", marginRight: 4 }}
+              >
+                {isExpanded ? "Hide" : "View all"}
+              </Text>
+              <Feather
+                name={isExpanded ? "chevron-up" : "chevron-down"}
+                size={16}
+                color="#15803D"
+              />
+            </View>
+          </TouchableOpacity>
 
-            {isExpanded && (
-              <View style={{ marginTop: 14 }}>
-                <View style={{ flexDirection: "row", flexWrap: "wrap", marginHorizontal: -6 }}>
-                  {item.previousOrders.map((prev, index) => (
-                    <TouchableOpacity
-                      key={prev.orderId}
-                      activeOpacity={0.8}
+          {isExpanded && (
+            <View style={{ marginTop: 14 }}>
+              <View style={{ flexDirection: "row", flexWrap: "wrap", marginHorizontal: -6 }}>
+                {item.previousOrders.map((prev, index) => (
+                  <TouchableOpacity
+                    key={prev.orderId}
+                    activeOpacity={0.8}
+                    style={{
+                      width: "48%",
+                      marginHorizontal: "1%",
+                      marginBottom: 10,
+                      backgroundColor: index === 0 ? "#2E7D32" : "#F9FAFB",
+                      borderRadius: 12,
+                      padding: 12,
+                      borderWidth: index === 0 ? 0 : 1,
+                      borderColor: "#E5E7EB",
+                    }}
+                  >
+                    <Text
                       style={{
-                        width: "48%",
-                        marginHorizontal: "1%",
-                        marginBottom: 10,
-                        backgroundColor: index === 0 ? "#2E7D32" : "#F9FAFB",
-                        borderRadius: 12,
-                        padding: 12,
-                        borderWidth: index === 0 ? 0 : 1,
-                        borderColor: "#E5E7EB",
+                        fontSize: 11,
+                        color: index === 0 ? "#A7F3D0" : "#9CA3AF",
+                        marginBottom: 4,
+                      }}
+                    >
+                      {prev.date} • {prev.time}
+                    </Text>
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        fontWeight: "600",
+                        color: index === 0 ? "#fff" : "#374151",
+                        marginBottom: 6,
+                      }}
+                    >
+                      Order Id {prev.orderId}
+                    </Text>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        justifyContent: "space-between",
+                        alignItems: "center",
                       }}
                     >
                       <Text
                         style={{
-                          fontSize: 11,
-                          color: index === 0 ? "#A7F3D0" : "#9CA3AF",
-                          marginBottom: 4,
+                          fontSize: 14,
+                          fontWeight: "700",
+                          color: index === 0 ? "#fff" : "#111827",
                         }}
                       >
-                        {prev.date} • {prev.time}
+                        {prev.amount}
                       </Text>
-                      <Text
-                        style={{
-                          fontSize: 12,
-                          fontWeight: "600",
-                          color: index === 0 ? "#fff" : "#374151",
-                          marginBottom: 6,
-                        }}
-                      >
-                        Order Id {prev.orderId}
-                      </Text>
-                      <View
-                        style={{
-                          flexDirection: "row",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                        }}
-                      >
-                        <Text
-                          style={{
-                            fontSize: 14,
-                            fontWeight: "700",
-                            color: index === 0 ? "#fff" : "#111827",
-                          }}
-                        >
-                          {prev.amount}
-                        </Text>
-                        <Feather
-                          name="chevron-right"
-                          size={16}
-                          color={index === 0 ? "#A7F3D0" : "#9CA3AF"}
-                        />
-                      </View>
-                    </TouchableOpacity>
-                  ))}
-                </View>
+                      <Feather
+                        name="chevron-right"
+                        size={16}
+                        color={index === 0 ? "#A7F3D0" : "#9CA3AF"}
+                      />
+                    </View>
+                  </TouchableOpacity>
+                ))}
               </View>
-            )}
-          </View>
-        )}
-      </View>
-    );
-  };
+            </View>
+          )}
+        </View>
+      )}
+    </View>
+  );
+};
 
   // ─────────────────────────────────────────────────────────────
   // RENDER
@@ -1015,22 +1091,40 @@ const removeSupplier = async (cartId: string) => {
                 Active Orders
               </Text>
             </TouchableOpacity>
+  <TouchableOpacity
+    onPress={() => setOrderStatusTab("pending")}
+    style={{
+      marginRight: 24,
+      borderBottomWidth: orderStatusTab === "pending" ? 2 : 0,
+      borderBottomColor: "#15803D",
+      paddingBottom: 8,
+    }}
+  >
+    <Text
+      style={{
+        color: orderStatusTab === "pending" ? "#15803D" : "#4B5563",
+        fontWeight: orderStatusTab === "pending" ? "700" : "500",
+      }}
+    >
+      Pending 
+    </Text>
+  </TouchableOpacity>
 
             <TouchableOpacity
-              onPress={() => setOrderStatusTab("delivered")}
+              onPress={() => setOrderStatusTab("approved")}
               style={{
-                borderBottomWidth: orderStatusTab === "delivered" ? 2 : 0,
+                borderBottomWidth: orderStatusTab === "approved" ? 2 : 0,
                 borderBottomColor: "#15803D",
                 paddingBottom: 8,
               }}
             >
               <Text
                 style={{
-                  color: orderStatusTab === "delivered" ? "#15803D" : "#4B5563",
-                  fontWeight: orderStatusTab === "delivered" ? "700" : "500",
+                  color: orderStatusTab === "approved" ? "#15803D" : "#4B5563",
+                  fontWeight: orderStatusTab === "approved" ? "700" : "500",
                 }}
               >
-                Delivered
+                Approved 
               </Text>
             </TouchableOpacity>
           </View>

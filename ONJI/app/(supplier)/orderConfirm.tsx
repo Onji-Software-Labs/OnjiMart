@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import {
   View,
   Text,
@@ -8,8 +8,8 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { Feather } from "@expo/vector-icons";
-import { fulfillOrder } from "@/lib/api/order";
-
+import { fulfillOrder, generateInvoice } from "@/lib/api/order";
+import { secureStorage } from "@/lib/secureStorage";
 export default function OrderConfirm() {
 
   const { orderId } = useLocalSearchParams<{
@@ -35,31 +35,44 @@ export default function OrderConfirm() {
   */
 
   const handleCancel = () => {
-    router.back();
-  };
+  router.navigate({
+    pathname: "/(supplier)/orderDetails",
+    params: { orderId },
+  });  };
 
-  const handleConfirm = async () => {
-    try {
-      setLoading(true);
+const fulfilledRef = useRef(false);
 
-      console.log("Order ID:", orderId);
+const handleConfirm = async () => {
+  if (loading) return;
 
+  try {
+    setLoading(true);
+
+    // 1. Fulfill (skipped on retry if it already succeeded)
+    if (!fulfilledRef.current) {
       const res = await fulfillOrder(orderId);
-
       console.log("Fulfill Response:", res);
-
-      setShowConfirmModal(false);
-      setShowSuccessModal(true);
-
-    } catch (error: any) {
-      console.error(
-        "Fulfill Order error:",
-        error.response?.data || error.message
-      );
-    } finally {
-      setLoading(false);
+      fulfilledRef.current = true;
     }
-  };
+
+    // 2. Generate the invoice
+    const supplierId = await secureStorage.getItem("userId");
+    if (!supplierId) throw new Error("Supplier ID not found");
+
+    const invoice = await generateInvoice(supplierId, orderId);
+    console.log("Invoice generated:", invoice);
+
+    setShowConfirmModal(false);
+    setShowSuccessModal(true);
+  } catch (error: any) {
+    console.error(
+      "Confirm order error:",
+      error.response?.data || error.message
+    );
+  } finally {
+    setLoading(false);
+  }
+};
 
     /*
     Future API:
@@ -116,7 +129,7 @@ export default function OrderConfirm() {
         >
           <Text
             style={{
-              fontSize: 20,
+              fontSize: 16,
               fontWeight: "700",
               color: "#2E7D32",
             }}
@@ -226,7 +239,7 @@ export default function OrderConfirm() {
 
           <View
             style={{
-              width: "84%",
+              width: "89%",
 
               backgroundColor: "#FFFFFF",
 
@@ -263,7 +276,7 @@ export default function OrderConfirm() {
             >
               <Feather
                 name="map-pin"
-                size={34}
+                size={30}
                 color="#0B6623"
               />
             </View>
@@ -274,8 +287,8 @@ export default function OrderConfirm() {
               style={{
                 marginTop: 16,
                 textAlign: "center",
-                fontSize: 20,
-                fontWeight: "800",
+                fontSize: 15,
+                fontWeight: "700",
                 color: "#2E7D32",
               }}
             >
@@ -288,12 +301,14 @@ export default function OrderConfirm() {
               style={{
                 marginTop: 16,
                 textAlign: "center",
-                fontSize: 16,
-                color: "#333",
-                lineHeight: 26,
+                fontSize: 14,
+                color: "#000000a1",
+                lineHeight: 16,
+                fontWeight: "400",
+
               }}
             >
-              Are you sure you want to confirm this order{"\n"}
+              Are you sure you want to confirm this order
               and send the invoice to the retailer?
             </Text>
 
@@ -303,9 +318,9 @@ export default function OrderConfirm() {
               style={{
                 marginTop: 14,
                 textAlign: "center",
-                fontSize: 14,
-                color: "#7A7A7A",
-                lineHeight: 22,
+                fontSize: 10,
+                color: "#00000088",
+                lineHeight: 15,
               }}
             >
               Once confirmed, the retailer will receive the{"\n"}
@@ -339,8 +354,8 @@ export default function OrderConfirm() {
                 <Text
                   style={{
                     color: "#FFF",
-                    fontSize: 16,
-                    fontWeight: "600",
+                    fontSize: 14,
+                    fontWeight: "500",
                   }}
                 >
                   Confirm Order
@@ -354,7 +369,7 @@ export default function OrderConfirm() {
                 style={{
                   flex: 1,
                   height: 50,
-                  backgroundColor: "#E7EFE5",
+                  backgroundColor: "#d0e5d07f",
                   borderRadius: 10,
                   justifyContent: "center",
                   alignItems: "center",
@@ -364,7 +379,7 @@ export default function OrderConfirm() {
                 <Text
                   style={{
                     color: "#111",
-                    fontSize: 16,
+                    fontSize: 14,
                     fontWeight: "500",
                   }}
                 >
@@ -376,142 +391,117 @@ export default function OrderConfirm() {
           </View>
         )}
 
-        {showSuccessModal && (
+{showSuccessModal && (
+  <View
+    style={{
+      width: "89%",
+      backgroundColor: "#FFFFFF",
+      borderRadius: 18,
+      paddingHorizontal: 28,
+      paddingVertical: 24,
+      shadowColor: "#000",
+      shadowOpacity: 0.08,
+      shadowRadius: 12,
+      elevation: 8,
+    }}
+  >
+    {/* Icon */}
+    <View
+      style={{
+        width: 64,
+        height: 64,
+        borderRadius: 12,
+        backgroundColor: "#F5F8F3",
+        justifyContent: "center",
+        alignItems: "center",
+        alignSelf: "center",
+      }}
+    >
+      <Feather name="check" size={30} color="#0B6623" />
+    </View>
 
-          <View
-          style={{
-            width: "84%",
-            backgroundColor: "#FFFFFF",
-            borderRadius: 18,
-            paddingHorizontal: 28,
-            paddingVertical: 24,
-          }}
-          >
+    {/* Title */}
+    <Text
+      style={{
+        marginTop: 16,
+        textAlign: "center",
+        fontSize: 15,
+        fontWeight: "700",
+        color: "#2E7D32",
+      }}
+    >
+      Order Confirmed
+    </Text>
 
-          <View
-          style={{
-          width:84,
-          height:84,
-          borderRadius:42,
+    {/* Main Description */}
+    <Text
+      style={{
+        marginTop: 16,
+        textAlign: "center",
+        fontSize: 14,
+        color: "#000000a1",
+        lineHeight: 16,
+        fontWeight: "400",
+      }}
+    >
+      The order has been successfully confirmed
+      and moved to the processing stage.
+    </Text>
 
-          backgroundColor:"#E6F2E6",
+    {/* Secondary Description */}
+    <Text
+      style={{
+        marginTop: 14,
+        textAlign: "center",
+        fontSize: 10,
+        color: "#00000088",
+        lineHeight: 15,
+      }}
+    >
+      Once confirmed, the retailer will receive the{"\n"}
+      invoice and the order will be marked as confirmed.
+    </Text>
 
-          borderWidth:4,
-          borderColor:"#B7D9B7",
-
-          justifyContent:"center",
-          alignItems:"center",
-
-          alignSelf:"center",
-          }}
-          >
-
-          <Feather
-          name="check"
-          size={42}
-          color="#2E7D32"
-          />
-
-          </View>
-
-          <Text
-          style={{
-          marginTop:12,
-          textAlign:"center",
-          fontSize:20,
-          fontWeight:"800",
-          color:"#2E7D32",
-          }}
-          >
-          Order Confirmed
-          </Text>
-
-          <Text
-            style={{
-            marginTop:16,
-            textAlign:"center",
-            fontSize:18,
-            color:"#333",
-            lineHeight:24,
-            }}
-            >
-            The order has been successfully confirmed{"\n"}
-            and moved to the processing stage.
-            </Text>
-
-            <Text
-            style={{
-            marginTop:14,
-            textAlign:"center",
-            fontSize:14,
-            color:"#7A7A7A",
-            lineHeight:24,
-            }}
-            >
-            Once confirmed, the retailer will receive the invoice{"\n"}
-            and the order will be marked as confirmed.
-            </Text>
-
-          <View
-          style={{
-          flexDirection:"row",
-          marginTop:36,
-          }}
-        >
-
-          <TouchableOpacity
-          onPress={() => router.push("/(supplier)/(tabs)/invoice")}
-          style={{
-            flex:1,
-            height:54,
-            backgroundColor:"#2E7D32",
-            borderRadius:14,
-            justifyContent:"center",
-            alignItems:"center",
-            marginRight:8,
-          }}
-          >
-          <Text
-          style={{
-          color:"#FFF",
-          fontSize:16,
-          fontWeight:"600",
-          }}
-          >
+    {/* Buttons */}
+    <View style={{ flexDirection: "row", marginTop: 24 }}>
+      {/* Go to Invoice */}
+      <TouchableOpacity
+        onPress={() => router.push("/(supplier)/(tabs)/invoice")}
+        style={{
+          flex: 1,
+          height: 50,
+          backgroundColor: "#2E7D32",
+          borderRadius: 10,
+          justifyContent: "center",
+          alignItems: "center",
+          marginRight: 8,
+        }}
+      >
+        <Text style={{ color: "#FFF", fontSize: 14, fontWeight: "500" }}>
           Go to Invoice
-          </Text>
-          </TouchableOpacity>
+        </Text>
+      </TouchableOpacity>
 
-          
-
-          <TouchableOpacity
-          onPress={() => router.back()}
-          style={{
-            flex:1,
-            height:54,
-            backgroundColor:"#E7EFE5",
-            borderRadius:14,
-            justifyContent:"center",
-            alignItems:"center",
-            marginLeft:8,
-            }}
-          >
-          <Text
-          style={{
-          color:"#111",
-          fontSize:16,
-          fontWeight:"500",
-          }}
-          >
+      {/* Order Details */}
+      <TouchableOpacity
+        onPress={handleCancel}
+        style={{
+          flex: 1,
+          height: 50,
+          backgroundColor: "#d0e5d07f",
+          borderRadius: 10,
+          justifyContent: "center",
+          alignItems: "center",
+          marginLeft: 8,
+        }}
+      >
+        <Text style={{ color: "#111", fontSize: 14, fontWeight: "500" }}>
           Order Details
-          </Text>
-          </TouchableOpacity>
-
-          </View>
-
-          </View>
-
-          )}
+        </Text>
+      </TouchableOpacity>
+    </View>
+  </View>
+)}
 
       </View>
     </SafeAreaView>

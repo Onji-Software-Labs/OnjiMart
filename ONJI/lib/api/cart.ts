@@ -1,4 +1,5 @@
 import axiosInstance from './axiosConfig';
+import { DeliveryTimeSlot } from './order';
 
 // ─── API Response Types (from Swagger) ───────────────────────────────────────
 
@@ -45,7 +46,11 @@ export interface ICartItemDTO {
 export interface ICartDTO {
   id: string;
   shopId: string;
+  supplierId?: string;      // ← needs to be added by backend
+  supplierName?: string; 
   items: ICartItemDTO[];
+  deliveryDate?: string;
+  deliveryTimeSlot?: DeliveryTimeSlot;
 }
 
 export const getCartByShopId = async (shopId: string): Promise<ICartDTO[]> => {

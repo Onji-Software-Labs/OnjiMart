@@ -159,7 +159,7 @@ public class OrderServiceImpl implements OrderService {
     }
 
    // Populate additional fields required by the supplier order details screen.
-        private OrderItemDTO convertToOrderItemDTO(OrderItem orderItem) {
+    private OrderItemDTO convertToOrderItemDTO(OrderItem orderItem) {
 
         OrderItemDTO dto = modelMapper.map(orderItem, OrderItemDTO.class);
 
@@ -173,7 +173,7 @@ public class OrderServiceImpl implements OrderService {
 
         return dto;
         }
-   private OrderDTO convertToDTO(Order order) {
+        private OrderDTO convertToDTO(Order order) {
 
         OrderDTO dto = modelMapper.map(order, OrderDTO.class);
 
@@ -478,9 +478,9 @@ public class OrderServiceImpl implements OrderService {
         return convertToDTO(order);
         }
 
-        @Override
-        @Transactional
-        public OrderDTO fulfillOrder(String orderId) {
+    @Override
+    @Transactional
+    public OrderDTO fulfillOrder(String orderId) {
 
         // Fetch the order
         Order order = orderRepository.findById(orderId)
@@ -489,67 +489,69 @@ public class OrderServiceImpl implements OrderService {
                                 "Order not found with ID: " + orderId
                         ));
 
-        // Track whether at least one item was fulfilled
-        boolean hasFulfilledItems = false;
-
         // Fulfill each order item
         for (OrderItem orderItem : order.getItems()) {
 
-                // Check if the order item is still editable
-                if (!orderItem.isEditable()) {
-                throw new InvalidInputException(
-                        "This order item is no longer editable."
-                );
-                }
-
-                // Check whether the product is out of stock
-                if (orderItem.getProduct().getStockQuantity() <= 0) {
+            // Check whether the product is out of stock
+            if (orderItem.getProduct().getStockQuantity() <= 0) {
 
                 orderItem.setStatus(OrderItemStatus.OUT_OF_STOCK);
                 orderItem.setFulfilled(false);
                 orderItem.setBackordered(false);
                 orderItem.setFulfilledQuantity(0);
-                orderItem.setEditable(true);
 
                 orderItemRepository.save(orderItem);
 
                 // Continue with the remaining order items
                 continue;
-                }
+            }
 
-                // If supplier didn't edit the quantity,
-                // fulfill the originally requested quantity.
-                if (orderItem.getFulfilledQuantity() == 0) {
+            // If supplier didn't edit the quantity,
+            // fulfill the originally requested quantity.
+            if (orderItem.getFulfilledQuantity() == 0) {
                 orderItem.setFulfilledQuantity(
                         orderItem.getRequestedQuantity()
                 );
-                }
+            }
 
-                // Recalculate total price
-                orderItem.setTotalPrice(
-                        orderItem.getUnitPrice() * orderItem.getFulfilledQuantity()
-                );
+            // Recalculate total price
+            orderItem.setTotalPrice(
+                    orderItem.getUnitPrice() * orderItem.getFulfilledQuantity()
+            );
 
-                // Mark the item as fulfilled
-                orderItem.setStatus(OrderItemStatus.FULFILLED);
-                orderItem.setFulfilled(true);
-                orderItem.setBackordered(false);
-                orderItem.setEditable(false);
 
-                orderItemRepository.save(orderItem);
+            // Mark the item as fulfilled
+            orderItem.setStatus(OrderItemStatus.FULFILLED);
+            orderItem.setFulfilled(true);
+            orderItem.setBackordered(false);
 
-                hasFulfilledItems = true;
+            orderItemRepository.save(orderItem);
         }
 
-        // Update the order status only if at least one item was fulfilled
-        if (hasFulfilledItems) {
-                order.setStatus(OrderStatus.PROCESSING);
+        // The order itself is always marked COMPLETED once the supplier
+        // fulfills it — regardless of individual item outcomes.
+        order.setStatus(OrderStatus.COMPLETED);
+        order.setIsCompleted(true);
+        // Record the approval time once (keeps the first one if called again)
+        if (order.getApprovedAt() == null) {
+            order.setApprovedAt(LocalDateTime.now());
         }
-
         // Save the updated order
         orderRepository.save(order);
 
         // Return updated order details
         return convertToDTO(order);
+    }
+    @Override
+    @Transactional
+    public OrderDTO markOrderAsProcessing(String orderId) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found with ID: " + orderId));
+
+        if (order.getStatus() == OrderStatus.NEW) {
+            order.setStatus(OrderStatus.PROCESSING);
+            orderRepository.save(order);
         }
+        return convertToDTO(order);
+    }
 }

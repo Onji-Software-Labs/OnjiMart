@@ -1,9 +1,11 @@
 package com.sattva.service;
 
+import java.time.LocalDate;
 import java.util.List;
 
 import com.sattva.dto.CartDTO;
 import com.sattva.dto.CartItemDTO;
+import com.sattva.enums.DeliveryTimeSlot;
 
 public interface CartService {
 
@@ -23,4 +25,6 @@ public interface CartService {
     List<CartItemDTO> getAllCartItems(String cartId);
     
     List<CartItemDTO> getCartItemsByShopAndSupplier(String shopId, String supplierId);
+
+    CartDTO updateDeliveryInfo(String cartId, LocalDate deliveryDate, DeliveryTimeSlot slot);
 }

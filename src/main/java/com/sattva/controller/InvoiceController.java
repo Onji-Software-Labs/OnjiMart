@@ -53,4 +53,11 @@ public class InvoiceController {
         List<InvoiceDTO> invoices = invoiceService.getInvoicesForRetailer(retailerId);
         return ResponseEntity.ok(invoices);
     }
-}
+
+
+// InvoiceController
+@GetMapping("/order/{orderId}")
+public ResponseEntity<InvoiceDTO> getInvoiceByOrder(@PathVariable String orderId) {
+    return ResponseEntity.ok(invoiceService.getInvoiceByOrderId(orderId));
+}}
+

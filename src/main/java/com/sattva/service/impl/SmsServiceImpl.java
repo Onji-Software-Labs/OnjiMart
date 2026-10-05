@@ -143,7 +143,7 @@ public class SmsServiceImpl implements SmsService {
     //             return new OTPLessResponse(OtpStatus.FAILED, "Failed to send OTP via WhatsApp", userExists, otp, userId, userName, fullName, userOnboardingStatus);
     //         }
     //     } catch (Exception e) {
-    //         return new OTPLessResponse(OtpStatus.FAILED, "Error: " + e.getMessage(), userExists, otp, userId, userName, fullName, userOnboardingStatus);
+    //         return new OTPLessResponse(OtpStatus.FAILED, "Error: " + e.getMessage(), userExists, otp, userId, userName, fullName, user Status);
     //     }
     // }
 

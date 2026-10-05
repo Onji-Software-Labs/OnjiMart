@@ -1,17 +1,12 @@
 package com.sattva.model;
 
+import java.time.LocalDate;
 import java.util.Set;
 
+import com.sattva.enums.DeliveryTimeSlot;
+import jakarta.persistence.*;
 import org.hibernate.annotations.UuidGenerator;
 
-import jakarta.persistence.CascadeType;
-import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.OneToMany;
-import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -19,6 +14,7 @@ import lombok.Setter;
 @Table(name = "carts")
 @Getter
 @Setter
+
 public class Cart {
 
 	@Id
@@ -34,4 +30,12 @@ public class Cart {
 
     @OneToMany(mappedBy = "cart", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private Set<CartItem> items; // Cart items
+
+    // Delivery date selected by retailer during checkout
+    @Column(name = "delivery_date")
+    private LocalDate deliveryDate;
+
+    // Delivery time slot selected by retailer (Morning / Afternoon / Evening)
+    @Enumerated(EnumType.STRING)
+    private DeliveryTimeSlot deliveryTimeSlot;
 }

@@ -98,11 +98,20 @@ export default function InvoiceDetails() {
       </View>
     );
   }
+const items = invoice.invoiceOrderItems ?? [];
+const inv: any = invoice; // le type InvoiceDetailsResponse n'a peut-être pas tous les champs
 
-  const items = invoice.invoiceOrderItems ?? [];
-  const subtotal = invoice.totalPrice ?? 0;
-  const deliveryCharge = invoice.deliveryCharge ?? 0;
-  const grandTotal = subtotal + deliveryCharge;
+// Somme des articles, utilisée quand le backend renvoie 0
+const itemsSum = items.reduce(
+  (s, it: any) => s + Number(it.totalPrice ?? Number(it.quantity ?? 0) * Number(it.unitPrice ?? 0)),
+  0
+);
+
+const subtotal = Number(inv.subtotal ?? 0) > 0 ? Number(inv.subtotal) : itemsSum;
+const gstAmount = Number(inv.gstAmount ?? 0);
+const deliveryCharge = Number(inv.deliveryCharge ?? 0);
+const grandTotal =
+  Number(inv.totalPrice ?? 0) > 0 ? Number(inv.totalPrice) : subtotal + gstAmount + deliveryCharge;
 
   const orderDate = invoice.invoiceDate ? new Date(invoice.invoiceDate) : null;
   const formattedDate = orderDate
@@ -386,6 +395,10 @@ export default function InvoiceDetails() {
             <Text style={{ fontSize: 13, color: "#6B7280" }}>Delivery Charge</Text>
             <Text style={{ fontSize: 13, fontWeight: "600", color: "#181D18" }}>₹{deliveryCharge.toFixed(2)}</Text>
           </View>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 10 }}>
+  <Text style={{ fontSize: 13, color: "#6B7280" }}>GST</Text>
+  <Text style={{ fontSize: 13, fontWeight: "600", color: "#181D18" }}>₹{gstAmount.toFixed(2)}</Text>
+</View>
           <View
             style={{
               flexDirection: "row",

@@ -38,5 +38,5 @@ public interface OrderService {
 
     //Fullfill the complete order after supplier confirmation.
     OrderDTO fulfillOrder(String orderId);
-
+    OrderDTO markOrderAsProcessing(String orderId);
 }

@@ -4,7 +4,8 @@ import { secureStorage } from '@/lib/secureStorage';
 const PUBLIC_ROUTES = ['/api/auth/send-otp', '/api/auth/login'];
 
 const axiosInstance = axios.create({
-  baseURL: 'http://35.207.226.72:5000',
+  // baseURL: 'http://35.207.226.72:5000',
+  baseURL:'http://localhost:5000',
   timeout: 15000, // ⛔ important for detecting hangs
   headers: {
     'Content-Type': 'application/json',

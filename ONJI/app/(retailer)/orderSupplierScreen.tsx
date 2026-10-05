@@ -26,26 +26,15 @@ import { secureStorage } from "../../lib/secureStorage";
 import { localStorage } from "../../lib/localStorage";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import {
+  buildDays,
+  timeSlots,
+  toLocalDateString,
+  DeliveryTimeSlot,
+} from "../../lib/api/order";
+import { getCartByShopId } from "@/lib/api/cart";
 
 const PersonImg = require("../../assets/images/supplier.jpg");
-
-// ─── Static delivery schedule data ───────────────────────────────────────────
-
-const days = [
-  { day: "Sun", date: "Mar 24", available: true },
-  { day: "Mon", date: "Mar 25", available: true },
-  { day: "Tue", date: "Mar 26", available: true },
-  { day: "Wed", date: "Mar 25", available: false },
-  { day: "Thu", date: "Mar 27", available: true },
-  { day: "Fri", date: "Mar 28", available: true },
-  { day: "Sat", date: "Mar 29", available: false },
-];
-
-const timeSlots = [
-  { label: "Morning", time: "7 am – 12 pm", available: true },
-  { label: "Afternoon", time: "12pm – 3pm", available: false },
-  { label: "Evening", time: "3pm – 7pm", available: true },
-];
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -202,10 +191,16 @@ export default function orderSupplierScreen() {
     supplierName: string;
   }>();
 
+  // ── Delivery schedule (real dates for the next 7 days) ──
+  const days = React.useMemo(() => buildDays(), []);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null); // "YYYY-MM-DD"
+  const [selectedSlot, setSelectedSlot] = useState<DeliveryTimeSlot | null>(null);
+  // Refs: memoized callbacks (scheduleSync) must read the latest values
+  const selectedDateRef = useRef<string | null>(null);
+  const selectedSlotRef = useRef<DeliveryTimeSlot | null>(null);
+
   // ── UI state ──
   const [expanded, setExpanded] = useState(true);
-  const [selectedDay, setSelectedDay] = useState("Thu");
-  const [selectedTime, setSelectedTime] = useState("Morning0");
   const [activeCategory, setActiveCategory] = useState<string>("");
   const [activeSubcategory, setActiveSubcategory] = useState<string>("");
   const [showSheet, setShowSheet] = useState(false);
@@ -225,6 +220,7 @@ export default function orderSupplierScreen() {
   const [apiProducts, setApiProducts] = useState<Product[]>([]);
   const [cartProductsMap, setCartProductsMap] = useState<Record<string, Product>>({});
   const cartItemsRef = useRef<{ productId: string; quantity: number }[]>([]);
+
   // ── Loading/modal state ──
   const [isInitializing, setIsInitializing] = useState(true);
   const [showCreateShop, setShowCreateShop] = useState(false);
@@ -235,25 +231,28 @@ export default function orderSupplierScreen() {
   const tokenRef = useRef<string | null>(null);
   const supplierIdRef = useRef<string>("");
   const apiProductsRef = useRef<Record<string, Product>>({});
-
+  const [showDeliveryWarning, setShowDeliveryWarning] = useState(false);
   // Debounce timers per product: we batch the final quantity after user stops tapping
   const debounceRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
 
   // ── Sync refs when state changes ──
   useEffect(() => { shopIdRef.current = shopId; }, [shopId]);
   useEffect(() => { supplierIdRef.current = String(supplierId || ""); }, [supplierId]);
   useEffect(() => { cartIdRef.current = cartId; }, [cartId]);
-// ─── Load cached products from AsyncStorage on mount ─────────────────────────
-const loadCachedProducts = useCallback(async () => {
-  try {
-    const cached = await localStorage.getItem("cachedProducts");
-    if (cached) {
-      apiProductsRef.current = JSON.parse(cached);
+
+  // ─── Load cached products from storage on mount ──────────────────────────────
+  const loadCachedProducts = useCallback(async () => {
+    try {
+      const cached = await localStorage.getItem("cachedProducts");
+      if (cached) {
+        apiProductsRef.current = JSON.parse(cached);
+      }
+    } catch (e) {
+      console.log("[loadCachedProducts] error:", e);
     }
-  } catch (e) {
-    console.log("[loadCachedProducts] error:", e);
-  }
-}, []);
+  }, []);
+
   // ─── Auth helper ─────────────────────────────────────────────────────────────
 
   const getAuthHeader = useCallback(async (): Promise<Record<string, string>> => {
@@ -264,16 +263,50 @@ const loadCachedProducts = useCallback(async () => {
     return tok ? { Authorization: `Bearer ${tok}` } : {};
   }, []);
 
-  // ─── Initialization: check shop, load cart ────────────────────────────────────
+  // ─── Delivery: save the choice on the cart ───────────────────────────────────
+  // Does nothing until the cart exists and both values are set.
+  const saveDelivery = useCallback(async () => {
+    const date = selectedDateRef.current;
+    const slot = selectedSlotRef.current;
+    if (!cartIdRef.current || !date || !slot) return;
+
+    try {
+      const headers = await getAuthHeader();
+      await axiosInstance.patch(
+        `/api/carts/${cartIdRef.current}/delivery`,
+        { deliveryDate: date, deliveryTimeSlot: slot },
+        { headers }
+      );
+    } catch (e: any) {
+      console.log("[saveDelivery] error:", e?.response?.data || e?.message);
+    }
+  }, [getAuthHeader]);
+
+const onSelectDate = (value: string) => {
+  selectedDateRef.current = value;
+  setSelectedDate(value);
+  setShowDeliveryWarning(false);
+  saveDelivery();
+};
+
+const onSelectSlot = (value: DeliveryTimeSlot) => {
+  selectedSlotRef.current = value;
+  setSelectedSlot(value);
+  setShowDeliveryWarning(false);
+  saveDelivery();
+};
+  // ─── Initialization: check shop ──────────────────────────────────────────────
 
   useEffect(() => {
     const init = async () => {
       try {
         setIsInitializing(true);
-   // ✅ 1. Load cached products FIRST so fetchCart can find images
-      await loadCachedProducts();
-        // 1. Resolve shopId
-        let storedShopId = await localStorage.getItem("shopId");
+
+        // 1. Load cached products FIRST so fetchCart can find images
+        await loadCachedProducts();
+
+        // 2. Resolve shopId
+        const storedShopId = await localStorage.getItem("shopId");
 
         if (!storedShopId) {
           // No shop → show create-shop modal
@@ -283,15 +316,6 @@ const loadCachedProducts = useCallback(async () => {
 
         setShopId(storedShopId);
         shopIdRef.current = storedShopId;
-
-        // 2. Restore cartId from storage (if any)
-        // const storedCartId = await localStorage.getItem("cartId");
-        // if (storedCartId) {
-        //   cartIdRef.current = storedCartId;
-        //   setCartId(storedCartId);
-        //   // when you fetch cart data
-        // }
-
       } catch (e: any) {
         console.log("[init] error:", e?.message);
       } finally {
@@ -302,109 +326,126 @@ const loadCachedProducts = useCallback(async () => {
     init();
   }, []);
 
+  // ─── Reset supplier-specific state when the supplier changes ─────────────────
+  useEffect(() => {
+    // If the user navigates to another supplier without the screen being
+    // unmounted, clear the previous supplier's state BEFORE fetching the new
+    // one, so supplier A's cart is never shown while waiting for supplier B.
+    cartIdRef.current = null;
+    setCartId(null);
+    cartRef.current = {};
+    setCart({});
+    setCartProductsMap({});
+    cartItemsRef.current = [];
+
+    selectedDateRef.current = null;
+    selectedSlotRef.current = null;
+    setSelectedDate(null);
+    setSelectedSlot(null);
+  }, [supplierId]);
+
   // ─── Fetch cart items for this supplier ───────────────────────────────────────
-useEffect(() => {
-  // Si l'utilisateur navigue vers un autre fournisseur sans que l'écran
-  // ne soit démonté, on efface l'état du fournisseur précédent AVANT
-  // de fetch le nouveau, pour ne jamais afficher le cart du fournisseur A
-  // en attendant la réponse pour le fournisseur B.
-  cartIdRef.current = null;
-  setCartId(null);
-  cartRef.current = {};
-  setCart({});
-  setCartProductsMap({});
-  cartItemsRef.current = [];
-}, [supplierId]);
 
-useEffect(() => {
-  if (!shopId || !supplierId) return;
-  fetchCart();
-  fetchCategories();
-}, [shopId, supplierId]);
+  const fetchCart = useCallback(async () => {
+    const sId = shopIdRef.current;
+    const suppId = supplierIdRef.current;
+    if (!sId || !suppId) return;
+
+    try {
+      const headers = await getAuthHeader();
+      const res = await axiosInstance.get(`/api/carts/${sId}/${suppId}/items`, { headers });
+      const items = res.data;
+
+      if (Array.isArray(items) && items.length > 0) {
+        const returnedCartId = items[0]?.cartId || items[0]?.cart?.id;
+        // always taken from the fresh API response, never from storage
+        cartIdRef.current = returnedCartId ?? null;
+        setCartId(returnedCartId ?? null);
+
+                try {
+          const allCarts = await getCartByShopId(sId);
+          const thisCart = allCarts.find((c) => c.id === returnedCartId);
+          console.log("[fetchCart] thisCart from getCartByShopId:", JSON.stringify(thisCart, null, 2)); // ← temp
+
+          const savedDate = thisCart?.deliveryDate;
+          const savedSlot = thisCart?.deliveryTimeSlot;
+
+          if (savedDate && savedSlot && savedDate >= toLocalDateString(new Date())) {
+            selectedDateRef.current = savedDate;
+            selectedSlotRef.current = savedSlot;
+            setSelectedDate(savedDate);
+            setSelectedSlot(savedSlot);
+          } else {
+            selectedDateRef.current = null;
+            selectedSlotRef.current = null;
+            setSelectedDate(null);
+            setSelectedSlot(null);
+          }
+        } catch (e: any) {
+          console.log("[fetchCart] delivery restore error:", e?.message);
+        }
 
 
-const fetchCart = useCallback(async () => {
-  const sId = shopIdRef.current;
-  const suppId = supplierIdRef.current;
-  if (!sId || !suppId) return;
+        const hydrated: Record<string, number> = {};
+        const productsMap: Record<string, any> = {};
 
-  try {
-    const headers = await getAuthHeader();
-    const res = await axiosInstance.get(`/api/carts/${sId}/${suppId}/items`, { headers });
-    const items = res.data;
+        cartItemsRef.current = items.map((item: any) => ({
+          productId: String(item.productId || item.product?.id),
+          quantity: item.quantity,
+        }));
 
-    if (Array.isArray(items) && items.length > 0) {
-      const returnedCartId = items[0]?.cartId || items[0]?.cart?.id;
-      // ✅ toujours pris depuis la réponse API fraîche, jamais du storage
-      cartIdRef.current = returnedCartId ?? null;
-      setCartId(returnedCartId ?? null);
+        items.forEach((item: any) => {
+          const pid = String(item.productId || item.product?.id);
+          hydrated[pid] = item.quantity;
 
-      const hydrated: Record<string, number> = {};
-      const productsMap: Record<string, any> = {};
+          const existingProduct = apiProductsRef.current[pid];
 
-      cartItemsRef.current = items.map((item: any) => ({
-        productId: String(item.productId || item.product?.id),
-        quantity: item.quantity,
-      }));
+          productsMap[pid] = {
+            id: pid,
+            name: item.productName || item.product?.name || pid,
+            price: Number(item.price || item.product?.price || existingProduct?.price || 0),
+            image: item.imageUrl
+              ? { uri: item.imageUrl }
+              : existingProduct?.image || null,
+            unit: item.unit || "kg",
+            minOrderQuantity: item.minOrderQuantity || 1,
+            stock: item.stock || 0,
+            description: item.description || "",
+          };
 
-      items.forEach((item: any) => {
-        const pid = String(item.productId || item.product?.id);
-        hydrated[pid] = item.quantity;
+          apiProductsRef.current[pid] = productsMap[pid];
+        });
 
-        const existingProduct = apiProductsRef.current[pid];
+        cartRef.current = hydrated;
+        setCart(hydrated);
+        setCartProductsMap(productsMap);
 
-        productsMap[pid] = {
-          id: pid,
-          name: item.productName || item.product?.name || pid,
-          price: Number(item.price || item.product?.price || existingProduct?.price || 0),
-          image: item.imageUrl
-            ? { uri: item.imageUrl }
-            : existingProduct?.image || null,
-          unit: item.unit || "kg",
-          minOrderQuantity: item.minOrderQuantity || 1,
-          stock: item.stock || 0,
-          description: item.description || "",
-        };
-
-        apiProductsRef.current[pid] = productsMap[pid];
-      });
-
-      cartRef.current = hydrated;
-      setCart(hydrated);
-      setCartProductsMap(productsMap);
-
-      // ✅ on garde uniquement le cache produits (images), jamais cartId
-      await localStorage.setItem("cachedProducts", JSON.stringify(apiProductsRef.current));
-    } else {
-      // Ce fournisseur n'a pas (ou plus) de cart → état vide, propre à CE fournisseur
-      cartItemsRef.current = [];
-      cartIdRef.current = null;
-      setCartId(null);
-      cartRef.current = {};
-      setCart({});
-      setCartProductsMap({});
+        // we only keep the products cache (images), never cartId
+        await localStorage.setItem("cachedProducts", JSON.stringify(apiProductsRef.current));
+      } else {
+        // This supplier has no (or no more) cart → empty state, specific to THIS supplier
+        cartItemsRef.current = [];
+        cartIdRef.current = null;
+        setCartId(null);
+        cartRef.current = {};
+        setCart({});
+        setCartProductsMap({});
+      }
+    } catch (e: any) {
+      if (e?.response?.status === 404) {
+        cartIdRef.current = null;
+        setCartId(null);
+        cartRef.current = {};
+        setCart({});
+        cartItemsRef.current = [];
+        setCartProductsMap({});
+      } else {
+        console.log("[fetchCart] error:", e?.message);
+      }
     }
-  } catch (e: any) {
-    if (e?.response?.status === 404) {
-      cartIdRef.current = null;
-      setCartId(null);
-      cartRef.current = {};
-      setCart({});
-      cartItemsRef.current = [];
-      setCartProductsMap({}) ;
+  }, [getAuthHeader]);
 
-    } else {
-      console.log("[fetchCart] error:", e?.message);
-    }
-  }
-}, [getAuthHeader]);
   // ─── Fetch categories ─────────────────────────────────────────────────────────
-useFocusEffect(
-  useCallback(() => {
-    if (!shopId || !supplierId) return;
-    fetchCart();
-  }, [shopId, supplierId, fetchCart])
-);
 
   const fetchCategories = useCallback(async () => {
     try {
@@ -433,6 +474,23 @@ useFocusEffect(
       console.log("[fetchCategories] error:", e?.response?.status, e?.message);
     }
   }, [supplierId, getAuthHeader]);
+
+  // ─── Fetch cart + categories once shop and supplier are known ─────────────────
+
+  useEffect(() => {
+    if (!shopId || !supplierId) return;
+    fetchCart();
+    fetchCategories();
+  }, [shopId, supplierId]);
+
+  // ─── Refresh the cart every time the screen gets focus ────────────────────────
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!shopId || !supplierId) return;
+      fetchCart();
+    }, [shopId, supplierId, fetchCart])
+  );
 
   // ─── Fetch subcategories when activeCategory changes ──────────────────────────
 
@@ -471,183 +529,138 @@ useFocusEffect(
 
   // ─── Fetch products when activeSubcategory changes ────────────────────────────
 
-useEffect(() => {
-  if (!activeSubcategory) return;
-
-const fetchProducts = async () => {
-    try {
-      const headers = await getAuthHeader();
-      const res = await axiosInstance.get(
-        `/api/products/by-subcategory/${activeSubcategory}`,
-        { headers }
-      );
-      const data: any[] = res.data?.data || res.data || [];
-
-      const mapped: Product[] = data.map((p: any, idx: number) => ({
-        id: String(p.productId || p.id || idx),
-        name: p.name || `Product ${idx + 1}`,
-        price: Number(p.price ?? 0),
-        image:
-          p.imageUrl && p.imageUrl.startsWith("http")
-            ? { uri: p.imageUrl }
-            : null,
-        minOrderQuantity: p.minOrderQuantity ?? 1,
-        unit: p.quantityType === "COUNT" ? "pcs" : "kg",
-        stock: p.stockQuantity ?? 0,
-        description: p.description ?? "",
-      }));
-
-      setApiProducts(mapped);
-
-// ✅ accumulate ALL products across all subcategories
-mapped.forEach(p => {
-  apiProductsRef.current[p.id] = p;
-});
-
-// // ✅ persist to AsyncStorage for next reload
-// await localStorage.setItem(
-//   "cachedProducts",
-//   JSON.stringify(apiProductsRef.current)
-// );
-
-    } catch (e: any) {
-      console.log("[fetchProducts] error:", e?.response?.status, e?.message);
-    }
-  };
-
-  fetchProducts();
-}, [activeSubcategory, getAuthHeader]);
-  // ─── Run fetch cart + categories once shop is ready ───────────────────────────
-
   useEffect(() => {
-    if (!shopId || !supplierId) return;
-    fetchCart();
-    fetchCategories();
-  }, [shopId, supplierId]);
+    if (!activeSubcategory) return;
+
+    const fetchProducts = async () => {
+      try {
+        const headers = await getAuthHeader();
+        const res = await axiosInstance.get(
+          `/api/products/by-subcategory/${activeSubcategory}`,
+          { headers }
+        );
+        const data: any[] = res.data?.data || res.data || [];
+
+        const mapped: Product[] = data.map((p: any, idx: number) => ({
+          id: String(p.productId || p.id || idx),
+          name: p.name || `Product ${idx + 1}`,
+          price: Number(p.price ?? 0),
+          image:
+            p.imageUrl && p.imageUrl.startsWith("http")
+              ? { uri: p.imageUrl }
+              : null,
+          minOrderQuantity: p.minOrderQuantity ?? 1,
+          unit: p.quantityType === "COUNT" ? "pcs" : "kg",
+          stock: p.stockQuantity ?? 0,
+          description: p.description ?? "",
+        }));
+
+        setApiProducts(mapped);
+
+        // accumulate ALL products across all subcategories
+        mapped.forEach((p) => {
+          apiProductsRef.current[p.id] = p;
+        });
+      } catch (e: any) {
+        console.log("[fetchProducts] error:", e?.response?.status, e?.message);
+      }
+    };
+
+    fetchProducts();
+  }, [activeSubcategory, getAuthHeader]);
 
   // ─── Debounced cart sync to backend ──────────────────────────────────────────
   /**
    * Called after every add/remove. Fires the API 800ms after the last call
    * for that product, so rapid tapping only sends ONE request.
    */
-const scheduleSync = useCallback(
-  (productId: string, quantity: number) => {
-    if (debounceRef.current[productId]) {
-      clearTimeout(debounceRef.current[productId]);
-    }
-
-    debounceRef.current[productId] = setTimeout(async () => {
-      try {
-        const headers = await getAuthHeader();
-
-        const isExistingProduct = cartItemsRef.current?.some(
-          (item) => item.productId === productId
-        );
-
-        if (!cartIdRef.current) {
-          // ✅ No cart yet → create via /add
-          const res = await axiosInstance.post(
-            `/api/carts/${shopIdRef.current}/${supplierIdRef.current}/add`,
-            null,
-            { params: { productId, quantity }, headers }
-          );
-          const newCartId = res.data?.id || res.data?.cartId;
-          if (newCartId) {
-            cartIdRef.current = newCartId;
-            setCartId(newCartId);
-            cartItemsRef.current = [{ productId, quantity }];
-                // ✅ save cartId + cachedProducts TOGETHER
-    await Promise.all([
-      // localStorage.setItem("cartId", newCartId),
-      localStorage.setItem("cachedProducts", JSON.stringify(apiProductsRef.current)),
-    ]);
-          }
-
-        } else if (!isExistingProduct && quantity > 0) {
-          // ✅ Cart exists, new product → /add
-          await axiosInstance.post(
-            `/api/carts/${shopIdRef.current}/${supplierIdRef.current}/add`,
-            null,
-            { params: { productId, quantity }, headers }
-          );
-          cartItemsRef.current = [
-            ...(cartItemsRef.current || []),
-            { productId, quantity },
-          ];
-
-        } else if (isExistingProduct && quantity <= 0) {
-          // ✅ Remove product from cart
-          await axiosInstance.delete(
-            `/api/carts/${cartIdRef.current}/remove`,
-            { params: { productId }, headers }
-          );
-          cartItemsRef.current = cartItemsRef.current?.filter(
-            (item) => item.productId !== productId
-          );
-if (!cartItemsRef.current?.length) {
-  console.log("Cart is empty");
-
-  await Promise.all([
-    // localStorage.removeItem("cartId"),
-    localStorage.removeItem("cachedProducts"),
-  ]);
-
-  cartIdRef.current = null;
-  setCartId(null);
-
-  cartRef.current = {};
-  setCart({});
-  setCartProductsMap({});
-  cartItemsRef.current = [];
-}
-          // // ✅ Check if cart is now empty
-          // const remainingItems = Object.values(cartRef.current).filter(q => q > 0);
-          // if (remainingItems.length === 0) {
-          // //   // Delete cart from DB
-            // try {
-            //   await axiosInstance.delete(
-            //     `/api/carts/${cartIdRef.current}/remove`,
-            //     { headers }
-            //   );
-            // } catch (e: any) {
-            //   console.log("[scheduleSync] delete cart error:", e?.message);
-            // }
-
-            // Clear localStorage
-          // await Promise.all([
-  //   localStorage.removeItem("cartId"),
-  //   localStorage.removeItem("cachedProducts"),
-  // ]);
-
-  //           // Reset all state
-  //           cartIdRef.current = null;
-  //           setCartId(null);
-  //           cartRef.current = {};
-  //           setCart({});
-  //           setCartProductsMap({});
-  //           cartItemsRef.current = [];
-  //         }
-
-        } else if (isExistingProduct && quantity > 0) {
-          // ✅ Update quantity
-          await axiosInstance.put(
-            `/api/carts/${cartIdRef.current}/update`,
-            null,
-            { params: { productId, quantity }, headers }
-          );
-          // update quantity in cartItemsRef
-          cartItemsRef.current = cartItemsRef.current.map(item =>
-            item.productId === productId ? { ...item, quantity } : item
-          );
-        }
-
-      } catch (e: any) {
-        console.log("[scheduleSync] error:", e?.message);
+  const scheduleSync = useCallback(
+    (productId: string, quantity: number) => {
+      if (debounceRef.current[productId]) {
+        clearTimeout(debounceRef.current[productId]);
       }
-    }, 800);
-  },
-  [getAuthHeader]
-);
+
+      debounceRef.current[productId] = setTimeout(async () => {
+        try {
+          const headers = await getAuthHeader();
+
+          const isExistingProduct = cartItemsRef.current?.some(
+            (item) => item.productId === productId
+          );
+
+          if (!cartIdRef.current) {
+            // No cart yet → create via /add
+            const res = await axiosInstance.post(
+              `/api/carts/${shopIdRef.current}/${supplierIdRef.current}/add`,
+              null,
+              { params: { productId, quantity }, headers }
+            );
+            const newCartId = res.data?.id || res.data?.cartId;
+            if (newCartId) {
+              cartIdRef.current = newCartId;
+              setCartId(newCartId);
+              cartItemsRef.current = [{ productId, quantity }];
+
+              await localStorage.setItem(
+                "cachedProducts",
+                JSON.stringify(apiProductsRef.current)
+              );
+
+              // The cart now exists: save the delivery choice made before the first add
+              await saveDelivery();
+            }
+          } else if (!isExistingProduct && quantity > 0) {
+            // Cart exists, new product → /add
+            await axiosInstance.post(
+              `/api/carts/${shopIdRef.current}/${supplierIdRef.current}/add`,
+              null,
+              { params: { productId, quantity }, headers }
+            );
+            cartItemsRef.current = [
+              ...(cartItemsRef.current || []),
+              { productId, quantity },
+            ];
+          } else if (isExistingProduct && quantity <= 0) {
+            // Remove product from cart
+            await axiosInstance.delete(
+              `/api/carts/${cartIdRef.current}/remove`,
+              { params: { productId }, headers }
+            );
+            cartItemsRef.current = cartItemsRef.current?.filter(
+              (item) => item.productId !== productId
+            );
+
+            if (!cartItemsRef.current?.length) {
+              console.log("Cart is empty");
+
+              await localStorage.removeItem("cachedProducts");
+
+              cartIdRef.current = null;
+              setCartId(null);
+
+              cartRef.current = {};
+              setCart({});
+              setCartProductsMap({});
+              cartItemsRef.current = [];
+            }
+          } else if (isExistingProduct && quantity > 0) {
+            // Update quantity
+            await axiosInstance.put(
+              `/api/carts/${cartIdRef.current}/update`,
+              null,
+              { params: { productId, quantity }, headers }
+            );
+            cartItemsRef.current = cartItemsRef.current.map((item) =>
+              item.productId === productId ? { ...item, quantity } : item
+            );
+          }
+        } catch (e: any) {
+          console.log("[scheduleSync] error:", e?.message);
+        }
+      }, 800);
+    },
+    [getAuthHeader, saveDelivery]
+  );
 
   // ─── Add product ──────────────────────────────────────────────────────────────
 
@@ -667,6 +680,23 @@ if (!cartItemsRef.current?.length) {
   );
 
   // ─── Remove product ───────────────────────────────────────────────────────────
+const removeItem = useCallback(
+  (productId: string) => {
+    const strId = String(productId);
+    if (!(strId in cartRef.current)) return;
+
+    delete cartRef.current[strId];
+    setCartProductsMap((prev) => {
+      const next = { ...prev };
+      delete next[strId];
+      return next;
+    });
+
+    setCart({ ...cartRef.current });
+    scheduleSync(strId, 0);
+  },
+  [scheduleSync]
+);
 
   const remove = useCallback(
     (productId: string) => {
@@ -740,14 +770,17 @@ if (!cartItemsRef.current?.length) {
           />
         </View>
       </Modal>
+
       <SafeAreaView>
-      <TouchableOpacity  onPress={() => router.push("/(retailer)/(tabs)/supplier")} style={styles.backBtn}>
-        <Ionicons name="arrow-back" size={22} color="#2E7D32" />
-      </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => router.push("/(retailer)/(tabs)/supplier")}
+          style={styles.backBtn}
+        >
+          <Ionicons name="arrow-back" size={22} color="#2E7D32" />
+        </TouchableOpacity>
       </SafeAreaView>
 
       <ScrollView contentContainerStyle={styles.scroll}>
-
         {/* Business card */}
         <Text style={styles.sectionLabel}>Business Information</Text>
         <View style={styles.outerCard}>
@@ -820,20 +853,20 @@ if (!cartItemsRef.current?.length) {
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           {days.map((item) => (
             <TouchableOpacity
-              key={item.day}
+              key={item.value}
               disabled={!item.available}
-              onPress={() => setSelectedDay(item.day)}
+              onPress={() => onSelectDate(item.value)}
               style={[
                 styles.dayBox,
-                selectedDay === item.day && styles.dayBoxActive,
+                selectedDate === item.value && styles.dayBoxActive,
                 !item.available && styles.dayBoxDisabled,
               ]}
             >
-              {selectedDay === item.day && <View style={styles.dotIndicator} />}
+              {selectedDate === item.value && <View style={styles.dotIndicator} />}
               <Text
                 style={[
                   styles.dayText,
-                  selectedDay === item.day && styles.dayTextActive,
+                  selectedDate === item.value && styles.dayTextActive,
                   !item.available && styles.dayTextDisabled,
                 ]}
               >
@@ -842,7 +875,7 @@ if (!cartItemsRef.current?.length) {
               <Text
                 style={[
                   styles.dateText,
-                  selectedDay === item.day && styles.dayTextActive,
+                  selectedDate === item.value && styles.dayTextActive,
                   !item.available && styles.dayTextDisabled,
                 ]}
               >
@@ -860,27 +893,26 @@ if (!cartItemsRef.current?.length) {
           Select time of the day
         </Text>
         <View style={styles.timeRow}>
-          {timeSlots.map((slot, i) => (
+          {timeSlots.map((slot) => (
             <TouchableOpacity
-              key={i}
+              key={slot.value}
               disabled={!slot.available}
-              onPress={() => setSelectedTime(slot.label + i)}
+              onPress={() => onSelectSlot(slot.value)}
               style={[
                 styles.timeBox,
-                selectedTime === slot.label + i && styles.timeBoxActive,
+                selectedSlot === slot.value && styles.timeBoxActive,
                 !slot.available && styles.timeBoxDisabled,
               ]}
-            >
+            > 
+
               <View style={styles.radioRow}>
                 <View
                   style={[
                     styles.radioOuter,
-                    selectedTime === slot.label + i && styles.radioOuterActive,
+                    selectedSlot === slot.value && styles.radioOuterActive,
                   ]}
                 >
-                  {selectedTime === slot.label + i && (
-                    <View style={styles.radioInner} />
-                  )}
+                  {selectedSlot === slot.value && <View style={styles.radioInner} />}
                 </View>
                 <View>
                   <Text style={styles.slotLabel}>{slot.label}</Text>
@@ -889,11 +921,19 @@ if (!cartItemsRef.current?.length) {
                     <Text style={styles.unavailableText}>Unavailable</Text>
                   )}
                 </View>
+                
               </View>
             </TouchableOpacity>
           ))}
         </View>
-
+             {showDeliveryWarning && (
+          <View style={styles.deliveryWarning}>
+            <Ionicons name="alert-circle-outline" size={16} color="#D32F2F" />
+            <Text style={styles.deliveryWarningText}>
+              Please select a delivery date and time slot to continue.
+            </Text>
+          </View>
+        )}
         {/* Categories */}
         <View style={styles.categoryBox}>
           <Text style={styles.sectionTitle}>Browse by Category</Text>
@@ -1069,10 +1109,6 @@ if (!cartItemsRef.current?.length) {
             {Object.entries(cart).map(([productId, qty]) => {
               const item = cartProductsMap[productId];
               if (!item) return null;
-              const kg = customKg[productId] || "";
-              const totalPrice = kg
-                ? (item.price * parseFloat(kg)).toFixed(0)
-                : (item.price * qty).toFixed(0);
 
               return (
                 <View key={productId} style={styles.cartItemRow}>
@@ -1094,63 +1130,61 @@ if (!cartItemsRef.current?.length) {
                     <Text style={styles.cartItemName}>{item.name}</Text>
                     <Text style={styles.cartItemPrice}>
                       ₹{item.price}/{item.unit}
-                    </Text>                
+                    </Text>
                   </View>
 
-             <View style={styles.customKgBox}>
-  <View style={styles.customKgInputRow}>
-    <TextInput
-      style={styles.customKgInput}
-      value={String(qty)}                    // ✅ show actual qty
-      keyboardType="number-pad"
-      selectTextOnFocus
-      onChangeText={(val) => {
-        const n = parseInt(val.replace(/[^0-9]/g, ""), 10);
-        if (isNaN(n) || n < 0) return;
-        const strId = String(productId);
-        if (n === 0) {
-          delete cartRef.current[strId];
-          setCartProductsMap((prev) => {
-            const next = { ...prev };
-            delete next[strId];
-            return next;
-          });
-        } else {
-          cartRef.current[strId] = n;
-        }
-        setCart({ ...cartRef.current });
-        scheduleSync(strId, n);
-      }}
-    />
-    <Text style={styles.customKgText}>{` ${item.unit}`}</Text>
-    {/* <Feather name="edit-2" size={12} color="#444" /> */}
+                  <View style={styles.customKgBox}>
+                    <View style={styles.customKgInputRow}>
+                      <TextInput
+                        style={styles.customKgInput}
+                        value={String(qty)}
+                        keyboardType="number-pad"
+                        selectTextOnFocus
+                        onChangeText={(val) => {
+                          const n = parseInt(val.replace(/[^0-9]/g, ""), 10);
+                          if (isNaN(n) || n < 0) return;
+                          const strId = String(productId);
+                          if (n === 0) {
+                            delete cartRef.current[strId];
+                            setCartProductsMap((prev) => {
+                              const next = { ...prev };
+                              delete next[strId];
+                              return next;
+                            });
+                          } else {
+                            cartRef.current[strId] = n;
+                          }
+                          setCart({ ...cartRef.current });
+                          scheduleSync(strId, n);
+                        }}
+                      />
+                      <Text style={styles.customKgText}>{` ${item.unit}`}</Text>
+                    </View>
+                    {/* price always shown, updates automatically */}
+                    <Text style={styles.totalPrice}>₹ {(item.price * qty).toFixed(0)}</Text>
+                  </View>
 
-  </View>
-  {/* ✅ price always shown, updates automatically */}
-  <Text style={styles.totalPrice}>₹ {(item.price * qty).toFixed(0)}</Text>
-</View>  
-{/* <View style={styles.itemAction}> */}
-  <TouchableOpacity style={styles.itemAction}>
-    <Feather name="bookmark" size={18} color="#444" />
-    <Text style={styles.itemActionText}>Save</Text>
-  </TouchableOpacity>
+                  <TouchableOpacity style={styles.itemAction}>
+                    <Feather name="bookmark" size={18} color="#444" />
+                    <Text style={styles.itemActionText}>Save</Text>
+                  </TouchableOpacity>
 
-  <TouchableOpacity style={styles.itemAction}>
-    <Feather name="trash-2" size={18} color="#444" />
-    <Text style={[styles.itemActionText, { color: "#444" }]}>
-      Delete
-    </Text>
-  </TouchableOpacity>
-{/* </View> */}
+<TouchableOpacity
+  style={styles.itemAction}
+  onPress={() => removeItem(item.id)} // adjust the id field to match your item shape
+>
+  <Feather name="trash-2" size={18} color="#444" />
+  <Text style={[styles.itemActionText, { color: "#444" }]}>Delete</Text>
+</TouchableOpacity>
                 </View>
               );
-              
             })}
           </ScrollView>
         </View>
       )}
 
-      {/* Bottom bar */}
+
+  {/* Bottom bar */}
       <View style={styles.cartBar}>
         <TouchableOpacity
           style={styles.previewCart}
@@ -1192,11 +1226,19 @@ if (!cartItemsRef.current?.length) {
 
         <TouchableOpacity
           style={styles.checkoutBtn}
-          onPress={() => {
+          onPress={async () => {
             if (!cartIdRef.current) {
               Alert.alert("Cart is empty", "Add some products first!");
               return;
             }
+            if (!selectedDate || !selectedSlot) {
+    setShowDeliveryWarning(true);
+              return;
+            }
+
+            // Make sure the cart has the latest choice before going to checkout
+            await saveDelivery();
+
             router.push({
               pathname: "/(retailer)/checkout",
               params: {
@@ -1204,6 +1246,8 @@ if (!cartItemsRef.current?.length) {
                   supplierId,
                   supplierName,
                   cartId: cartIdRef.current,
+                  deliveryDate: selectedDate,
+                  deliveryTimeSlot: selectedSlot,
                   items: Object.entries(cart).map(([productId, qty]) => ({
                     productId,
                     quantity: qty,
@@ -1220,6 +1264,11 @@ if (!cartItemsRef.current?.length) {
     </View>
   );
 }
+
+// ─── Styles ───────────────────────────────────────────────────────────────────
+// KEEP your existing `shopModalStyles` and `styles` StyleSheet blocks here:
+// the file you sent me stopped before them, so I could not include them.
+// No new style is needed by the changes above.
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
@@ -1594,6 +1643,18 @@ const styles = StyleSheet.create({
   },
   closeBtn: { position: "absolute", top: 50, right: 20, zIndex: 10 },
   fullscreenImage: { width: "90%", height: "80%" },
+
+  deliveryWarning: {
+  flexDirection: "row",
+  alignItems: "center",
+  gap: 6,
+  backgroundColor: "#FDECEA",
+  borderRadius: 8,
+  paddingVertical: 8,
+  paddingHorizontal: 10,
+  marginBottom: 16,
+},
+deliveryWarningText: { flex: 1, color: "#D32F2F", fontSize: 12, fontWeight: "600" },
 });
 
 // ─── Create Shop Modal Styles ─────────────────────────────────────────────────

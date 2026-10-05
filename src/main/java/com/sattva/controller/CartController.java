@@ -2,18 +2,12 @@ package com.sattva.controller;
 
 import java.util.List;
 
+import com.sattva.dto.DeliveryInfoRequest;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import com.sattva.dto.CartDTO;
 import com.sattva.dto.CartItemDTO;
@@ -86,5 +80,13 @@ public class CartController {
 
         List<CartItemDTO> cartItems = cartService.getCartItemsByShopAndSupplier(shopId, supplierId);
         return ResponseEntity.ok(cartItems);
+    }
+
+    @PatchMapping("/{cartId}/delivery")
+    public ResponseEntity<CartDTO> updateDelivery(
+            @PathVariable String cartId,
+            @Valid @RequestBody DeliveryInfoRequest request) {
+        return ResponseEntity.ok(
+                cartService.updateDeliveryInfo(cartId, request.getDeliveryDate(), request.getDeliveryTimeSlot()));
     }
 }

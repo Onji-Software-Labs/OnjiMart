@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -13,45 +13,72 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons, Feather } from "@expo/vector-icons";
 import { TextInput } from "react-native";
-import { submitOrder } from "@/lib/api/order";
+import { DeliveryTimeSlot, submitOrder, updateCartDelivery } from "@/lib/api/order";
 import axiosInstance from "@/lib/api/axiosConfig";
 import { secureStorage } from "@/lib/secureStorage";
 import SuccessPopup from "@/components/retailer/SuccessPopup";
+import supplier from "./(tabs)/supplier";
 
-const days = [
-  { day: "Sun", date: "Mar 24", available: true },
-  { day: "Mon", date: "Mar 25", available: true },
-  { day: "Tue", date: "Mar 26", available: true },
-  { day: "Wed", date: "Mar 25", available: false },
-  { day: "Thu", date: "Mar 27", available: true },
-  { day: "Fri", date: "Mar 28", available: true },
-  { day: "Sat", date: "Mar 29", available: false },
+// Local date as YYYY-MM-DD (toISOString() can shift the day because of the timezone)
+const toLocalDateString = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+// The next 7 days, starting today
+const buildDays = (count = 7) => {
+  const today = new Date();
+  return Array.from({ length: count }, (_, i) => {
+    const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + i);
+    return {
+      value: toLocalDateString(d),
+      day: d.toLocaleDateString("en-US", { weekday: "short" }),
+      date: d.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+      available: true,
+    };
+  });
+};
+
+const timeSlots: {
+  value: DeliveryTimeSlot;
+  label: string;
+  time: string;
+  available: boolean;
+}[] = [
+  { value: "MORNING", label: "Morning", time: "7 am – 12 pm", available: true },
+  { value: "AFTERNOON", label: "Afternoon", time: "12 pm – 3 pm", available: false },
+  { value: "EVENING", label: "Evening", time: "3 pm – 6 pm", available: true },
 ];
+type PaymentMethod = "CASH_ON_DELIVERY" | "CREDIT";
 
-const timeSlots = [
-  { label: "Morning", time: "7 am – 12 pm", available: true },
-  { label: "Afternoon", time: "12 pm – 3 pm", available: false },
-  { label: "Evening", time: "3 pm – 6 pm", available: true },
+const paymentOptions: { value: PaymentMethod; label: string; sub: string; icon: any }[] = [
+  { value: "CASH_ON_DELIVERY", label: "Cash on delivery", sub: "Pay when the order arrives", icon: "cash-outline" },
+  { value: "CREDIT", label: "Ask for credit", sub: "Pay later, subject to supplier approval", icon: "time-outline" },
 ];
 
 export default function CheckoutScreen() {
   const router = useRouter();
 const { cart } = useLocalSearchParams();
 const parsedCart = cart ? JSON.parse(cart as string) : null;
-
+const shopId = parsedCart?.shopId; // or whatever field name the cart actually returns
 // ✅ access cartId like this:
 const cartId = parsedCart?.cartId;
 const supplierId = parsedCart?.supplierId;
 const supplierName = parsedCart?.supplierName;
 // const items = parsedCart?.items;
+const businessId = parsedCart?.businessId; // add this alongside supplierId/supplierName
 
-const [selectedDay, setSelectedDay] = useState("Thu");
-const [selectedTime, setSelectedTime] = useState("Morning0");
+const days = React.useMemo(() => buildDays(), []);
+
+// Pre-filled if the cart already has a saved delivery choice
+const [selectedDate, setSelectedDate] = useState<string | null>(parsedCart?.deliveryDate ?? null);
+const [selectedSlot, setSelectedSlot] = useState<DeliveryTimeSlot | null>(
+  parsedCart?.deliveryTimeSlot ?? null
+);
+
 const [loading, setLoading] = useState(false);
 const [showSuccessPopup, setShowSuccessPopup] = useState(false);
 const [submittedOrderId, setSubmittedOrderId] = useState<string | number | null>(null);
 const [quantities, setQuantities] = useState<{ [key: string]: string }>({});
-
+const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("CASH_ON_DELIVERY");
 
 
 
@@ -69,6 +96,26 @@ const getAuthHeader = async () => {
 // debounce timers per product, same pattern as the order screen
 const debounceRef = React.useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
+// Save the choice on the cart (the PATCH requires both values)
+const saveDelivery = async (date: string | null, slot: DeliveryTimeSlot | null) => {
+  if (!cartId || !date || !slot) return;
+  try {
+    await updateCartDelivery(cartId, date, slot);
+  } catch (e: any) {
+    console.log("[saveDelivery] error:", e?.response?.data || e?.message);
+  }
+};
+
+const onSelectDate = (value: string) => {
+  setSelectedDate(value);
+  saveDelivery(value, selectedSlot);
+};
+
+const onSelectSlot = (value: DeliveryTimeSlot) => {
+  setSelectedSlot(value);
+  saveDelivery(selectedDate, value);
+};
+
 const updateQuantity = (productId: string, quantity: number) => {
   if (debounceRef.current[productId]) clearTimeout(debounceRef.current[productId]);
 
@@ -85,7 +132,9 @@ const updateQuantity = (productId: string, quantity: number) => {
     }
   }, 800);
 };
-
+useEffect(() => {
+  console.log('[orderSupplierScreen] received supplierId:', supplierId, 'expected shopId:', '19109c7d-f8a8-42c8-804b-b1478b653a1b');
+}, []);
 const deleteItem = async (productId: string) => {
   try {
     const headers = await getAuthHeader();
@@ -125,47 +174,41 @@ const deleteItem = async (productId: string) => {
         </View>
 
         {/* ── SCHEDULE DELIVERY ──────────────────────────────── */}
-        <Text style={styles.subtitle}>Schedule delivery</Text>
-
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {days.map((item) => (
-            <TouchableOpacity
-              key={item.day}
-              disabled={!item.available}
-              onPress={() => setSelectedDay(item.day)}
-              style={[
-                styles.dayBox,
-                selectedDay === item.day && styles.dayBoxActive,
-                !item.available && styles.dayBoxDisabled,
-              ]}
-            >
-              {selectedDay === item.day && (
-                <View style={styles.dotIndicator} />
-              )}
-              <Text
-                style={[
-                  styles.dayText,
-                  selectedDay === item.day && styles.dayTextActive,
-                  !item.available && styles.dayTextDisabled,
-                ]}
-              >
-                {item.day}
-              </Text>
-              <Text
-                style={[
-                  styles.dateText,
-                  selectedDay === item.day && styles.dayTextActive,
-                  !item.available && styles.dayTextDisabled,
-                ]}
-              >
-                {item.date}
-              </Text>
-              {!item.available && (
-                <Text style={styles.unavailableText}>Unavailable</Text>
-              )}
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+  {days.map((item) => (
+    <TouchableOpacity
+      key={item.value}
+      disabled={!item.available}
+      onPress={() => onSelectDate(item.value)}
+      style={[
+        styles.dayBox,
+        selectedDate === item.value && styles.dayBoxActive,
+        !item.available && styles.dayBoxDisabled,
+      ]}
+    >
+      {selectedDate === item.value && <View style={styles.dotIndicator} />}
+      <Text
+        style={[
+          styles.dayText,
+          selectedDate === item.value && styles.dayTextActive,
+          !item.available && styles.dayTextDisabled,
+        ]}
+      >
+        {item.day}
+      </Text>
+      <Text
+        style={[
+          styles.dateText,
+          selectedDate === item.value && styles.dayTextActive,
+          !item.available && styles.dayTextDisabled,
+        ]}
+      >
+        {item.date}
+      </Text>
+      {!item.available && <Text style={styles.unavailableText}>Unavailable</Text>}
+    </TouchableOpacity>
+  ))}
+</ScrollView>
 
         {/* ── TIME OF DAY ────────────────────────────────────── */}
         <Text style={[styles.subtitle, { marginTop: 16 }]}>
@@ -177,10 +220,10 @@ const deleteItem = async (productId: string) => {
             <TouchableOpacity
               key={i}
               disabled={!slot.available}
-              onPress={() => setSelectedTime(slot.label + i)}
+              onPress={() => setSelectedSlot(slot.value)}
               style={[
                 styles.timeBox,
-                selectedTime === slot.label + i && styles.timeBoxActive,
+                selectedSlot === slot.value && styles.timeBoxActive,
                 !slot.available && styles.timeBoxDisabled,
               ]}
             >
@@ -188,10 +231,10 @@ const deleteItem = async (productId: string) => {
                 <View
                   style={[
                     styles.radioOuter,
-                    selectedTime === slot.label + i && styles.radioOuterActive,
+                    selectedSlot === slot.value && styles.radioOuterActive,
                   ]}
                 >
-                  {selectedTime === slot.label + i && (
+                  {selectedSlot === slot.value && (
                     <View style={styles.radioInner} />
                   )}
                 </View>
@@ -210,15 +253,23 @@ const deleteItem = async (productId: string) => {
         {/* ── QUANTITY ───────────────────────────────────────── */}
         <View style={styles.divider} />
 
-        <View style={styles.qtyHeader}>
-          <Text style={styles.sectionTitle}>Quantity</Text>
-          <TouchableOpacity style={styles.addItemsBtn}>
-            <Text style={styles.addItemsText}>Add items</Text>
-            <View style={styles.addItemsIcon}>
-              <Text style={styles.addItemsPlus}>+</Text>
-            </View>
-          </TouchableOpacity>
-        </View>
+<View style={styles.qtyHeader}>
+  <Text style={styles.sectionTitle}>Quantity</Text>
+<TouchableOpacity
+  style={styles.addItemsBtn}
+  onPress={() =>
+    router.push({
+      pathname: '/(retailer)/orderSupplierScreen',
+      params: { supplierId, supplierName, businessId }, // all already in scope from parsedCart
+    })
+  }
+>
+  <Text style={styles.addItemsText}>Add items</Text>
+  <View style={styles.addItemsIcon}>
+    <Text style={styles.addItemsPlus}>+</Text>
+  </View>
+</TouchableOpacity>
+</View>
 
         <Text style={styles.minOrderNote}>
           Minimum total order quantity 300kg*
@@ -290,6 +341,36 @@ const deleteItem = async (productId: string) => {
     </View>
   );
 })}
+
+{/* ── PAYMENT ── */}
+<View style={styles.divider} />
+<Text style={styles.sectionTitle}>Payment</Text>
+
+{paymentOptions.map((opt) => {
+  const active = paymentMethod === opt.value;
+  return (
+    <TouchableOpacity
+      key={opt.value}
+      onPress={() => setPaymentMethod(opt.value)}
+      style={[styles.payBox, active && styles.payBoxActive]}
+    >
+      <View style={[styles.radioOuter, active && styles.radioOuterActive]}>
+        {active && <View style={styles.radioInner} />}
+      </View>
+      <Ionicons name={opt.icon} size={22} color={active ? "#2E7D32" : "#666"} />
+      <View style={{ flex: 1 }}>
+        <Text style={styles.slotLabel}>{opt.label}</Text>
+        <Text style={styles.slotTime}>{opt.sub}</Text>
+      </View>
+    </TouchableOpacity>
+  );
+})}
+
+{paymentMethod === "CREDIT" && (
+  <Text style={styles.creditNote}>
+    Your supplier will review the credit request separately. If it is not accepted, you pay cash on delivery.
+  </Text>
+)}
       </ScrollView>
 
       {/* BOTTOM BAR */}
@@ -306,26 +387,32 @@ const deleteItem = async (productId: string) => {
         </View>
 
         <TouchableOpacity
-          style={styles.placeOrderBtn}
-          disabled={loading}
-          onPress={async () => {
-            try {
-              console.log("Placing order with:", cartId, selectedDay, selectedTime);
-              setLoading(true);
-              const order = await submitOrder(cartId, selectedDay, selectedTime);
-              console.log("Order success:", order);
-              router.replace({
-                pathname: "/(retailer)/(tabs)/cart",
-                params: { success: "true", tab: "orders" },   // ✅ ajout de tab: "orders"
-              });
-            } catch (err) {
-              console.log(err);
-              alert("Order failed. Try again.");
-            } finally {
-              setLoading(false);
-            }
-          }}
-        >
+  style={[
+    styles.placeOrderBtn,
+    (!selectedDate || !selectedSlot) && { opacity: 0.5 },
+  ]}
+  disabled={loading || !selectedDate || !selectedSlot}
+  onPress={async () => {
+    if (!selectedDate || !selectedSlot) {
+      alert("Please select a delivery day and time slot.");
+      return;
+    }
+    try {
+      setLoading(true);
+      const order = await submitOrder(cartId, selectedDate, selectedSlot);
+      console.log("Order success:", order);
+      router.replace({
+        pathname: "/(retailer)/(tabs)/cart",
+        params: { success: "true", tab: "orders" },
+      });
+    } catch (err) {
+      console.log(err);
+      alert("Order failed. Try again.");
+    } finally {
+      setLoading(false);
+    }
+  }}
+>
           <Text style={styles.placeOrderText}>
             {loading ? "Placing…" : "Place Order Request"}
           </Text>
@@ -597,5 +684,16 @@ const styles = StyleSheet.create({
   },
   customKgText: { fontSize: 14, color: "#333" },
   totalPrice: { fontSize: 12, color: "#111", fontWeight: "600", marginTop: 2 },
-
+payBox: {
+  flexDirection: "row",
+  alignItems: "center",
+  gap: 10,
+  borderWidth: 1,
+  borderColor: "#ddd",
+  borderRadius: 10,
+  padding: 12,
+  marginTop: 10,
+},
+payBoxActive: { borderColor: "#2E7D32", backgroundColor: "#F1F8F2" },
+creditNote: { fontSize: 12, color: "#666", marginTop: 8 },
 });

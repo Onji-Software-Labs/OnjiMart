@@ -12,6 +12,9 @@ export interface InvoiceItem {
   status: string;
   supplierBusinessName?: string | null;
   retailerBusinessName?: string | null;
+  gstAmount: number;
+  gstRate: number;
+  subtotal: number;
 }
 
 // 2. Order item details
@@ -74,6 +77,18 @@ export const getInvoiceById = async (
     return response.data;
   } catch (error) {
     console.error("Error fetching invoice by ID:", error);
+    return null;
+  }
+};
+
+export const getInvoiceByOrderId = async (
+  orderId: string
+): Promise<InvoiceDetailsResponse | null> => {
+  try {
+    const response = await api.get<InvoiceDetailsResponse>(`/api/invoices/order/${orderId}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching invoice by order ID:", error);
     return null;
   }
 };

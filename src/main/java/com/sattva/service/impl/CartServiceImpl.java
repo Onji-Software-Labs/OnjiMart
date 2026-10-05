@@ -1,11 +1,15 @@
 package com.sattva.service.impl;
 
+import java.time.LocalDate;
+import java.util.HashSet;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import com.sattva.enums.DeliveryTimeSlot;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.sattva.dto.CartDTO;
 import com.sattva.dto.CartItemDTO;
@@ -44,6 +48,7 @@ public class CartServiceImpl implements CartService {
     private SupplierRepository supplierRepository;
 
     @Override
+    @Transactional
     public CartDTO addProductToCart(String shopId, String supplierId, String productId, int quantity) {
 
         // Fetch shop
@@ -54,20 +59,20 @@ public class CartServiceImpl implements CartService {
         Supplier supplier = supplierRepository.findById(supplierId)
                 .orElseThrow(() -> new ResourceNotFoundException("Supplier not found with id: " + supplierId));
 
-        final Cart cart;
-
         // Get or create cart
-        Cart existingCart = cartRepository.findByShop_IdAndSupplier_Id(shopId, supplierId);
-        if (existingCart == null) {
-            Cart newCart = new Cart();
-            newCart.setShop(shop);
-            newCart.setSupplier(supplier);
-            cart = cartRepository.save(newCart);
-        } else {
-            cart = existingCart;
+        Cart cart = cartRepository.findByShop_IdAndSupplier_Id(shopId, supplierId)
+                .orElseGet(() -> {
+                    Cart newCart = new Cart();
+                    newCart.setShop(shop);
+                    newCart.setSupplier(supplier);
+                    return cartRepository.save(newCart);
+                });
+
+        if (cart.getItems() == null) {
+            cart.setItems(new HashSet<>());
         }
 
-        // Fetch product (FIXED)
+        // Fetch product
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + productId));
 
@@ -76,28 +81,28 @@ public class CartServiceImpl implements CartService {
                 .findByCart_IdAndProduct_ProductId(cart.getId(), productId)
                 .orElse(null);
 
-        // Add or update quantity (FIXED)
+        // Add or update quantity
         if (cartItem == null) {
             cartItem = new CartItem();
             cartItem.setCart(cart);
             cartItem.setProduct(product);
             cartItem.setQuantity(quantity);
+            cartItem = cartItemRepository.save(cartItem);
+            cart.getItems().add(cartItem); // keep the in-memory collection in sync
         } else {
             cartItem.setQuantity(cartItem.getQuantity() + quantity);
+            cartItemRepository.save(cartItem);
         }
-
-        cartItemRepository.save(cartItem);
 
         return convertToCartDTO(cart);
     }
-
     @Override
     public List<CartDTO> getCartByShop(String shopId) {
 
         List<Cart> carts = cartRepository.findByShop_Id(shopId);
 
         if (carts == null || carts.isEmpty()) {
-            throw new ResourceNotFoundException("Cart not found for shop with id: " + shopId);
+            return List.of();
         }
 
         return carts.stream()
@@ -106,6 +111,7 @@ public class CartServiceImpl implements CartService {
     }
 
     @Override
+    @Transactional
     public CartDTO removeProductFromCart(String cartId, String productId) {
 
         Cart cart = cartRepository.findById(cartId)
@@ -117,8 +123,12 @@ public class CartServiceImpl implements CartService {
 
         cartItemRepository.delete(cartItem);
 
+        if (cart.getItems() != null) {
+            cart.getItems().remove(cartItem); // keep the in-memory collection in sync
+        }
+
         // If cart is empty, delete cart
-        if (cart.getItems().isEmpty()) {
+        if (cart.getItems() == null || cart.getItems().isEmpty()) {
             cartRepository.delete(cart);
         }
 
@@ -126,6 +136,7 @@ public class CartServiceImpl implements CartService {
     }
 
     @Override
+    @Transactional
     public CartDTO updateProductQuantity(String cartId, String productId, int quantity) {
 
         Cart cart = cartRepository.findById(cartId)
@@ -137,6 +148,9 @@ public class CartServiceImpl implements CartService {
 
         if (quantity <= 0) {
             cartItemRepository.delete(cartItem);
+            if (cart.getItems() != null) {
+                cart.getItems().remove(cartItem); // keep the in-memory collection in sync
+            }
         } else {
             cartItem.setQuantity(quantity);
             cartItemRepository.save(cartItem);
@@ -151,6 +165,10 @@ public class CartServiceImpl implements CartService {
         Cart cart = cartRepository.findById(cartId)
                 .orElseThrow(() -> new ResourceNotFoundException("Cart not found with id: " + cartId));
 
+        if (cart.getItems() == null) {
+            return List.of();
+        }
+
         return cart.getItems()
                 .stream()
                 .map(this::convertToCartItemDTO)
@@ -159,39 +177,52 @@ public class CartServiceImpl implements CartService {
 
     @Override
     public List<CartItemDTO> getCartItemsByShopAndSupplier(String shopId, String supplierId) {
-
-        Cart cart = cartRepository.findByShop_IdAndSupplier_Id(shopId, supplierId);
-
-        if (cart == null) {
-            throw new ResourceNotFoundException("No cart found for given shop and supplier");
-        }
-
-        return cart.getItems()
-                .stream()
-                .map(this::convertToCartItemDTO)
-                .peek(dto -> dto.setCartId(cart.getId()))  // ← on injecte le cartId sur chaque item
-                .collect(Collectors.toList());
+        return cartRepository.findByShop_IdAndSupplier_Id(shopId, supplierId)
+                .map(cart -> cart.getItems() == null
+                        ? List.<CartItemDTO>of()
+                        : cart.getItems().stream()
+                        .map(item -> {
+                            CartItemDTO dto = convertToCartItemDTO(item);
+                            dto.setCartId(cart.getId());
+                            return dto;
+                        })
+                        .collect(Collectors.toList()))
+                .orElse(List.of());
     }
 
+    // Convert Cart → DTO
     private CartDTO convertToCartDTO(Cart cart) {
-            CartDTO dto = modelMapper.map(cart, CartDTO.class);
+        CartDTO dto = modelMapper.map(cart, CartDTO.class);
 
-            if (cart.getItems() != null && !cart.getItems().isEmpty()) {
-                List<CartItemDTO> items = cart.getItems()
-                        .stream()
-                        .map(this::convertToCartItemDTO)
-                        .collect(Collectors.toList());
+        if (cart.getItems() != null && !cart.getItems().isEmpty()) {
+            List<CartItemDTO> items = cart.getItems()
+                    .stream()
+                    .map(this::convertToCartItemDTO)
+                    .collect(Collectors.toList());
 
-                dto.setItems(items);
-            } else {
-                dto.setItems(List.of()); // ✅ always return empty list
-            }
-
-            return dto;
+            dto.setItems(items);
+        } else {
+            dto.setItems(List.of()); // always return an empty list
         }
+
+        return dto;
+    }
 
     // Convert CartItem → DTO
     private CartItemDTO convertToCartItemDTO(CartItem cartItem) {
         return modelMapper.map(cartItem, CartItemDTO.class);
     }
+
+    @Override
+    @Transactional
+    public CartDTO updateDeliveryInfo(String cartId, LocalDate deliveryDate, DeliveryTimeSlot slot) {
+        Cart cart = cartRepository.findById(cartId)
+                .orElseThrow(() -> new ResourceNotFoundException("Cart not found with id: " + cartId));
+
+        cart.setDeliveryDate(deliveryDate);
+        cart.setDeliveryTimeSlot(slot);
+
+        return convertToCartDTO(cartRepository.save(cart));
+    }
+
 }

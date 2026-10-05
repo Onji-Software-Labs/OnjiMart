@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import com.sattva.model.Cart;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface CartRepository extends JpaRepository<Cart, String> {
 
@@ -20,5 +21,5 @@ public interface CartRepository extends JpaRepository<Cart, String> {
      */
     List<Cart> findByShop_Id(String shopId);
 
-	Cart findByShop_IdAndSupplier_Id(String shopId, String supplierId);
+    Optional<Cart> findByShop_IdAndSupplier_Id(String shopId, String supplierId);
 }

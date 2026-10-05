@@ -204,5 +204,10 @@ public class OrderController {
                 orderService.fulfillOrder(orderId)
         );
     }
+    // Supplier opened the order for the first time — moves NEW → PROCESSING.
+    @PutMapping("/{orderId}/view")
+    public ResponseEntity<OrderDTO> markOrderAsProcessing(@PathVariable String orderId) {
+        return ResponseEntity.ok(orderService.markOrderAsProcessing(orderId));
+    }
 
 }
