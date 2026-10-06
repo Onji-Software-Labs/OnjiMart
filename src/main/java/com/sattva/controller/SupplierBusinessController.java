@@ -35,6 +35,14 @@ public class SupplierBusinessController {
         return new ResponseEntity<>(updatedSupplier, HttpStatus.CREATED);
     }
 
+    @GetMapping("/by-supplier/{supplierId}")
+    @PreAuthorize("hasAnyRole('ROLE_SUPPLIER', 'ROLE_RETAILER')")
+    public ResponseEntity<SupplierBusinessRequestDTO> getBusinessBySupplierId(
+            @PathVariable String supplierId) {
+        SupplierBusinessRequestDTO business = supplierService.getBusinessDetailsBySupplierId(supplierId);
+        return ResponseEntity.ok(business);
+    }
+
     @GetMapping("/{businessId}")
     @PreAuthorize("hasAnyRole('ROLE_SUPPLIER', 'ROLE_RETAILER')")
     public ResponseEntity<SupplierBusinessRequestDTO> getBusiness(@PathVariable String businessId) {
