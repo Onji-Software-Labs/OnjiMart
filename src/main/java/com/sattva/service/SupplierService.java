@@ -10,6 +10,7 @@ public interface SupplierService {
     public List<CategoryDTO> getCategoriesForSupplier(String supplierId);
     public List<SubCategoryDTO> getSubCategoriesForSupplierAndCategory(String supplierId, String categoryId);
     SupplierBusinessRequestDTO getBusinessDetails(String businessId);
+    SupplierBusinessRequestDTO getBusinessDetailsBySupplierId(String supplierId);
     SupplierBusinessResponseDTO updateBusinessAndCategories(String businessId, SupplierBusinessRequestDTO dto);
     void deleteBusinessAndCategories(String businessId);
     List<SupplierBusinessRequestDTO> getAllBusinesses();

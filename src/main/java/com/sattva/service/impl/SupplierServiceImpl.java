@@ -199,6 +199,20 @@ public class SupplierServiceImpl implements SupplierService {
         }
 
         @Override
+        public SupplierBusinessRequestDTO getBusinessDetailsBySupplierId(String supplierId) {
+        SupplierBusiness business = supplierBusinessRepository.findBySupplier_Id(supplierId)
+                .orElseThrow(() -> new ResourceNotFoundException("Business not found for supplier id: " + supplierId));
+
+        SupplierBusinessRequestDTO dto = modelMapper.map(business, SupplierBusinessRequestDTO.class);
+
+        populateCategoryDetails(dto, business.getSupplier());
+
+        dto.setBusinessId(business.getId());
+
+        return dto;
+        }
+
+        @Override
         public List<SupplierBusinessRequestDTO> getAllBusinesses() {
         List<SupplierBusiness> businesses = supplierBusinessRepository.findAll();
 
@@ -242,10 +256,40 @@ public class SupplierServiceImpl implements SupplierService {
         business.setProfilePicture(dto.getProfilePicture());  // ← ADD THIS
 
 
-            supplierBusinessRepository.save(business);
+        //     supplierBusinessRepository.save(business);
+
+        // Supplier supplier = business.getSupplier();
+        // updateSupplierCategoriesAndSubCategories(supplier, dto.getCategoryIds(), dto.getSubCategoryIds());
+        
+        supplierBusinessRepository.save(business);
 
         Supplier supplier = business.getSupplier();
-        updateSupplierCategoriesAndSubCategories(supplier, dto.getCategoryIds(), dto.getSubCategoryIds());
+
+        Set<String> currentCategoryIds = supplier.getCategories().stream()
+                .map(Category::getId)
+                .collect(Collectors.toSet());
+
+        Set<String> currentSubCategoryIds = supplier.getSubCategories().stream()
+                .map(SubCategory::getId)
+                .collect(Collectors.toSet());
+
+        Set<String> requestedCategoryIds = dto.getCategoryIds() == null
+                ? new HashSet<>()
+                : new HashSet<>(dto.getCategoryIds());
+
+        Set<String> requestedSubCategoryIds = dto.getSubCategoryIds() == null
+                ? new HashSet<>()
+                : new HashSet<>(dto.getSubCategoryIds());
+
+        if (!currentCategoryIds.equals(requestedCategoryIds)
+                || !currentSubCategoryIds.equals(requestedSubCategoryIds)) {
+
+                updateSupplierCategoriesAndSubCategories(
+                supplier,
+                dto.getCategoryIds(),
+                dto.getSubCategoryIds()
+                );
+        }
 
         return SupplierBusinessResponseDTO.builder()
         .BusinessName(business.getName())
