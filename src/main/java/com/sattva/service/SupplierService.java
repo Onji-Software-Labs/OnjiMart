@@ -7,6 +7,7 @@ import com.sattva.dto.*;
 public interface SupplierService {
     SupplierBusinessResponseDTO createBusinessAndAssignCategories(SupplierBusinessRequestDTO dto);
     SupplierDTO addCategoriesAndSubCategoriesToSupplier(String supplierId, List<String> categoryIds, List<String> subCategoryIds);
+    void removeCategoriesAndSubCategoriesFromSupplier(String supplierId,List<String> categoryIds,List<String> subCategoryIds);
     public List<CategoryDTO> getCategoriesForSupplier(String supplierId);
     public List<SubCategoryDTO> getSubCategoriesForSupplierAndCategory(String supplierId, String categoryId);
     SupplierBusinessRequestDTO getBusinessDetails(String businessId);

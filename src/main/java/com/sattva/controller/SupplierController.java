@@ -81,4 +81,18 @@ public class SupplierController {
                 supplierService.getUnconnectedRetailersForSupplier(supplierId, page, size);
         return ResponseEntity.ok(retailers);
     }
+
+    @DeleteMapping("/{supplierId}/categories-subcategories")
+    public ResponseEntity<Void> removeCategoriesAndSubCategoriesFromSupplier(
+            @PathVariable String supplierId,
+            @RequestBody SupplierCategoriesSubCategoriesRequest request) {
+
+        supplierService.removeCategoriesAndSubCategoriesFromSupplier(
+                supplierId,
+                request.getCategoryIds(),
+                request.getSubCategoryIds()
+        );
+
+        return ResponseEntity.noContent().build();
+    }
 }

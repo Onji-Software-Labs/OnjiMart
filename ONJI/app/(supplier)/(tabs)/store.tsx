@@ -408,6 +408,16 @@ async function linkCategoriesApi(
   await axiosInstance.post(`/suppliers/${supplierId}/categories-subcategories`, payload);
 }
 
+async function unlinkCategoriesApi(
+  supplierId: string,
+  payload: { categoryIds: string[]; subCategoryIds: string[] }
+): Promise<void> {
+  await axiosInstance.delete(
+    `/suppliers/${supplierId}/categories-subcategories`,
+    { data: payload }
+  );
+}
+
 /**
  * Confirmed from the supplier-controller Swagger page: GET
  * /suppliers/{supplierId}/categories/{categoryId}/subcategories. Not wired
@@ -451,12 +461,34 @@ async function createCategoryApi(payload: NewCategoryFormValues): Promise<ApiCat
   return res.data;
 }
 
+async function updateCategoryApi(
+  categoryId: string,
+  payload: { name: string; description: string }
+): Promise<ApiCategory> {
+  const res = await axiosInstance.put(
+    `${API.categories}/${categoryId}`,
+    payload
+  );
+  return res.data;
+}
+
 async function createSubCategoryApi(payload: {
   name: string;
   description: string;
   categoryId: string;
 }): Promise<ApiSubCategory> {
   const res = await axiosInstance.post(API.createSubCategory, { ...payload, products: [] });
+  return res.data;
+}
+
+async function updateSubCategoryApi(
+  subCategoryId: string,
+  payload: { name: string; description: string; categoryId: string }
+): Promise<ApiSubCategory> {
+  const res = await axiosInstance.put(
+    `${API.createSubCategory}/${subCategoryId}`,
+    payload
+  );
   return res.data;
 }
 
@@ -551,21 +583,13 @@ async function removeFromProductRegistry(supplierId: string, ids: string[]): Pro
 }
 
 /** Every product in the catalog (nested under its subcategory), from GET /api/subcategories. */
+
+/** Fetch all products, including products directly under a category. */
 async function fetchAllCatalogProductsApi(): Promise<ApiProduct[]> {
-  const res = await axiosInstance.get('/api/subcategories');
-  const out: ApiProduct[] = [];
-  for (const sc of res.data ?? []) {
-    for (const prod of sc?.products ?? []) {
-      if (!prod?.productId) continue;
-      out.push({
-        ...prod,
-        categoryId: prod.categoryId ?? sc.categoryId ?? '',
-        subCategoryId: prod.subCategoryId ?? sc.id ?? '',
-      });
-    }
-  }
-  return out;
+  const res = await axiosInstance.get('/api/products/getAll');
+  return res.data ?? [];
 }
+
 
 /**
  * The store's products (linked ones + remembered ones that are still in the
@@ -962,7 +986,7 @@ function AddCategoryModal({
   const expanded = catalog?.find((c) => c.id === expandedId);
   const expandedIsLinked = !!expanded && idsOf(expanded).some((id) => linkedCategoryIds.includes(id));
   // A category already in the store only needs a button if new subcategories were ticked
-  const canLink = !!expanded && (!expandedIsLinked || pickedSubIds.length > 0);
+  const canLink = !!expanded && !expandedIsLinked;
   const canDelete = expandedIsLinked;
 
   const handleCreate = () => {
@@ -1073,11 +1097,11 @@ function AddCategoryModal({
                           style={{ backgroundColor: canLink ? COLORS.primaryDefault : '#9CA3AF' }}
                           className="rounded-xl py-3 items-center justify-center mt-3 flex-row"
                           onPress={() => onLink(cat.id, pickedSubIds)}
-                          disabled={!canLink || saving}
+                          disabled={expandedIsLinked || saving || !expanded}
                         >
                           {saving && <ActivityIndicator size="small" color="#FFFFFF" className="mr-2" />}
                           <Text className="text-white font-bold text-xs">
-                            {expandedIsLinked ? 'Add selected subcategories' : 'Add to my store'}
+                            {expandedIsLinked ? 'Category already in your store' : 'Add to my store'}
                           </Text>
                         </TouchableOpacity>
                       </View>
@@ -1140,6 +1164,468 @@ function AddCategoryModal({
     </Modal>
   );
 }
+
+
+function ManageCategoriesModal({
+  visible,
+  categories,
+  saving,
+  onClose,
+  onDelete,
+  onEdit,
+}: {
+  visible: boolean;
+  categories: ApiCategory[];
+  saving: boolean;
+  onClose: () => void;
+  onDelete: (categoryIds: string[]) => void;
+  onEdit: (category: ApiCategory) => void;
+}) {
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent
+      onRequestClose={onClose}
+    >
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        className="flex-1 justify-end"
+      >
+        <TouchableOpacity
+          className="flex-1 bg-black/40"
+          activeOpacity={1}
+          onPress={onClose}
+        />
+
+        <View className="bg-white rounded-t-3xl px-5 pt-5 pb-8 max-h-[88%]">
+          <View className="w-10 h-1 bg-gray-300 rounded-full self-center mb-4" />
+
+          <View className="flex-row items-center justify-between mb-2">
+            <Text className="text-base font-bold text-gray-900">
+              Manage Categories
+            </Text>
+            <TouchableOpacity onPress={onClose}>
+              <Feather name="x" size={22} color="#374151" />
+            </TouchableOpacity>
+          </View>
+
+          <Text className="text-xs text-gray-500 mb-4">
+            Categories linked to your store. Removing one will not delete it
+            from the shared catalogue.
+          </Text>
+
+          <ScrollView showsVerticalScrollIndicator={false}>
+            {categories.length === 0 ? (
+              <Text className="text-sm text-gray-500 py-5 text-center">
+                No categories in your store yet.
+              </Text>
+            ) : (
+              categories.map((category) => (
+                <View
+                  key={category.id}
+                  className="border border-gray-200 rounded-xl p-3 mb-3 flex-row items-center"
+                >
+                  <View className="flex-1">
+                    <Text className="text-sm font-semibold text-gray-900">
+                      {category.name}
+                    </Text>
+                    <Text className="text-xs text-gray-500 mt-1">
+                      {category.subCategories.length} subcategories
+                    </Text>
+                  </View>
+
+                  
+                <TouchableOpacity
+                  onPress={() => onEdit(category)}
+                  disabled={saving}
+                  className="flex-row items-center px-3 py-2 rounded-lg border border-green-200 mr-2"
+                >
+                  <Feather name="edit-2" size={14} color={COLORS.primaryDefault} />
+                  <Text
+                    style={{ color: COLORS.primaryDefault }}
+                    className="text-xs font-medium ml-1"
+                  >
+                    Edit
+                  </Text>
+                </TouchableOpacity>
+
+
+                  <TouchableOpacity
+                    onPress={() => onDelete(idsOf(category))}
+                    disabled={saving}
+                    className="flex-row items-center px-3 py-2 rounded-lg border border-red-200"
+                  >
+                    {saving ? (
+                      <ActivityIndicator size="small" color="#DC2626" />
+                    ) : (
+                      <>
+                        <Feather name="trash-2" size={14} color="#DC2626" />
+                        <Text className="text-xs font-medium text-red-600 ml-1">
+                          Remove
+                        </Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              ))
+            )}
+          </ScrollView>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
+
+function EditCategoryModal({
+  visible,
+  category,
+  saving,
+  onClose,
+  onSubmit,
+}: {
+  visible: boolean;
+  category: ApiCategory | null;
+  saving: boolean;
+  onClose: () => void;
+  onSubmit: (values: NewCategoryFormValues) => void;
+}) {
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+
+  useEffect(() => {
+    if (visible && category) {
+      setName(category.name);
+      setDescription(category.description ?? '');
+    }
+  }, [visible, category]);
+
+  const handleSave = () => {
+    if (!name.trim()) {
+      notify('Missing info', 'Category name is required.');
+      return;
+    }
+
+    onSubmit({
+      name: name.trim(),
+      description: description.trim(),
+    });
+  };
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent
+      onRequestClose={onClose}
+    >
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        className="flex-1 justify-end"
+      >
+        <TouchableOpacity
+          className="flex-1 bg-black/40"
+          activeOpacity={1}
+          onPress={onClose}
+        />
+
+        <View className="bg-white rounded-t-3xl px-5 pt-5 pb-8">
+          <View className="w-10 h-1 bg-gray-300 rounded-full self-center mb-4" />
+
+          <Text className="text-base font-bold text-gray-900 mb-1">
+            Edit Category
+          </Text>
+          <Text className="text-xs text-amber-700 mb-4">
+            Changes affect the shared catalogue and other stores using this category.
+          </Text>
+
+          <FormField
+            label="Category name"
+            value={name}
+            onChangeText={setName}
+            placeholder="Category name"
+          />
+
+          <FormField
+            label="Description (optional)"
+            value={description}
+            onChangeText={setDescription}
+            placeholder="Short description"
+          />
+
+          <View className="flex-row mt-2" style={{ gap: 10 }}>
+            <TouchableOpacity
+              onPress={onClose}
+              disabled={saving}
+              className="flex-1 border border-gray-300 rounded-xl py-4 items-center"
+            >
+              <Text className="text-gray-700 font-bold text-sm">Cancel</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={handleSave}
+              disabled={saving || !category}
+              style={{ backgroundColor: COLORS.primaryDefault }}
+              className="flex-1 rounded-xl py-4 items-center justify-center flex-row"
+            >
+              {saving && (
+                <ActivityIndicator
+                  size="small"
+                  color="#FFFFFF"
+                  className="mr-2"
+                />
+              )}
+              <Text className="text-white font-bold text-sm">Save changes</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
+
+function AddEditSubCategoryModal({
+  visible,
+  category,
+  subCategory,
+  saving,
+  onClose,
+  onSubmit,
+}: {
+  visible: boolean;
+  category: ApiCategory | null;
+  subCategory: ApiSubCategory | null;
+  saving: boolean;
+  onClose: () => void;
+  onSubmit: (values: {
+    name: string;
+    description: string;
+    categoryId: string;
+  }) => void;
+}) {
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+
+  useEffect(() => {
+    if (visible) {
+      setName(subCategory?.name ?? '');
+      setDescription(subCategory?.description ?? '');
+    }
+  }, [visible, subCategory]);
+
+  const handleSave = () => {
+    if (!name.trim()) {
+      notify('Missing info', 'Subcategory name is required.');
+      return;
+    }
+
+    if (!category) {
+      notify('Missing category', 'Please select a category.');
+      return;
+    }
+
+    onSubmit({
+      name: name.trim(),
+      description: description.trim(),
+      categoryId: category.id,
+    });
+  };
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent
+      onRequestClose={onClose}
+    >
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        className="flex-1 justify-end"
+      >
+        <TouchableOpacity
+          className="flex-1 bg-black/40"
+          activeOpacity={1}
+          onPress={onClose}
+        />
+
+        <View className="bg-white rounded-t-3xl px-5 pt-5 pb-8">
+          <View className="w-10 h-1 bg-gray-300 rounded-full self-center mb-4" />
+
+          <Text className="text-base font-bold text-gray-900 mb-1">
+            {subCategory ? 'Edit Subcategory' : 'Add Subcategory'}
+          </Text>
+
+          <Text className="text-xs text-gray-500 mb-4">
+            Category: {category?.name ?? ''}
+          </Text>
+
+          <FormField
+            label="Subcategory name"
+            value={name}
+            onChangeText={setName}
+            placeholder="e.g. Tomatoes"
+          />
+
+          <FormField
+            label="Description (optional)"
+            value={description}
+            onChangeText={setDescription}
+            placeholder="Short description"
+          />
+
+          <View className="flex-row mt-2" style={{ gap: 10 }}>
+            <TouchableOpacity
+              onPress={onClose}
+              disabled={saving}
+              className="flex-1 border border-gray-300 rounded-xl py-4 items-center"
+            >
+              <Text className="text-gray-700 font-bold text-sm">
+                Cancel
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={handleSave}
+              disabled={saving || !category}
+              style={{ backgroundColor: COLORS.primaryDefault }}
+              className="flex-1 rounded-xl py-4 items-center justify-center flex-row"
+            >
+              {saving && (
+                <ActivityIndicator
+                  size="small"
+                  color="#FFFFFF"
+                  className="mr-2"
+                />
+              )}
+              <Text className="text-white font-bold text-sm">
+                {subCategory ? 'Save changes' : 'Create subcategory'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
+
+function ManageSubcategoriesModal({
+  visible,
+  category,
+  saving,
+  onClose,
+  onEdit,
+  onDelete,
+}: {
+  visible: boolean;
+  category: ApiCategory | null;
+  saving: boolean;
+  onClose: () => void;
+  onEdit: (sub: ApiSubCategory) => void;
+  onDelete: (subCategoryIds: string[], name: string) => void;
+}) {
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent
+      onRequestClose={onClose}
+    >
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        className="flex-1 justify-end"
+      >
+        <TouchableOpacity
+          className="flex-1 bg-black/40"
+          activeOpacity={1}
+          onPress={onClose}
+        />
+
+        <View className="bg-white rounded-t-3xl px-5 pt-5 pb-8 max-h-[85%]">
+          <View className="w-10 h-1 bg-gray-300 rounded-full self-center mb-4" />
+
+          <View className="flex-row items-center justify-between mb-2">
+            <View className="flex-1">
+              <Text className="text-base font-bold text-gray-900">
+                Manage Subcategories
+              </Text>
+              <Text className="text-xs text-gray-500 mt-1">
+                {category?.name ?? 'Selected category'}
+              </Text>
+            </View>
+
+            <TouchableOpacity onPress={onClose}>
+              <Feather name="x" size={22} color="#374151" />
+            </TouchableOpacity>
+          </View>
+
+          <Text className="text-xs text-gray-500 mb-4">
+            Edit subcategory details or remove a subcategory from your store.
+          </Text>
+
+          <ScrollView showsVerticalScrollIndicator={false}>
+            {!category || category.subCategories.length === 0 ? (
+              <Text className="text-sm text-gray-500 py-5 text-center">
+                No subcategories in this category yet.
+              </Text>
+            ) : (
+              category.subCategories.map((sub) => (
+                <View
+                  key={sub.id}
+                  className="border border-gray-200 rounded-xl p-3 mb-3 flex-row items-center"
+                >
+                  <View className="flex-1 mr-2">
+                    <Text className="text-sm font-semibold text-gray-900">
+                      {sub.name}
+                    </Text>
+                    {!!sub.description && (
+                      <Text className="text-xs text-gray-500 mt-1">
+                        {sub.description}
+                      </Text>
+                    )}
+                  </View>
+
+                  <TouchableOpacity
+                    onPress={() => onEdit(sub)}
+                    disabled={saving}
+                    className="flex-row items-center px-3 py-2 rounded-lg border border-green-200 mr-2"
+                  >
+                    <Feather
+                      name="edit-2"
+                      size={14}
+                      color={COLORS.primaryDefault}
+                    />
+                    <Text
+                      style={{ color: COLORS.primaryDefault }}
+                      className="text-xs font-medium ml-1"
+                    >
+                      Edit
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={() => onDelete(idsOf(sub), sub.name)}
+                    disabled={saving}
+                    className="flex-row items-center px-3 py-2 rounded-lg border border-red-200"
+                  >
+                    <Feather name="trash-2" size={14} color="#DC2626" />
+                    <Text className="text-xs font-medium text-red-600 ml-1">
+                      Remove
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              ))
+            )}
+          </ScrollView>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
+
 
 // ---------------------------------------------------------------------------
 // Auto subcategory detection
@@ -1272,24 +1758,24 @@ function AddItemModal({
   // or otherwise switch to "+ New" pre-filled with a sensible name for a
   // subcategory that doesn't exist yet. Only runs until the supplier makes
   // their own choice (subCategoryTouched).
-  useEffect(() => {
-    if (subCategoryTouched) return;
-    const typedName = values.name.trim();
-    if (!typedName) return;
+  // useEffect(() => {
+  //   if (subCategoryTouched) return;
+  //   const typedName = values.name.trim();
+  //   if (!typedName) return;
 
-    const match = findMatchingSubCategory(typedName, subCategories);
-    if (match) {
-      setIsCreatingSub(false);
-      setNewSubName('');
-      setValues((prev) => (prev.subCategoryId === match.id ? prev : { ...prev, subCategoryId: match.id }));
-    } else {
-      const suggested = deriveSubCategoryName(typedName);
-      setIsCreatingSub(true);
-      setNewSubName(suggested);
-      setValues((prev) => (prev.subCategoryId === '' ? prev : { ...prev, subCategoryId: '' }));
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [values.name, subCategoryTouched, subCategories]);
+  //   const match = findMatchingSubCategory(typedName, subCategories);
+  //   if (match) {
+  //     setIsCreatingSub(false);
+  //     setNewSubName('');
+  //     setValues((prev) => (prev.subCategoryId === match.id ? prev : { ...prev, subCategoryId: match.id }));
+  //   } else {
+  //     const suggested = deriveSubCategoryName(typedName);
+  //     setIsCreatingSub(true);
+  //     setNewSubName(suggested);
+  //     setValues((prev) => (prev.subCategoryId === '' ? prev : { ...prev, subCategoryId: '' }));
+  //   }
+  //   // eslint-disable-next-line react-hooks/exhaustive-deps
+  // }, [values.name, subCategoryTouched, subCategories]);
 
   const setField = (key: keyof NewProductFormValues) => (text: string) =>
     setValues((prev) => ({ ...prev, [key]: text }));
@@ -1300,11 +1786,13 @@ function AddItemModal({
     setValues((prev) => ({ ...prev, subCategoryId: id }));
   };
 
-  const startNewSubCategory = () => {
-    setSubCategoryTouched(true);
-    setIsCreatingSub(true);
-    setValues((prev) => ({ ...prev, subCategoryId: '' }));
-  };
+ const startNewSubCategory = () => {
+  console.log("NEW SUBCATEGORY BUTTON CLICKED");
+  setSubCategoryTouched(true);
+  setIsCreatingSub(true);
+  console.log("isCreatingSub set to true");
+  setValues((prev) => ({ ...prev, subCategoryId: '' }));
+};
 
   const handleNewSubNameChange = (text: string) => {
     setSubCategoryTouched(true);
@@ -1328,10 +1816,10 @@ function AddItemModal({
       onSubmit({ ...values, subCategoryId: '', newSubCategoryName: newSubName.trim() });
       return;
     }
-    if (!values.subCategoryId && subCategories.length > 0) {
-      notify('Missing info', 'Pick a subcategory, or use "+ New" to create one.');
-      return;
-    }
+    // if (!values.subCategoryId && subCategories.length > 0) {
+    //   notify('Missing info', 'Pick a subcategory, or use "+ New" to create one.');
+    //   return;
+    // }
     onSubmit(values);
   };
 
@@ -2044,12 +2532,20 @@ export default function SupplierStoreScreen() {
   // Modal visibility + per-modal saving state
   const [isEditBusinessVisible, setIsEditBusinessVisible] = useState(false);
   const [isAddCategoryVisible, setIsAddCategoryVisible] = useState(false);
+  const [isManageCategoriesVisible, setIsManageCategoriesVisible] = useState(false);
+  const [isEditCategoryVisible, setIsEditCategoryVisible] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<ApiCategory | null>(null);
+  const [isSubCategoryModalVisible, setIsSubCategoryModalVisible] = useState(false);
+  const [editingSubCategory, setEditingSubCategory] = useState<ApiSubCategory | null>(null);
+  const [subCategoryParent, setSubCategoryParent] = useState<ApiCategory | null>(null);
+  const [isManageSubcategoriesVisible, setIsManageSubcategoriesVisible] = useState(false);
   const [isAddItemVisible, setIsAddItemVisible] = useState(false);
   const [isEditItemVisible, setIsEditItemVisible] = useState(false);
   const [savingBusinessInfo, setSavingBusinessInfo] = useState(false);
   const [savingCategory, setSavingCategory] = useState(false);
   const [creatingProduct, setCreatingProduct] = useState(false);
   const [savingProductEdit, setSavingProductEdit] = useState(false);
+  const [productSearch, setProductSearch] = useState('');
 
   // Which product the "Edit" popup is currently showing
   const [editingProduct, setEditingProduct] = useState<ApiProduct | null>(null);
@@ -2151,15 +2647,29 @@ export default function SupplierStoreScreen() {
   // A product belongs to the selected category if it is filed under ANY id
   // merged into it, or under one of its subcategories (the backend is not
   // consistent about which parent it stores). Same idea for the pill filter.
+  
   const visibleProducts = supplierProducts.filter((p) => {
     if (!selectedCategoryObj) return false;
+
     const inCategory =
       idsOf(selectedCategoryObj).includes(p.categoryId) ||
-      selectedCategoryObj.subCategories.some((sc) => idsOf(sc).includes(p.subCategoryId));
+      selectedCategoryObj.subCategories.some((sc) =>
+        idsOf(sc).includes(p.subCategoryId)
+      );
+
     if (!inCategory) return false;
-    if (!selectedSubObj) return true;
-    return idsOf(selectedSubObj).includes(p.subCategoryId);
+
+    if (
+      selectedSubObj &&
+      !idsOf(selectedSubObj).includes(p.subCategoryId)
+    ) {
+      return false;
+    }
+
+    const searchTerm = productSearch.trim().toLowerCase();
+    return p.name.toLowerCase().includes(searchTerm);
   });
+
   const businessCategoryNames = categories.map((c) => c.name).join(', ');
 
   // Keep the selection valid as data changes
@@ -2275,6 +2785,41 @@ export default function SupplierStoreScreen() {
     }
   };
 
+  
+  const handleDeleteSingleProduct = async (product: ApiProduct) => {
+    const ok = await confirmDestructive(
+      'Delete Product',
+      `Are you sure you want to delete "${product.name}"?`
+    );
+
+    if (!ok) return;
+
+    setDeleting(true);
+
+    try {
+      await deleteProductApi(product.productId);
+
+      setSupplierProducts((prev) =>
+        prev.filter((p) => p.productId !== product.productId)
+      );
+
+      if (supplierId) {
+        removeFromProductRegistry(supplierId, [product.productId]).catch(() => {});
+      }
+
+      setSelectedProducts((prev) =>
+        prev.filter((id) => id !== product.productId)
+      );
+
+      notify('Success', 'Product deleted successfully.');
+    } catch (err) {
+      notify('Error', describeApiError('Error deleting product', err));
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+
   // -- Edit Business Information ---------------------------------------------------------
   // PUT needs the FULL business object, so start from the loaded one.
   const handleSaveBusinessInfo = async (values: BusinessInfoFormValues) => {
@@ -2319,72 +2864,115 @@ export default function SupplierStoreScreen() {
   // Saves the FULL set (existing + new) so it works whether the endpoint
   // replaces or appends, then reloads this business's categories. Returns the
   // fresh list so callers can work with up-to-date ids straight away.
-  const linkToSupplier = async (categoryId: string, newSubCategoryIds: string[]): Promise<ApiCategory[]> => {
-    if (!supplierId) throw new Error(NO_SUPPLIER_ID_MESSAGE);
-    const categoryIds = Array.from(new Set([...categories.flatMap((c) => idsOf(c)), categoryId]));
-    const subCategoryIds = Array.from(
-      new Set([
-        ...categories.flatMap((c) => c.subCategories.flatMap((sc) => idsOf(sc))),
-        ...newSubCategoryIds,
-      ])
-    );
-    await linkCategoriesApi(supplierId, { categoryIds, subCategoryIds });
+ 
+  const linkToSupplier = async (
+    categoryId: string,
+    newSubCategoryIds: string[]
+  ): Promise<ApiCategory[]> => {
+    if (!supplierId) {
+      throw new Error(NO_SUPPLIER_ID_MESSAGE);
+    }
+
+   const categoryIds = [categoryId];
+
+  const subCategoryIds = newSubCategoryIds;
+
+    await linkCategoriesApi(supplierId, {
+      categoryIds,
+      subCategoryIds,
+    });
+
     const fresh = await fetchSupplierCategoriesApi(supplierId);
     setCategories(fresh);
-    setSelectedCategoryId(findCategoryByAnyId(fresh, categoryId)?.id ?? categoryId);
+    setSelectedCategoryId(
+      findCategoryByAnyId(fresh, categoryId)?.id ?? categoryId
+    );
     setSelectedSubCategoryId(null);
+
     return fresh;
   };
 
-  // Removes a category (and its subcategories) from THIS supplier's store only.
-  // It does not touch the shared catalog, so other suppliers keep it. Assumes
-  // POST .../categories-subcategories replaces the supplier's full set — if the
-  // backend appends instead, ask them for a proper "unlink" endpoint.
-  const unlinkCategoryFromSupplier = async (categoryIdsToRemove: string[]) => {
-    if (!supplierId) throw new Error(NO_SUPPLIER_ID_MESSAGE);
-    const removed = categories.filter((c) => idsOf(c).some((id) => categoryIdsToRemove.includes(id)));
-    const removedIds = new Set(removed.flatMap((c) => idsOf(c)));
-    const removedSubIds = new Set(removed.flatMap((c) => c.subCategories.flatMap((sc) => idsOf(sc))));
-    const keep = categories.filter((c) => !removed.includes(c));
-    const categoryIds = keep.flatMap((c) => idsOf(c));
-    const subCategoryIds = keep
-      .flatMap((c) => c.subCategories.flatMap((sc) => idsOf(sc)))
-      .filter((id) => !removedSubIds.has(id));
-    await linkCategoriesApi(supplierId, { categoryIds, subCategoryIds });
-    const fresh = await fetchSupplierCategoriesApi(supplierId);
-    setCategories(fresh);
-    setSelectedCategoryId((prev) => (prev && removedIds.has(prev) ? null : prev));
-    // Confirm the server actually dropped it — some endpoints only ever add
-    // to the linked set and ignore removals, which would silently undo this.
-    if (fresh.some((c) => idsOf(c).some((id) => removedIds.has(id)))) {
-      throw new Error(
-        'The server kept this category linked to your store even after being asked to remove it. It may only support adding categories, not removing them — ask the backend team for a real "unlink" endpoint.'
+
+ 
+    // Removes a category and its subcategories from this supplier's store.
+    const unlinkCategoryFromSupplier = async (
+      categoryIdsToRemove: string[]
+    ) => {
+      if (!supplierId) {
+        throw new Error(NO_SUPPLIER_ID_MESSAGE);
+      }
+
+      const removed = categories.filter((category) =>
+        idsOf(category).some((id) => categoryIdsToRemove.includes(id))
       );
-    }
-  };
+
+      if (removed.length === 0) return;
+
+      const removedIds = new Set(removed.flatMap((category) => idsOf(category)));
+
+      const removedSubIds = new Set(
+        removed.flatMap((category) =>
+          category.subCategories.flatMap((subCategory) => idsOf(subCategory))
+        )
+      );
+
+      await unlinkCategoriesApi(supplierId, {
+        categoryIds: [...removedIds],
+        subCategoryIds: [...removedSubIds],
+      });
+
+      const fresh = await fetchSupplierCategoriesApi(supplierId);
+      setCategories(fresh);
+
+      setSelectedCategoryId((previous) =>
+        previous && removedIds.has(previous) ? null : previous
+      );
+
+      if (fresh.some((category) =>
+        idsOf(category).some((id) => removedIds.has(id))
+      )) {
+        throw new Error('The server kept this category linked to your store.');
+      }
+    };
+
+
 
   // Removes ONE subcategory from this supplier's store (its parent category
   // stays linked, even if this was its last subcategory). Same assumption as
   // unlinkCategoryFromSupplier: the endpoint replaces the full set.
-  const unlinkSubCategoryFromSupplier = async (subCategoryIdsToRemove: string[]) => {
+
+  const unlinkSubCategoryFromSupplier = async (
+    subCategoryIdsToRemove: string[]
+  ) => {
     if (!supplierId) throw new Error(NO_SUPPLIER_ID_MESSAGE);
+
     const removeIds = new Set(subCategoryIdsToRemove);
-    const categoryIds = categories.flatMap((c) => idsOf(c));
-    const subCategoryIds = categories
-      .flatMap((c) => c.subCategories.flatMap((sc) => idsOf(sc)))
-      .filter((id) => !removeIds.has(id));
-    await linkCategoriesApi(supplierId, { categoryIds, subCategoryIds });
+
+    await unlinkCategoriesApi(supplierId, {
+      categoryIds: [],
+      subCategoryIds: subCategoryIdsToRemove,
+    });
+
     const fresh = await fetchSupplierCategoriesApi(supplierId);
     setCategories(fresh);
-    setSelectedSubCategoryId((prev) => (prev && removeIds.has(prev) ? null : prev));
-    // Confirm the server actually dropped it — some endpoints only ever add
-    // to the linked set and ignore removals, which would silently undo this.
-    if (fresh.some((c) => c.subCategories.some((sc) => idsOf(sc).some((id) => removeIds.has(id))))) {
-      throw new Error(
-        'The server kept this subcategory linked to your store even after being asked to remove it. It may only support adding subcategories, not removing them — ask the backend team for a real "unlink" endpoint.'
-      );
-    }
+
+    setSelectedSubCategoryId((prev) =>
+      prev && removeIds.has(prev) ? null : prev
+    );
+
+  //   if (
+  //     fresh.some((category) =>
+  //       category.subCategories.some((sub) =>
+  //         idsOf(sub).some((id) => removeIds.has(id))
+  //       )
+  //     )
+  //   ) {
+  //     throw new Error(
+  //       'The subcategory is still linked to your store. Please refresh and try again.'
+  //     );
+  //   }
   };
+
 
   const handleDeleteSubCategory = async (subCategoryIds: string[], name: string) => {
     const ok = await confirmDestructive(
@@ -2392,9 +2980,15 @@ export default function SupplierStoreScreen() {
       `"${name}" will no longer show in your store. Products already using it will stay, but the filter pill disappears.`
     );
     if (!ok) return;
-    try {
+      try {
       setSavingCategory(true);
       await unlinkSubCategoryFromSupplier(subCategoryIds);
+
+      // setSupplierProducts((prev) =>
+      //   prev.filter((product) =>
+      //     !subCategoryIds.includes(product.subCategoryId)
+      //   )
+      // );
     } catch (err) {
       notify('Could not remove subcategory', describeApiError('Error unlinking subcategory', err));
     } finally {
@@ -2418,6 +3012,108 @@ export default function SupplierStoreScreen() {
       setSavingCategory(false);
     }
   };
+
+  
+const handleSaveCategoryEdit = async (values: NewCategoryFormValues) => {
+  if (!editingCategory) return;
+
+  const duplicate = sharedCatalog?.find(
+    (c) =>
+      c.name.trim().toLowerCase() === values.name.trim().toLowerCase() &&
+      !idsOf(c).includes(editingCategory.id)
+  );
+
+  if (duplicate) {
+    notify(
+      'Category already exists',
+      `"${duplicate.name}" already exists in the shared catalogue.`
+    );
+    return;
+  }
+
+  try {
+    setSavingCategory(true);
+
+    await updateCategoryApi(editingCategory.id, {
+      name: values.name.trim(),
+      description: values.description.trim(),
+    });
+
+    // Reload both the shared catalogue and this store's linked categories.
+    const [freshCatalog, freshCategories] = await Promise.all([
+        fetchSharedCatalogApi(),
+        supplierId
+          ? fetchSupplierCategoriesApi(supplierId)
+          : Promise.resolve(categories),
+      ]);
+
+      setSharedCatalog(freshCatalog);
+      setCategories(freshCategories);
+      setIsEditCategoryVisible(false);
+      setEditingCategory(null);
+
+      notify('Success', 'Category updated successfully.');
+    } catch (err) {
+      notify(
+        'Could not update category',
+        describeApiError('Error updating category', err)
+      );
+    } finally {
+      setSavingCategory(false);
+    }
+  };
+
+  
+const handleSaveSubCategory = async (values: {
+  name: string;
+  description: string;
+  categoryId: string;
+}) => {
+  try {
+    setSavingCategory(true);
+
+    if (editingSubCategory) {
+      await updateSubCategoryApi(editingSubCategory.id, {
+        name: values.name.trim(),
+        description: values.description.trim(),
+        categoryId: values.categoryId,
+      });
+    } else {
+      const created = await createSubCategoryApi({
+        name: values.name.trim(),
+        description: values.description.trim(),
+        categoryId: values.categoryId,
+      });
+
+      await linkToSupplier(values.categoryId, idsOf(created));
+    }
+
+    const freshCategories = supplierId
+      ? await fetchSupplierCategoriesApi(supplierId)
+      : categories;
+
+    setCategories(freshCategories);
+    setIsSubCategoryModalVisible(false);
+    setEditingSubCategory(null);
+    setSubCategoryParent(null);
+
+    notify(
+      'Success',
+      editingSubCategory
+        ? 'Subcategory updated successfully.'
+        : 'Subcategory created successfully.'
+    );
+  } catch (err) {
+    notify(
+      'Could not save subcategory',
+      describeApiError('Error saving subcategory', err)
+    );
+  } finally {
+    setSavingCategory(false);
+  }
+};
+
+
 
   const handleLinkCategory = async (categoryId: string, subCategoryIds: string[]) => {
     try {
@@ -2577,7 +3273,7 @@ export default function SupplierStoreScreen() {
       ]);
       // Jump to exactly where the new card lives, using the freshest ids.
       setSelectedCategoryId(categoryForProduct?.id ?? values.categoryId);
-      setSelectedSubCategoryId(chosenSub?.id ?? null);
+      setSelectedSubCategoryId(null);
       setIsAddItemVisible(false);
       showFlash(
         `Added "${values.name.trim()}" to ${categoryForProduct?.name ?? 'your store'}${
@@ -2607,16 +3303,18 @@ export default function SupplierStoreScreen() {
     }
   };
 
-  // -- Edit Item ---------------------------------------------------------------------------
-  const handleOpenEditItem = (product: ApiProduct) => {
-    setEditingProduct(product);
-    setIsEditItemVisible(true);
-  };
+ 
+    // -- Edit Item
+    const handleOpenEditItem = (product: ApiProduct) => {
+      setEditingProduct(product);
+      setIsEditItemVisible(true);
+    };
 
-  const handleCloseEditItem = () => {
-    setIsEditItemVisible(false);
-    setEditingProduct(null);
-  };
+    const handleCloseEditItem = () => {
+      setIsEditItemVisible(false);
+      setEditingProduct(null);
+    };
+
 
   // PUT needs the FULL product, so start from the existing one and overlay the edits.
   const handleSaveProductEdit = async (productId: string, values: NewProductFormValues) => {
@@ -2991,7 +3689,7 @@ export default function SupplierStoreScreen() {
                   </Text>
                 </View>
 
-                <TouchableOpacity className="items-center" onPress={toggleSelectMode}>
+                {/* <TouchableOpacity className="items-center" onPress={toggleSelectMode}>
                   <Feather
                     name="trash-2"
                     size={18}
@@ -3003,75 +3701,180 @@ export default function SupplierStoreScreen() {
                   >
                     Delete
                   </Text>
-                </TouchableOpacity>
-              </View>
+                </TouchableOpacity> */}
 
-              {/* Subcategory Filter Pills — this business's subcategories of the selected category */}
-              {visibleSubCategories.length > 0 && (
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  className="-mx-1"
-                  style={{ flexGrow: 0, marginBottom: 12 }}
-                  contentContainerStyle={{ paddingHorizontal: 4, alignItems: 'flex-start' }}
+                <TouchableOpacity
+                className="items-center ml-4"
+                onPress={() => setIsManageCategoriesVisible(true)}
+              >
+                <Feather name="settings" size={18} color="#374151" />
+                <Text className="text-[10px] font-medium text-gray-500">
+                  Manage Categories
+                </Text>
+              </TouchableOpacity>
+              </View>
+      
+                <View
+                  className="flex-row items-center rounded-xl px-3 mb-3"
+                  style={{
+                    borderWidth: 1,
+                    borderColor: '#D1D5DB',
+                    backgroundColor: '#FFFFFF',
+                    minHeight: 42,
+                  }}
                 >
+                  <Feather name="search" size={17} color="#6B7280" />
+
+                  <TextInput
+                    value={productSearch}
+                    onChangeText={setProductSearch}
+                    placeholder="Search products..."
+                    placeholderTextColor="#9CA3AF"
+                    className="flex-1 ml-2 text-sm text-gray-900"
+                    returnKeyType="search"
+                  />
+
+                  {productSearch.length > 0 && (
+                    <TouchableOpacity onPress={() => setProductSearch('')}>
+                      <Feather name="x-circle" size={17} color="#6B7280" />
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+
+                
+                <View className="flex-row mb-3" style={{ gap: 8 }}>
                   <TouchableOpacity
-                    onPress={() => setSelectedSubCategoryId(null)}
-                    style={{
-                      backgroundColor:
-                        selectedSubCategoryId === null ? COLORS.primaryDefault : 'transparent',
-                      borderColor: COLORS.primaryDefault,
-                      alignSelf: 'flex-start',
+                    onPress={() => {
+                      if (!selectedCategoryObj) {
+                        notify('No category selected', 'Please select a category first.');
+                        return;
+                      }
+
+                      setSubCategoryParent(selectedCategoryObj);
+                      setEditingSubCategory(null);
+                      setIsSubCategoryModalVisible(true);
                     }}
-                    className="border rounded-full px-4 py-1.5 mx-1"
+                    style={{
+                      borderColor: COLORS.primaryDefault,
+                      backgroundColor: COLORS.primary100,
+                      borderWidth: 1,
+                      borderStyle: 'dashed',
+                      borderRadius: 8,
+                    }}
+                    className="flex-1 flex-row items-center justify-center py-2"
                   >
+                    <Feather name="plus" size={16} color={COLORS.primaryDefault} />
                     <Text
-                      style={{
-                        color: selectedSubCategoryId === null ? '#FFFFFF' : COLORS.primaryDefault,
-                      }}
-                      className="text-xs font-semibold"
+                      style={{ color: COLORS.primaryDefault }}
+                      className="text-[10px] font-semibold ml-1"
                     >
-                      All
+                      Add Subcategory
                     </Text>
                   </TouchableOpacity>
 
-                  {visibleSubCategories.map((sub) => {
-                    const active = selectedSubCategoryId === sub.id;
-                    return (
-                      <View
-                        key={sub.id}
+                  <TouchableOpacity
+                    onPress={() => {
+                      if (!selectedCategoryObj) {
+                        notify('No category selected', 'Please select a category first.');
+                        return;
+                      }
+
+                      setIsManageSubcategoriesVisible(true);
+                    }}
+                    style={{
+                      borderColor: COLORS.primaryDefault,
+                      borderWidth: 1,
+                      borderRadius: 8,
+                    }}
+                    className="flex-1 flex-row items-center justify-center py-1.5 px-1"
+                  >
+                    <Feather name="settings" size={15} color={COLORS.primaryDefault} />
+                    <Text
+                      style={{ color: COLORS.primaryDefault }}
+                      className="text-xs font-semibold ml-1.5"
+                    >
+                      Manage Subcategories
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+
+
+              {/* Subcategory Filter Pills — this business's subcategories of the selected category */}
+             
+                  {visibleSubCategories.length > 0 && (
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      className="-mx-1"
+                      style={{ flexGrow: 0, marginBottom: 12 }}
+                      contentContainerStyle={{
+                        paddingHorizontal: 4,
+                        alignItems: 'flex-start',
+                      }}
+                    >
+                      <TouchableOpacity
+                        onPress={() => setSelectedSubCategoryId(null)}
                         style={{
-                          backgroundColor: active ? COLORS.primaryDefault : 'transparent',
+                          backgroundColor:
+                            selectedSubCategoryId === null
+                              ? COLORS.primaryDefault
+                              : 'transparent',
                           borderColor: COLORS.primaryDefault,
                           alignSelf: 'flex-start',
                         }}
-                        className="border rounded-full pl-4 pr-1.5 py-1.5 mx-1 flex-row items-center"
+                        className="border rounded-full px-4 py-1.5 mx-1"
                       >
-                        <TouchableOpacity onPress={() => setSelectedSubCategoryId(sub.id)}>
-                          <Text
-                            style={{ color: active ? '#FFFFFF' : COLORS.primaryDefault }}
-                            className="text-xs font-semibold"
-                          >
-                            {sub.name}
-                          </Text>
-                        </TouchableOpacity>
-                        {/* Removes this subcategory pill from your store (not from the catalog) */}
-                        <TouchableOpacity
-                          onPress={() => handleDeleteSubCategory(idsOf(sub), sub.name)}
-                          hitSlop={{ top: 8, bottom: 8, left: 4, right: 8 }}
-                          className="ml-1.5"
+                        <Text
+                          style={{
+                            color:
+                              selectedSubCategoryId === null
+                                ? '#FFFFFF'
+                                : COLORS.primaryDefault,
+                          }}
+                          className="text-xs font-semibold"
                         >
-                          <Ionicons
-                            name="close-circle"
-                            size={14}
-                            color={active ? '#FFFFFF' : '#9CA3AF'}
-                          />
-                        </TouchableOpacity>
-                      </View>
-                    );
-                  })}
-                </ScrollView>
-              )}
+                          All
+                        </Text>
+                      </TouchableOpacity>
+
+                      
+                    {visibleSubCategories.map((sub) => {
+                      const active = selectedSubCategoryId === sub.id;
+
+                      return (
+                        <View
+                          key={sub.id}
+                          className="flex-row items-center mr-2 mb-2"
+                          style={{
+                            borderWidth: 1,
+                            borderColor: COLORS.primaryDefault,
+                            borderRadius: 999,
+                            backgroundColor: active ? COLORS.primaryDefault : 'transparent',
+                          }}
+                        >
+                          <TouchableOpacity
+                            onPress={() => setSelectedSubCategoryId(sub.id)}
+                            className="px-4 py-1.5"
+                          >
+                            <Text
+                              style={{
+                                color: active ? '#FFFFFF' : COLORS.primaryDefault,
+                              }}
+                              className="text-xs font-semibold"
+                            >
+                              {sub.name}
+                            </Text>
+                          </TouchableOpacity>
+
+                        </View>
+                      );
+                    })}
+
+                    </ScrollView>
+                  )}
+
 
               {/* Items in this store's subcategories that are missing from the list */}
               {restorable.length > 0 && (
@@ -3201,21 +4004,38 @@ export default function SupplierStoreScreen() {
                             {formatPricePerUnit(item)}
                           </Text>
                         </View>
+                
+                        {/* Edit and Delete buttons */}
+                        <View className="absolute -bottom-3 self-center flex-row items-center gap-2">
+                          <TouchableOpacity
+                            onPress={() => handleOpenEditItem(item)}
+                            style={{
+                              borderColor: COLORS.primaryDefault,
+                              borderWidth: 1,
+                              backgroundColor: '#F2FBF3',
+                            }}
+                            className="px-4 py-1 rounded-lg items-center justify-center shadow-xs"
+                          >
+                            <Text style={{ color: COLORS.primaryDefault }} className="text-xs font-medium">
+                              Edit
+                            </Text>
+                          </TouchableOpacity>
 
-                        {/* Floating Edit Button — opens the pre-filled Edit Item popup */}
-                        <TouchableOpacity
-                          onPress={() => handleOpenEditItem(item)}
-                          style={{
-                            borderColor: COLORS.primaryDefault,
-                            borderWidth: 1,
-                            backgroundColor: '#F2FBF3',
-                          }}
-                          className="absolute -bottom-3 self-center px-4 py-0.5 rounded-lg items-center justify-center shadow-xs"
-                        >
-                          <Text style={{ color: COLORS.primaryDefault }} className="text-xs font-medium">
-                            Edit
-                          </Text>
-                        </TouchableOpacity>
+                          <TouchableOpacity
+                            onPress={() => handleDeleteSingleProduct(item)}
+                            style={{
+                              borderColor: '#DC2626',
+                              borderWidth: 1,
+                              backgroundColor: '#FEF2F2',
+                            }}
+                            className="px-4 py-1 rounded-lg items-center justify-center shadow-xs"
+                          >
+                            <Text style={{ color: '#DC2626' }} className="text-xs font-medium">
+                              Delete
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
+
                       </View>
                     );
                   })}
@@ -3281,6 +4101,63 @@ export default function SupplierStoreScreen() {
         onDelete={handleDeleteCategory}
         onDeleteSubCategory={handleDeleteSubCategory}
       />
+
+      
+    <ManageCategoriesModal
+      visible={isManageCategoriesVisible}
+      categories={categories}
+      saving={savingCategory}
+      onClose={() => setIsManageCategoriesVisible(false)}
+      onDelete={handleDeleteCategory}
+      onEdit={(category) => {
+        setEditingCategory(category);
+        setIsManageCategoriesVisible(false);
+        setIsEditCategoryVisible(true);
+      }}
+    />
+
+    
+  <EditCategoryModal
+    visible={isEditCategoryVisible}
+    category={editingCategory}
+    saving={savingCategory}
+    onClose={() => {
+      setIsEditCategoryVisible(false);
+      setEditingCategory(null);
+    }}
+    onSubmit={handleSaveCategoryEdit}
+  />
+
+  
+    <AddEditSubCategoryModal
+      visible={isSubCategoryModalVisible}
+      category={subCategoryParent}
+      subCategory={editingSubCategory}
+      saving={savingCategory}
+      onClose={() => {
+        setIsSubCategoryModalVisible(false);
+        setEditingSubCategory(null);
+        setSubCategoryParent(null);
+      }}
+      onSubmit={handleSaveSubCategory}
+    />
+
+    
+    <ManageSubcategoriesModal
+      visible={isManageSubcategoriesVisible}
+      category={selectedCategoryObj ?? null}
+      saving={savingCategory}
+      onClose={() => setIsManageSubcategoriesVisible(false)}
+      onEdit={(sub) => {
+        if (!selectedCategoryObj) return;
+
+        setSubCategoryParent(selectedCategoryObj);
+        setEditingSubCategory(sub);
+        setIsManageSubcategoriesVisible(false);
+        setIsSubCategoryModalVisible(true);
+      }}
+      onDelete={handleDeleteSubCategory}
+    />
 
       <AddItemModal
         visible={isAddItemVisible}

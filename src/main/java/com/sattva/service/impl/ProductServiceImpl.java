@@ -58,14 +58,18 @@ public class ProductServiceImpl implements ProductService {
     @Override
     public ProductDTO createProduct(ProductDTO productDTO) {
 
-        // duplicate check using imageUrl
-        if (productRepository.existsByImageUrl(productDTO.getImageUrl())) {
+        // Check duplicate image URLs only when a real image URL is provided.
+        // Empty or blank image URLs must not prevent creating separate products.
+        String imageUrl = productDTO.getImageUrl();
 
-            System.out.println("Duplicate skipped: " + productDTO.getName());
+        if (imageUrl != null && !imageUrl.isBlank()) {
+            if (productRepository.existsByImageUrl(imageUrl)) {
+                System.out.println("Duplicate image skipped: " + productDTO.getName());
 
-            return productRepository.findByImageUrl(productDTO.getImageUrl())
-                    .map(p -> modelMapper.map(p, ProductDTO.class))
-                    .orElse(null);
+                return productRepository.findByImageUrl(imageUrl)
+                        .map(p -> modelMapper.map(p, ProductDTO.class))
+                        .orElse(null);
+            }
         }
 
         Category category = categoryRepository.findById(productDTO.getCategoryId())
@@ -73,10 +77,13 @@ public class ProductServiceImpl implements ProductService {
                         "Category not found with id: " + productDTO.getCategoryId()));
 
         SubCategory subCategory = null;
-        if (productDTO.getSubCategoryId() != null) {
-            subCategory = subCategoryRepository.findById(productDTO.getSubCategoryId())
+
+        String subCategoryId = productDTO.getSubCategoryId();
+
+        if (subCategoryId != null && !subCategoryId.isBlank()) {
+            subCategory = subCategoryRepository.findById(subCategoryId)
                     .orElseThrow(() -> new ResourceNotFoundException(
-                            "SubCategory not found with id: " + productDTO.getSubCategoryId()));
+                            "SubCategory not found with id: " + subCategoryId));
         }
 
         Product product = modelMapper.map(productDTO, Product.class);

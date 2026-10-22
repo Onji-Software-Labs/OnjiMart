@@ -19,6 +19,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import com.sattva.service.UserService;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class SupplierServiceImpl implements SupplierService {
@@ -333,37 +334,109 @@ public class SupplierServiceImpl implements SupplierService {
         supplierRepository.save(supplier);
         }
 
-    // Add categories and subcategories to a supplier
-    @Override
-    public SupplierDTO addCategoriesAndSubCategoriesToSupplier(String supplierId, List<String> categoryIds, List<String> subCategoryIds) {
-        // Fetch the supplier by its ID
+ 
+        @Override
+        public SupplierDTO addCategoriesAndSubCategoriesToSupplier(
+                String supplierId,
+                List<String> categoryIds,
+                List<String> subCategoryIds) {
+
         Supplier supplier = supplierRepository.findById(supplierId)
-                .orElseThrow(() -> new ResourceNotFoundException("Supplier not found with id: " + supplierId));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Supplier not found with id: " + supplierId));
 
-        // Add categories to the supplier
-        Set<Category> categories = new HashSet<>();
-        for (String categoryId : categoryIds) {
-            Category category = categoryRepository.findById(categoryId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + categoryId));
-            categories.add(category);
+        // Add categories only if they are not already linked.
+        if (categoryIds != null) {
+                for (String categoryId : categoryIds) {
+                Category category = categoryRepository.findById(categoryId)
+                        .orElseThrow(() -> new ResourceNotFoundException(
+                                "Category not found with id: " + categoryId));
+
+                boolean alreadyLinked = supplier.getCategories().stream()
+                        .anyMatch(existing ->
+                                existing.getId().equals(categoryId));
+
+                if (!alreadyLinked) {
+                        supplier.getCategories().add(category);
+                }
+                }
         }
-        supplier.getCategories().addAll(categories);
 
-        // Add subcategories to the supplier
-        Set<SubCategory> subCategories = new HashSet<>();
-        for (String subCategoryId : subCategoryIds) {
-            SubCategory subCategory = subCategoryRepository.findById(subCategoryId)
-                    .orElseThrow(() -> new ResourceNotFoundException("SubCategory not found with id: " + subCategoryId));
-            subCategories.add(subCategory);
+        // Add subcategories only if they are not already linked.
+        if (subCategoryIds != null) {
+                for (String subCategoryId : subCategoryIds) {
+                SubCategory subCategory = subCategoryRepository.findById(subCategoryId)
+                        .orElseThrow(() -> new ResourceNotFoundException(
+                                "SubCategory not found with id: " + subCategoryId));
+
+                // Ensure the parent category is also linked to this supplier.
+                String parentCategoryId = subCategory.getCategory().getId();
+
+                boolean parentCategoryLinked = supplier.getCategories().stream()
+                        .anyMatch(category ->
+                                category.getId().equals(parentCategoryId));
+
+                if (!parentCategoryLinked) {
+                        supplier.getCategories().add(subCategory.getCategory());
+                }
+
+                boolean alreadyLinked = supplier.getSubCategories().stream()
+                        .anyMatch(existing ->
+                                existing.getId().equals(subCategoryId));
+
+                if (!alreadyLinked) {
+                        supplier.getSubCategories().add(subCategory);
+                }
+                }
         }
-        supplier.getSubCategories().addAll(subCategories);
 
-        // Save the updated supplier
         Supplier savedSupplier = supplierRepository.save(supplier);
 
-        // Map the saved supplier to SupplierDTO and return it
         return modelMapper.map(savedSupplier, SupplierDTO.class);
-    }
+        }
+
+    
+        // Remove category and subcategory links from a supplier without deleting catalog records
+       
+       
+        @Override
+        @Transactional
+        public void removeCategoriesAndSubCategoriesFromSupplier(
+                String supplierId,
+                List<String> categoryIds,
+                List<String> subCategoryIds) {
+
+        Supplier supplier = supplierRepository.findById(supplierId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Supplier not found with id: " + supplierId));
+
+        if (categoryIds != null && !categoryIds.isEmpty()) {
+                supplier.getCategories().removeIf(category ->
+                        categoryIds.contains(category.getId()));
+        }
+
+        if (subCategoryIds != null && !subCategoryIds.isEmpty()) {
+                supplier.getSubCategories().removeIf(subCategory ->
+                        subCategoryIds.contains(subCategory.getId()));
+        }
+
+        supplierRepository.saveAndFlush(supplier);
+
+        // Verify the relationship after removal.
+        boolean stillLinked = subCategoryIds != null
+                && supplier.getSubCategories().stream()
+                        .anyMatch(subCategory ->
+                                subCategoryIds.contains(subCategory.getId()));
+
+        if (stillLinked) {
+                throw new IllegalStateException(
+                        "Subcategory relationship was not removed for supplier: "
+                                + supplierId);
+        }
+        }
+
+
+
 
     // Get list of subcategories for a supplier and a specific category
     @Override
@@ -382,17 +455,48 @@ public class SupplierServiceImpl implements SupplierService {
     }
 
     // Get list of categories for a supplier
-    @Override
-    public List<CategoryDTO> getCategoriesForSupplier(String supplierId) {
-        // Fetch the supplier by its ID
-        Supplier supplier = supplierRepository.findById(supplierId)
-                .orElseThrow(() -> new ResourceNotFoundException("Supplier not found with id: " + supplierId));
+   
+        @Override
+        public List<CategoryDTO> getCategoriesForSupplier(String supplierId) {
 
-        // Map the categories of the supplier to CategoryDTO and return the list
+        Supplier supplier = supplierRepository.findById(supplierId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Supplier not found with id: " + supplierId));
+
+        // Get only subcategories actually linked to this supplier.
+        Set<String> linkedSubCategoryIds = supplier.getSubCategories()
+                .stream()
+                .map(SubCategory::getId)
+                .collect(Collectors.toSet());
+
         return supplier.getCategories().stream()
-                .map(category -> modelMapper.map(category, CategoryDTO.class))
+                .map(category -> {
+
+                        // Map category details.
+                        CategoryDTO categoryDTO =
+                                modelMapper.map(category, CategoryDTO.class);
+
+                        // Include only this supplier's linked subcategories
+                        // that belong to the current category.
+                        List<SubCategoryDTO> linkedSubCategories =
+                                supplier.getSubCategories().stream()
+                                        .filter(subCategory ->
+                                                subCategory.getCategory() != null
+                                                && subCategory.getCategory().getId()
+                                                        .equals(category.getId()))
+                                        .map(subCategory ->
+                                                modelMapper.map(
+                                                        subCategory,
+                                                        SubCategoryDTO.class))
+                                        .collect(Collectors.toList());
+
+                        categoryDTO.setSubCategories(linkedSubCategories);
+
+                        return categoryDTO;
+                })
                 .collect(Collectors.toList());
-    }	
+        }
+	
 
     private void updateSupplierCategoriesAndSubCategories(Supplier supplier, List<String> categoryIds, List<String> subCategoryIds) {
         Set<Category> categories = categoryIds.stream()
